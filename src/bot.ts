@@ -10,11 +10,85 @@ export class EnBot {
   private adminUserIds: number[];
 
   constructor(token: string, allowedGroupId: string, adminUserIds: number[] = []) {
-    this.bot = new TelegramBot(token, { polling: true });
+    this.bot = new TelegramBot(token, { polling: false });
     this.db = new Database();
     this.allowedGroupId = allowedGroupId;
     this.adminUserIds = adminUserIds;
     this.setupHandlers();
+  }
+
+  async setupWebhook(webhookUrl: string): Promise<void> {
+    try {
+      console.log(`🔗 Setting up webhook: ${webhookUrl}`);
+      await this.bot.setWebHook(webhookUrl);
+      console.log('✅ Webhook configured successfully');
+    } catch (error) {
+      console.error('❌ Failed to setup webhook:', error);
+      throw error;
+    }
+  }
+
+  async deleteWebhook(): Promise<void> {
+    try {
+      console.log('🗑️ Deleting webhook...');
+      await this.bot.deleteWebHook();
+      console.log('✅ Webhook deleted successfully');
+    } catch (error) {
+      console.error('❌ Failed to delete webhook:', error);
+      throw error;
+    }
+  }
+
+  async processUpdate(update: any): Promise<void> {
+    try {
+      // Process the update using the bot's internal handler
+      if (update.message) {
+        const msg = update.message;
+        
+        // Handle text commands
+        if (msg.text) {
+          if (msg.text.startsWith('/start')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              this.bot.sendMessage(msg.chat.id, '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin.');
+              return;
+            }
+            this.startTransaction(msg);
+          } else if (msg.text.startsWith('/help')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            this.showHelp(msg);
+          } else if (msg.text.startsWith('/cancel')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            this.cancelTransaction(msg);
+          } else if (msg.text.startsWith('/history')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            this.showTransactionHistory(msg);
+          } else {
+            // Handle regular text messages
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            this.handleTextMessage(msg);
+          }
+        }
+      }
+      
+      // Handle callback queries
+      if (update.callback_query) {
+        const callbackQuery = update.callback_query;
+        if (!callbackQuery.message?.chat.id || !this.isAllowedChat(callbackQuery.message.chat.id, callbackQuery.from.id)) {
+          return;
+        }
+        this.handleCallbackQuery(callbackQuery);
+      }
+    } catch (error) {
+      console.error('❌ Error processing update:', error);
+    }
   }
 
   private setupHandlers(): void {
