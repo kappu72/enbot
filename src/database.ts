@@ -4,6 +4,15 @@ import path from 'path';
 
 const dbPath = process.env.DATABASE_PATH || './data/transactions.db';
 
+// Ensure data directory exists
+import fs from 'fs';
+import path from 'path';
+
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
 export class Database {
   private db: sqlite3.Database;
 
