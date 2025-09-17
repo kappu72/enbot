@@ -6,9 +6,16 @@
   "author": "",
   "license": "MIT",
   "scripts": {
-    "clean": "rm -rf node_modules dist"
+    "clean": "rm -rf node_modules dist",
+    "dev": "supabase functions serve enbot-webhook --no-verify-jwt",
+    "deploy": "supabase functions deploy enbot-webhook",
+    "type-check": "deno check supabase/functions/enbot-webhook/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
   }
 }
