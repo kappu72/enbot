@@ -449,7 +449,7 @@ export class EnBot {
       
     } catch (error) {
       console.error('Error showing transaction history:', error);
-      this.bot.sendMessage(, '❌ Errore durante il recupero della cronologia delle transazioni.');
+      this.bot.sendMessage(msg.chat.id, '❌ Errore durante il recupero della cronologia delle transazioni.');
     }
   }
 
