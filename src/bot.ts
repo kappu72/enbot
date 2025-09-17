@@ -1,17 +1,17 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { Database } from './database';
+import { SupabaseDatabase } from './supabase-database';
 import { UserSession, Transaction, FAMILY_OPTIONS, CATEGORY_OPTIONS } from './types';
 
 export class EnBot {
   private bot: TelegramBot;
-  private db: Database;
+  private db: SupabaseDatabase;
   private userSessions: Map<number, UserSession> = new Map();
   private allowedGroupId: string;
   private adminUserIds: number[];
 
   constructor(token: string, allowedGroupId: string, adminUserIds: number[] = []) {
     this.bot = new TelegramBot(token, { polling: false });
-    this.db = new Database();
+    this.db = new SupabaseDatabase();
     this.allowedGroupId = allowedGroupId;
     this.adminUserIds = adminUserIds;
     this.setupHandlers();
