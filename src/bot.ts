@@ -484,10 +484,6 @@ export class EnBot {
   private async sendTestMessage(msg: TelegramBot.Message, target: string): Promise<void> {
     try {
       console.log(`📤 Sending test message to: ${target}`);
-      
-      // Rimuovi @ se presente
-      const cleanTarget = target.startsWith('@') ? target.substring(1) : target;
-      
       const testMessage = `
 🧪 **Messaggio di Test**
 
