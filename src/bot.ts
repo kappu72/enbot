@@ -68,6 +68,11 @@ export class EnBot {
               return;
             }
             this.showTransactionHistory(msg);
+          } else if (msg.text.startsWith('/getid')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            this.showChatId(msg);
           } else {
             // Handle regular text messages
             if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
@@ -123,6 +128,14 @@ export class EnBot {
         return;
       }
       this.showTransactionHistory(msg);
+    });
+
+    // Get ID command
+    this.bot.onText(/\/getid/, (msg) => {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+        return;
+      }
+      this.showChatId(msg);
     });
 
     // Handle callback queries (inline keyboard buttons)
@@ -449,6 +462,33 @@ export class EnBot {
     return chunks;
   }
 
+  private showChatId(msg: TelegramBot.Message): void {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id;
+    const username = msg.from?.username;
+    const firstName = msg.from?.first_name;
+    const lastName = msg.from?.last_name;
+    
+    const idMessage = `
+🆔 **Informazioni Chat e Utente:**
+
+**Chat ID:** \`${chatId}\`
+**User ID:** \`${userId}\`
+**Username:** @${username || 'N/A'}
+**Nome:** ${firstName || 'N/A'} ${lastName || ''}
+
+**Tipo Chat:** ${msg.chat.type}
+**Titolo Chat:** ${msg.chat.title || 'N/A'}
+
+💡 **Come usare:**
+• Per chat private: usa il **User ID**
+• Per gruppi: usa il **Chat ID** (numero negativo)
+• Per canali: usa il **Chat ID** (numero negativo con -100)
+    `;
+
+    this.bot.sendMessage(msg.chat.id, idMessage, { parse_mode: 'Markdown' });
+  }
+
   private showHelp(msg: TelegramBot.Message): void {
     const helpMessage = `
 🤖 **EnBot - Gestione Transazioni**
@@ -456,6 +496,7 @@ export class EnBot {
 **Comandi disponibili:**
 • /start - Inizia una nuova transazione
 • /history - Mostra le ultime 10 transazioni
+• /getid - Mostra ID chat e utente
 • /help - Mostra questo messaggio di aiuto
 • /cancel - Annulla la transazione in corso
 
