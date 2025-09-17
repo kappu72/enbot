@@ -449,7 +449,7 @@ export class EnBot {
       
     } catch (error) {
       console.error('Error showing transaction history:', error);
-      this.bot.sendMessage(msg.chat.id, '❌ Errore durante il recupero della cronologia delle transazioni.');
+      this.bot.sendMessage(, '❌ Errore durante il recupero della cronologia delle transazioni.');
     }
   }
 
@@ -498,12 +498,14 @@ Ciao! Questo è un messaggio di test inviato dal bot EnBot.
 
 Se ricevi questo messaggio, significa che il bot può contattarti correttamente! ✅
       `;
-
-      // Prova a inviare il messaggio
-      await this.bot.sendMessage(`@${cleanTarget}`, testMessage, { parse_mode: 'Markdown' });
-      
-      // Conferma al mittente
-      this.bot.sendMessage(msg.chat.id, `✅ Messaggio di test inviato a @${cleanTarget}`, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(msg.chat.id, "Flusso completato!", {
+  reply_markup: {
+    inline_keyboard: [[{
+      text: "💬 Invia messaggio privato",
+      url: `https://t.me/${target}?text=${testMessage}`
+    }]]
+  }
+});
       
     } catch (error) {
       console.error('❌ Error sending test message:', error);
