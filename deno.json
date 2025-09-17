@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["deno.window"],
-    "strict": true
+    "lib": ["deno.window", "deno.ns", "es2022"],
+    "strict": true,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false
   },
   "lint": {
     "rules": {
@@ -20,5 +23,9 @@
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
     "@supabase/functions-js/edge-runtime": "jsr:@supabase/functions-js/edge-runtime"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --watch supabase/functions/enbot-webhook/index.ts",
+    "check": "deno check supabase/functions/enbot-webhook/index.ts"
   }
 }
