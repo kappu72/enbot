@@ -66,7 +66,12 @@ export class EnBot {
     const chatId = msg.chat.id;
     const userId = msg.from?.id;
 
-    if (!userId) return;
+    console.log(`🚀 Starting transaction for user ${userId} in chat ${chatId}`);
+
+    if (!userId) {
+      console.log('❌ No userId found, cannot start transaction');
+      return;
+    }
 
     // Initialize user session
     this.userSessions.set(userId, {
@@ -76,6 +81,7 @@ export class EnBot {
       transactionData: {}
     });
 
+    console.log(`✅ Session created for user ${userId}, step: family`);
     this.sendFamilySelection(chatId);
   }
 
@@ -135,60 +141,85 @@ export class EnBot {
     const userId = msg.from?.id;
     const text = msg.text;
 
-    if (!userId || !text) return;
+    console.log(`📨 Received text message from user ${userId}: "${text}"`);
+
+    if (!userId || !text) {
+      console.log('❌ Missing userId or text, ignoring message');
+      return;
+    }
 
     const session = this.userSessions.get(userId);
-    if (!session) return;
+    if (!session) {
+      console.log(`❌ No session found for user ${userId}`);
+      return;
+    }
+
+    console.log(`🔄 Processing message for user ${userId}, current step: ${session.step}`);
 
     switch (session.step) {
       case 'amount':
+        console.log(`💰 Handling amount input: "${text}"`);
         this.handleAmountInput(chatId, userId, text, session);
         break;
       case 'period':
+        console.log(`📅 Handling period input: "${text}"`);
         this.handlePeriodInput(chatId, userId, text, session);
         break;
       case 'contact':
+        console.log(`👤 Handling contact input: "${text}"`);
         this.handleContactInput(chatId, userId, text, session);
         break;
+      default:
+        console.log(`❓ Unknown step: ${session.step}`);
     }
   }
 
   private handleAmountInput(chatId: number, userId: number, text: string, session: UserSession): void {
+    console.log(`💰 Processing amount input: "${text}" for user ${userId}`);
     const amount = parseFloat(text);
+    console.log(`💰 Parsed amount: ${amount}`);
     
     if (isNaN(amount) || amount <= 0) {
+      console.log(`❌ Invalid amount: ${amount}`);
       this.bot.sendMessage(chatId, '❌ Inserisci un importo valido in EUR (es. 25.50):');
       return;
     }
 
     session.transactionData.amount = amount;
     session.step = 'period';
+    console.log(`✅ Amount saved: ${amount}, moving to period step`);
     
     this.bot.sendMessage(chatId, '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
   }
 
   private handlePeriodInput(chatId: number, userId: number, text: string, session: UserSession): void {
+    console.log(`📅 Processing period input: "${text}" for user ${userId}`);
     // Simple date validation
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(text)) {
+      console.log(`❌ Invalid date format: "${text}"`);
       this.bot.sendMessage(chatId, '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):');
       return;
     }
 
     session.transactionData.period = text;
     session.step = 'contact';
+    console.log(`✅ Period saved: ${text}, moving to contact step`);
     
     this.bot.sendMessage(chatId, '👤 Inserisci il username del contatto (es. @username):');
   }
 
   private handleContactInput(chatId: number, userId: number, text: string, session: UserSession): void {
+    console.log(`👤 Processing contact input: "${text}" for user ${userId}`);
     // Validate username format
     if (!text.startsWith('@')) {
+      console.log(`❌ Invalid username format: "${text}"`);
       this.bot.sendMessage(chatId, '❌ Inserisci un username valido che inizi con @ (es. @username):');
       return;
     }
 
     session.transactionData.contact = text;
+    console.log(`✅ Contact saved: ${text}, completing transaction`);
     
     // Complete the transaction
     this.completeTransaction(chatId, userId, session);
