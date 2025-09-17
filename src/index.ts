@@ -7,6 +7,7 @@ dotenv.config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const allowedGroupId = process.env.ALLOWED_GROUP_ID;
+const adminUserIds = process.env.ADMIN_USER_IDS ? process.env.ADMIN_USER_IDS.split(',').map(id => parseInt(id.trim())) : [];
 const port = process.env.PORT || 3000;
 
 if (!token) {
@@ -22,9 +23,10 @@ if (!allowedGroupId) {
 console.log('🚀 Starting EnBot...');
 console.log(`📱 Bot Token: ${token.substring(0, 10)}...`);
 console.log(`👥 Allowed Group ID: ${allowedGroupId}`);
+console.log(`👑 Admin User IDs: ${adminUserIds.join(', ')}`);
 
 try {
-  const bot = new EnBot(token, allowedGroupId);
+  const bot = new EnBot(token, allowedGroupId, adminUserIds);
   console.log('✅ EnBot started successfully!');
   
   // Create HTTP server to satisfy Render's port binding requirement
