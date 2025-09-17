@@ -73,6 +73,14 @@ export class EnBot {
               return;
             }
             this.showChatId(msg);
+          } else if (msg.text.startsWith('/testmsg')) {
+            if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+              return;
+            }
+            const match = msg.text.match(/\/testmsg (.+)/);
+            if (match) {
+              this.sendTestMessage(msg, match[1]);
+            }
           } else {
             // Handle regular text messages
             if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
@@ -136,6 +144,17 @@ export class EnBot {
         return;
       }
       this.showChatId(msg);
+    });
+
+    // Test message command
+    this.bot.onText(/\/testmsg (.+)/, (msg, match) => {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+        return;
+      }
+      const target = match?.[1];
+      if (target) {
+        this.sendTestMessage(msg, target);
+      }
     });
 
     // Handle callback queries (inline keyboard buttons)
@@ -462,6 +481,49 @@ export class EnBot {
     return chunks;
   }
 
+  private async sendTestMessage(msg: TelegramBot.Message, target: string): Promise<void> {
+    try {
+      console.log(`📤 Sending test message to: ${target}`);
+      
+      // Rimuovi @ se presente
+      const cleanTarget = target.startsWith('@') ? target.substring(1) : target;
+      
+      const testMessage = `
+🧪 **Messaggio di Test**
+
+Ciao! Questo è un messaggio di test inviato dal bot EnBot.
+
+**Inviato da:** ${msg.from?.first_name} (${msg.from?.username ? '@' + msg.from.username : 'N/A'})
+**Timestamp:** ${new Date().toLocaleString('it-IT')}
+
+Se ricevi questo messaggio, significa che il bot può contattarti correttamente! ✅
+      `;
+
+      // Prova a inviare il messaggio
+      await this.bot.sendMessage(`@${cleanTarget}`, testMessage, { parse_mode: 'Markdown' });
+      
+      // Conferma al mittente
+      this.bot.sendMessage(msg.chat.id, `✅ Messaggio di test inviato a @${cleanTarget}`, { parse_mode: 'Markdown' });
+      
+    } catch (error) {
+      console.error('❌ Error sending test message:', error);
+      
+      let errorMessage = '❌ Errore nell\'invio del messaggio.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('chat not found')) {
+          errorMessage = '❌ Chat non trovata. L\'utente potrebbe non aver mai scritto al bot.';
+        } else if (error.message.includes('user is deactivated')) {
+          errorMessage = '❌ L\'utente è disattivato.';
+        } else if (error.message.includes('blocked')) {
+          errorMessage = '❌ L\'utente ha bloccato il bot.';
+        }
+      }
+      
+      this.bot.sendMessage(msg.chat.id, errorMessage);
+    }
+  }
+
   private showChatId(msg: TelegramBot.Message): void {
     const chatId = msg.chat.id;
     const userId = msg.from?.id;
@@ -497,6 +559,7 @@ export class EnBot {
 • /start - Inizia una nuova transazione
 • /history - Mostra le ultime 10 transazioni
 • /getid - Mostra ID chat e utente
+• /testmsg @username - Invia messaggio di test a un utente
 • /help - Mostra questo messaggio di aiuto
 • /cancel - Annulla la transazione in corso
 
@@ -513,6 +576,9 @@ export class EnBot {
 • quota mensile
 • quota iscrizione
 • altro
+
+**Comandi di test:**
+• /testmsg @nome - Testa l'invio di messaggi
     `;
 
     this.bot.sendMessage(msg.chat.id, helpMessage, { parse_mode: 'Markdown' });
