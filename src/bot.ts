@@ -7,19 +7,21 @@ export class EnBot {
   private db: Database;
   private userSessions: Map<number, UserSession> = new Map();
   private allowedGroupId: string;
+  private adminUserIds: number[];
 
-  constructor(token: string, allowedGroupId: string) {
+  constructor(token: string, allowedGroupId: string, adminUserIds: number[] = []) {
     this.bot = new TelegramBot(token, { polling: true });
     this.db = new Database();
     this.allowedGroupId = allowedGroupId;
+    this.adminUserIds = adminUserIds;
     this.setupHandlers();
   }
 
   private setupHandlers(): void {
     // Start command
     this.bot.onText(/\/start/, (msg) => {
-      if (!this.isAllowedChat(msg.chat.id)) {
-        this.bot.sendMessage(msg.chat.id, '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato.');
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+        this.bot.sendMessage(msg.chat.id, '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin.');
         return;
       }
       this.startTransaction(msg);
@@ -27,7 +29,7 @@ export class EnBot {
 
     // Help command
     this.bot.onText(/\/help/, (msg) => {
-      if (!this.isAllowedChat(msg.chat.id)) {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
         return;
       }
       this.showHelp(msg);
@@ -35,7 +37,7 @@ export class EnBot {
 
     // Cancel command
     this.bot.onText(/\/cancel/, (msg) => {
-      if (!this.isAllowedChat(msg.chat.id)) {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
         return;
       }
       this.cancelTransaction(msg);
@@ -43,7 +45,7 @@ export class EnBot {
 
     // Handle callback queries (inline keyboard buttons)
     this.bot.on('callback_query', (callbackQuery) => {
-      if (!callbackQuery.message?.chat.id || !this.isAllowedChat(callbackQuery.message.chat.id)) {
+      if (!callbackQuery.message?.chat.id || !this.isAllowedChat(callbackQuery.message.chat.id, callbackQuery.from.id)) {
         return;
       }
       this.handleCallbackQuery(callbackQuery);
@@ -51,14 +53,19 @@ export class EnBot {
 
     // Handle text messages
     this.bot.on('message', (msg) => {
-      if (!this.isAllowedChat(msg.chat.id) || msg.text?.startsWith('/')) {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id) || msg.text?.startsWith('/')) {
         return;
       }
       this.handleTextMessage(msg);
     });
   }
 
-  private isAllowedChat(chatId: number): boolean {
+  private isAllowedChat(chatId: number, userId?: number): boolean {
+    // Allow admin users from any chat
+    if (userId && this.adminUserIds.includes(userId)) {
+      return true;
+    }
+    // Allow anyone from the specified group
     return chatId.toString() === this.allowedGroupId;
   }
 
