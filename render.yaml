@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: telegram-transaction-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ALLOWED_GROUP_ID
+        sync: false
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/transactions.db
