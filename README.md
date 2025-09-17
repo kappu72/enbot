@@ -1,14 +1,15 @@
 # EnBot - Telegram Bot for Cash Transaction Management
 
-A TypeScript-based Telegram bot for managing cash transactions with form-based input and group restrictions.
+A TypeScript-based Telegram bot for managing cash transactions with form-based input and group restrictions, deployed on Supabase Edge Functions.
 
 ## Features
 
 - 📝 Form-based transaction input with dropdown selections
 - 👥 Group restriction (only works in specified Telegram group)
-- 💾 SQLite database for data storage
+- 💾 PostgreSQL database via Supabase
 - 🔔 Automatic notifications to specified contacts
-- 🚀 Deployed on Render.com
+- 🚀 Deployed on Supabase Edge Functions
+- ⚡ Serverless architecture with global edge deployment
 
 ## Transaction Fields
 
@@ -34,59 +35,67 @@ A TypeScript-based Telegram bot for managing cash transactions with form-based i
 3. Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
 4. Find the `chat.id` for your group (it will be negative for groups)
 
-### 3. Environment Variables
+### 3. Supabase Setup
 
-Create a `.env` file with:
+1. Create a new project on [Supabase](https://supabase.com)
+2. Run the migration to create the transactions table:
+   ```sql
+   CREATE TABLE transactions (
+     id SERIAL PRIMARY KEY,
+     family TEXT NOT NULL,
+     category TEXT NOT NULL,
+     amount DECIMAL(10,2) NOT NULL,
+     period TEXT NOT NULL,
+     contact TEXT NOT NULL,
+     recorded_by TEXT NOT NULL,
+     recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     chat_id BIGINT NOT NULL
+   );
+   ```
 
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-ALLOWED_GROUP_ID=your_group_id_here
-DATABASE_PATH=./data/transactions.db
-NODE_ENV=production
-PORT=3000
+### 4. Environment Variables
+
+Configure these environment variables in your Supabase project:
+
+- `TELEGRAM_BOT_TOKEN`: Your bot token from BotFather
+- `ALLOWED_GROUP_ID`: Your Telegram group ID
+- `ADMIN_USER_IDS`: Comma-separated list of admin user IDs (optional)
+- `SUPABASE_URL`: Your Supabase project URL (auto-configured)
+- `SUPABASE_ANON_KEY`: Your Supabase anon key (auto-configured)
+
+## Deployment on Supabase Edge Functions
+
+### 1. Deploy the Function
+
+The bot is deployed as a Supabase Edge Function. The function code is located in:
+- `supabase/functions/enbot-webhook/index.ts` - Main webhook handler
+- `supabase/functions/enbot-webhook/bot.ts` - Bot logic
+
+### 2. Configuration
+
+The function is configured in `supabase/config.toml`:
+
+```toml
+[functions.enbot-webhook]
+verify_jwt = false
 ```
 
-### 4. Local Development
+This disables JWT verification to allow Telegram webhooks to reach the function.
+
+### 3. Webhook Setup
+
+After deployment, configure the Telegram webhook to point to your Edge Function:
 
 ```bash
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Start the bot
-npm start
-
-# Or run in development mode
-npm run dev
+curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://<YOUR_PROJECT_ID>.supabase.co/functions/v1/enbot-webhook/webhook"}'
 ```
 
-## Deployment on Render.com
+### 4. Function Endpoints
 
-### 1. Create Service
-
-1. Go to [Render.com](https://render.com)
-2. Create a new Web Service
-3. Connect your GitHub repository
-4. Use the following settings:
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npm start`
-   - **Environment**: Node
-
-### 2. Environment Variables
-
-Add these environment variables in Render dashboard:
-
-- `TELEGRAM_BOT_TOKEN`: Your bot token
-- `ALLOWED_GROUP_ID`: Your group ID
-- `NODE_ENV`: `production`
-- `PORT`: `3000`
-- `DATABASE_PATH`: `/opt/render/project/data/transactions.db`
-
-### 3. Deploy
-
-The service will automatically deploy when you push to your repository.
+- **Webhook**: `https://<YOUR_PROJECT_ID>.supabase.co/functions/v1/enbot-webhook/webhook`
+- **Health Check**: `https://<YOUR_PROJECT_ID>.supabase.co/functions/v1/enbot-webhook/`
 
 ## Usage
 
@@ -108,25 +117,36 @@ The service will automatically deploy when you push to your repository.
 
 ## Database Schema
 
+The bot uses a PostgreSQL table in Supabase:
+
 ```sql
 CREATE TABLE transactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   family TEXT NOT NULL,
   category TEXT NOT NULL,
-  amount REAL NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
   period TEXT NOT NULL,
   contact TEXT NOT NULL,
-  recordedBy TEXT NOT NULL,
-  recordedAt TEXT NOT NULL,
-  chatId INTEGER NOT NULL
+  recorded_by TEXT NOT NULL,
+  recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  chat_id BIGINT NOT NULL
 );
 ```
 
+## Architecture
+
+- **Edge Functions**: Serverless TypeScript functions running on Deno
+- **Database**: PostgreSQL via Supabase
+- **Authentication**: JWT verification disabled for webhook endpoint
+- **Sessions**: Managed in memory within function instances
+- **Global Deployment**: Automatically deployed to edge locations worldwide
+
 ## Security
 
-- Bot only responds to messages from the specified group
-- All user sessions are managed in memory
-- Database is persistent and stored on disk
+- Bot only responds to messages from the specified group or admin users
+- Webhook endpoint is public but validates Telegram updates
+- All user sessions are managed in memory within function scope
+- Database access is secured through Supabase Row Level Security (if configured)
 
 ## License
 
