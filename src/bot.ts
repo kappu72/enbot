@@ -43,6 +43,14 @@ export class EnBot {
       this.cancelTransaction(msg);
     });
 
+    // History command
+    this.bot.onText(/\/history/, (msg) => {
+      if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
+        return;
+      }
+      this.showTransactionHistory(msg);
+    });
+
     // Handle callback queries (inline keyboard buttons)
     this.bot.on('callback_query', (callbackQuery) => {
       if (!callbackQuery.message?.chat.id || !this.isAllowedChat(callbackQuery.message.chat.id, callbackQuery.from.id)) {
@@ -294,12 +302,86 @@ export class EnBot {
     }
   }
 
+  private async showTransactionHistory(msg: TelegramBot.Message): Promise<void> {
+    try {
+      console.log(`📊 Showing transaction history for user ${msg.from?.id}`);
+      const transactions = await this.db.getTransactions(10);
+      
+      if (transactions.length === 0) {
+        this.bot.sendMessage(msg.chat.id, '📋 Nessuna transazione trovata nel database.');
+        return;
+      }
+
+      let historyMessage = '📊 **Ultime 10 Transazioni:**\n\n';
+      
+      transactions.forEach((transaction, index) => {
+        const date = new Date(transaction.recordedAt).toLocaleDateString('it-IT');
+        const time = new Date(transaction.recordedAt).toLocaleTimeString('it-IT', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        
+        historyMessage += `**${index + 1}.** #${transaction.id}\n`;
+        historyMessage += `👨‍👩‍👧‍👦 **Famiglia:** ${transaction.family}\n`;
+        historyMessage += `📋 **Categoria:** ${transaction.category}\n`;
+        historyMessage += `💰 **Importo:** €${transaction.amount}\n`;
+        historyMessage += `📅 **Periodo:** ${transaction.period}\n`;
+        historyMessage += `👤 **Contatto:** ${transaction.contact}\n`;
+        historyMessage += `✍️ **Registrato da:** ${transaction.recordedBy}\n`;
+        historyMessage += `🕒 **Data:** ${date} alle ${time}\n\n`;
+      });
+
+      // Split message if too long (Telegram has a 4096 character limit)
+      if (historyMessage.length > 4000) {
+        const chunks = this.splitMessage(historyMessage, 4000);
+        for (const chunk of chunks) {
+          await this.bot.sendMessage(msg.chat.id, chunk, { parse_mode: 'Markdown' });
+        }
+      } else {
+        await this.bot.sendMessage(msg.chat.id, historyMessage, { parse_mode: 'Markdown' });
+      }
+      
+    } catch (error) {
+      console.error('Error showing transaction history:', error);
+      this.bot.sendMessage(msg.chat.id, '❌ Errore durante il recupero della cronologia delle transazioni.');
+    }
+  }
+
+  private splitMessage(message: string, maxLength: number): string[] {
+    const chunks: string[] = [];
+    let currentChunk = '';
+    
+    const lines = message.split('\n');
+    
+    for (const line of lines) {
+      if (currentChunk.length + line.length + 1 > maxLength) {
+        if (currentChunk.length > 0) {
+          chunks.push(currentChunk.trim());
+          currentChunk = line;
+        } else {
+          // Single line is too long, split it
+          chunks.push(line.substring(0, maxLength));
+          currentChunk = line.substring(maxLength);
+        }
+      } else {
+        currentChunk += (currentChunk.length > 0 ? '\n' : '') + line;
+      }
+    }
+    
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks;
+  }
+
   private showHelp(msg: TelegramBot.Message): void {
     const helpMessage = `
 🤖 **EnBot - Gestione Transazioni**
 
 **Comandi disponibili:**
 • /start - Inizia una nuova transazione
+• /history - Mostra le ultime 10 transazioni
 • /help - Mostra questo messaggio di aiuto
 • /cancel - Annulla la transazione in corso
 
