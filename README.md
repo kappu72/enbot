@@ -10,6 +10,7 @@ A TypeScript-based Telegram bot for managing cash transactions with form-based i
 - 🔔 Automatic notifications to specified contacts
 - 🚀 Deployed on Supabase Edge Functions
 - ⚡ Serverless architecture with global edge deployment
+- 📈 **Google Sheets integration** for automatic data export and synchronization
 
 ## Transaction Fields
 
@@ -135,6 +136,7 @@ pnpm run test-webhook
 - `/start` - Begin a new transaction
 - `/help` - Show help message
 - `/cancel` - Cancel current transaction
+- `/sync-sheets` - Manage Google Sheets synchronization (requires setup)
 
 ### Transaction Flow
 
@@ -145,6 +147,25 @@ pnpm run test-webhook
 5. User enters period (YYYY-MM-DD)
 6. User enters contact username (@username)
 7. Bot saves transaction and sends notifications
+8. **Optional**: Transaction is automatically synced to Google Sheets (if configured)
+
+## Google Sheets Integration
+
+EnBot supports automatic synchronization with Google Sheets for data export and analysis.
+
+### Features
+- **Automatic sync**: New transactions are automatically pushed to Google Sheets
+- **Manual sync**: Use `/sync-sheets` command for bulk operations
+- **Bulk export**: Sync all transactions or recent ones
+- **Data management**: Clear sheets while preserving headers
+
+### Setup
+See [Google Sheets Setup Guide](./docs/google-sheets-setup.md) for detailed configuration instructions.
+
+### Commands
+- **Sync All**: Export all transactions from database to Google Sheets
+- **Sync Recent**: Export transactions from the last 7 days
+- **Clear Sheets**: Remove all data from sheet (keeps headers)
 
 ## Database Schema
 

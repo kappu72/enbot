@@ -10,6 +10,7 @@ import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quot
 import { HelpCommand } from './commands/help-command.ts';
 import { SessionsCommand } from './commands/sessions-command.ts';
 import { TransactionsCommand } from './commands/transactions-command.ts';
+import { SyncSheetsCommand } from './commands/sync-sheets-command.ts';
 
 export class EnBot {
   private telegram: TelegramClient;
@@ -52,6 +53,7 @@ export class EnBot {
     this.commandRegistry.registerCommand(HelpCommand);
     this.commandRegistry.registerCommand(SessionsCommand);
     this.commandRegistry.registerCommand(TransactionsCommand);
+    this.commandRegistry.registerCommand(SyncSheetsCommand);
 
     console.log('🎯 Command system initialized');
   }
