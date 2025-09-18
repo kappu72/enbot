@@ -132,4 +132,86 @@ export class SessionManager {
     const session = await this.loadSession(userId);
     return session !== null;
   }
+
+  /**
+   * Clean all expired sessions (admin function)
+   */
+  async cleanAllExpiredSessions(): Promise<{ deleted: number }> {
+    try {
+      const { count, error } = await this.supabase
+        .from('user_sessions')
+        .delete({ count: 'exact' })
+        .lt('expires_at', new Date().toISOString());
+
+      if (error) {
+        console.error('❌ Error cleaning all expired sessions:', error);
+        throw error;
+      }
+
+      const deletedCount = count || 0;
+      console.log(`🧹 Cleaned ${deletedCount} expired sessions`);
+      return { deleted: deletedCount };
+    } catch (error) {
+      console.error('❌ Failed to clean all expired sessions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean all sessions (admin function) - use with caution
+   */
+  async cleanAllSessions(): Promise<{ deleted: number }> {
+    try {
+      const { count, error } = await this.supabase
+        .from('user_sessions')
+        .delete({ count: 'exact' });
+
+      if (error) {
+        console.error('❌ Error cleaning all sessions:', error);
+        throw error;
+      }
+
+      const deletedCount = count || 0;
+      console.log(`🧹 Cleaned all ${deletedCount} sessions`);
+      return { deleted: deletedCount };
+    } catch (error) {
+      console.error('❌ Failed to clean all sessions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get session statistics (admin function)
+   */
+  async getSessionStats(): Promise<{
+    total: number;
+    expired: number;
+    active: number;
+  }> {
+    try {
+      // Get total sessions
+      const { count: totalCount, error: totalError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      if (totalError) throw totalError;
+
+      // Get expired sessions
+      const { count: expiredCount, error: expiredError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true })
+        .lt('expires_at', new Date().toISOString());
+
+      if (expiredError) throw expiredError;
+
+      const total = totalCount || 0;
+      const expired = expiredCount || 0;
+      const active = total - expired;
+
+      return { total, expired, active };
+    } catch (error) {
+      console.error('❌ Failed to get session stats:', error);
+      throw error;
+    }
+  }
 }
