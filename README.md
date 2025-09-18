@@ -97,6 +97,37 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
 - **Webhook**: `https://<YOUR_PROJECT_ID>.supabase.co/functions/v1/enbot-webhook/webhook`
 - **Health Check**: `https://<YOUR_PROJECT_ID>.supabase.co/functions/v1/enbot-webhook/`
 
+## Local Development
+
+### 1. Setup Environment
+```bash
+# Copy the example file
+cp .local.env.example .local.env
+
+# Edit .local.env with your actual values
+```
+
+### 2. Development Scripts
+```bash
+# Local development with polling (recommended)
+pnpm run dev
+
+# Serve Edge Function locally (requires Supabase CLI)
+pnpm run dev:serve
+
+# Type check
+pnpm run type-check
+
+# Test deployed webhook
+pnpm run test-webhook
+```
+
+### 3. Development Mode Features
+- 🔄 **Hot reload**: Changes are automatically detected
+- 📨 **Polling mode**: No webhook setup needed
+- 🔍 **Type checking**: Full Deno TypeScript support
+- 🧪 **Testing**: Built-in webhook testing
+
 ## Usage
 
 ### Commands
