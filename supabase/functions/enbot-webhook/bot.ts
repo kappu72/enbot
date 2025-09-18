@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
 // Types
 interface Transaction {
@@ -22,16 +22,16 @@ interface UserSession {
 
 const FAMILY_OPTIONS = [
   'Famiglia Rossi',
-  'Famiglia Bianchi', 
+  'Famiglia Bianchi',
   'Famiglia Verdi',
   'Famiglia Neri',
-  'Famiglia Blu'
+  'Famiglia Blu',
 ];
 
 const CATEGORY_OPTIONS = [
   'quota mensile',
-  'quota iscrizione', 
-  'altro'
+  'quota iscrizione',
+  'altro',
 ];
 
 export class EnBot {
@@ -41,10 +41,10 @@ export class EnBot {
   private adminUserIds: number[];
 
   constructor(
-    private botToken: string, 
-    allowedGroupId: string, 
+    private botToken: string,
+    allowedGroupId: string,
     adminUserIds: number[] = [],
-    supabase: SupabaseClient
+    supabase: SupabaseClient,
   ) {
     this.supabase = supabase;
     this.allowedGroupId = allowedGroupId;
@@ -65,12 +65,15 @@ export class EnBot {
       // Process the update
       if (update.message) {
         const msg = update.message;
-        
+
         // Handle text commands
         if (msg.text) {
           if (msg.text.startsWith('/start')) {
             if (!this.isAllowedChat(msg.chat.id, msg.from?.id)) {
-              await this.sendMessage(msg.chat.id, '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin.');
+              await this.sendMessage(
+                msg.chat.id,
+                '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin.',
+              );
               return;
             }
             await this.startTransaction(msg);
@@ -111,11 +114,17 @@ export class EnBot {
           }
         }
       }
-      
+
       // Handle callback queries
       if (update.callback_query) {
         const callbackQuery = update.callback_query;
-        if (!callbackQuery.message?.chat.id || !this.isAllowedChat(callbackQuery.message.chat.id, callbackQuery.from.id)) {
+        if (
+          !callbackQuery.message?.chat.id ||
+          !this.isAllowedChat(
+            callbackQuery.message.chat.id,
+            callbackQuery.from.id,
+          )
+        ) {
           return;
         }
         await this.handleCallbackQuery(callbackQuery);
@@ -141,7 +150,7 @@ export class EnBot {
       chatId,
       userId,
       step: 'family',
-      transactionData: {}
+      transactionData: {},
     });
 
     console.log(`✅ Session created for user ${userId}, step: family`);
@@ -151,10 +160,10 @@ export class EnBot {
   private async sendFamilySelection(chatId: number): Promise<void> {
     const keyboard = {
       reply_markup: {
-        inline_keyboard: FAMILY_OPTIONS.map(family => [
-          { text: family, callback_data: `family_${family}` }
-        ])
-      }
+        inline_keyboard: FAMILY_OPTIONS.map((family) => [
+          { text: family, callback_data: `family_${family}` },
+        ]),
+      },
     };
 
     await this.sendMessage(chatId, '👨‍👩‍👧‍👦 Seleziona la famiglia:', keyboard);
@@ -163,10 +172,10 @@ export class EnBot {
   private async sendCategorySelection(chatId: number): Promise<void> {
     const keyboard = {
       reply_markup: {
-        inline_keyboard: CATEGORY_OPTIONS.map(category => [
-          { text: category, callback_data: `category_${category}` }
-        ])
-      }
+        inline_keyboard: CATEGORY_OPTIONS.map((category) => [
+          { text: category, callback_data: `category_${category}` },
+        ]),
+      },
     };
 
     await this.sendMessage(chatId, '📋 Seleziona la categoria:', keyboard);
@@ -186,16 +195,25 @@ export class EnBot {
       const family = data.replace('family_', '');
       session.transactionData.family = family;
       session.step = 'category';
-      
-      await this.answerCallbackQuery(callbackQuery.id, `Famiglia selezionata: ${family}`);
+
+      await this.answerCallbackQuery(
+        callbackQuery.id,
+        `Famiglia selezionata: ${family}`,
+      );
       await this.sendCategorySelection(chatId);
     } else if (data.startsWith('category_')) {
       const category = data.replace('category_', '');
       session.transactionData.category = category;
       session.step = 'amount';
-      
-      await this.answerCallbackQuery(callbackQuery.id, `Categoria selezionata: ${category}`);
-      await this.sendMessage(chatId, '💰 Inserisci l\'importo in EUR (es. 25.50):');
+
+      await this.answerCallbackQuery(
+        callbackQuery.id,
+        `Categoria selezionata: ${category}`,
+      );
+      await this.sendMessage(
+        chatId,
+        "💰 Inserisci l'importo in EUR (es. 25.50):",
+      );
     }
   }
 
@@ -217,7 +235,9 @@ export class EnBot {
       return;
     }
 
-    console.log(`🔄 Processing message for user ${userId}, current step: ${session.step}`);
+    console.log(
+      `🔄 Processing message for user ${userId}, current step: ${session.step}`,
+    );
 
     switch (session.step) {
       case 'amount':
@@ -237,58 +257,92 @@ export class EnBot {
     }
   }
 
-  private async handleAmountInput(chatId: number, userId: number, text: string, session: UserSession): Promise<void> {
+  private async handleAmountInput(
+    chatId: number,
+    userId: number,
+    text: string,
+    session: UserSession,
+  ): Promise<void> {
     console.log(`💰 Processing amount input: "${text}" for user ${userId}`);
     const amount = parseFloat(text);
     console.log(`💰 Parsed amount: ${amount}`);
-    
+
     if (isNaN(amount) || amount <= 0) {
       console.log(`❌ Invalid amount: ${amount}`);
-      await this.sendMessage(chatId, '❌ Inserisci un importo valido in EUR (es. 25.50):');
+      await this.sendMessage(
+        chatId,
+        '❌ Inserisci un importo valido in EUR (es. 25.50):',
+      );
       return;
     }
 
     session.transactionData.amount = amount;
     session.step = 'period';
     console.log(`✅ Amount saved: ${amount}, moving to period step`);
-    
-    await this.sendMessage(chatId, '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
+
+    await this.sendMessage(
+      chatId,
+      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+    );
   }
 
-  private async handlePeriodInput(chatId: number, userId: number, text: string, session: UserSession): Promise<void> {
+  private async handlePeriodInput(
+    chatId: number,
+    userId: number,
+    text: string,
+    session: UserSession,
+  ): Promise<void> {
     console.log(`📅 Processing period input: "${text}" for user ${userId}`);
     // Simple date validation
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(text)) {
       console.log(`❌ Invalid date format: "${text}"`);
-      await this.sendMessage(chatId, '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):');
+      await this.sendMessage(
+        chatId,
+        '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):',
+      );
       return;
     }
 
     session.transactionData.period = text;
     session.step = 'contact';
     console.log(`✅ Period saved: ${text}, moving to contact step`);
-    
-    await this.sendMessage(chatId, '👤 Inserisci il username del contatto (es. @username):');
+
+    await this.sendMessage(
+      chatId,
+      '👤 Inserisci il username del contatto (es. @username):',
+    );
   }
 
-  private async handleContactInput(chatId: number, userId: number, text: string, session: UserSession): Promise<void> {
+  private async handleContactInput(
+    chatId: number,
+    userId: number,
+    text: string,
+    session: UserSession,
+  ): Promise<void> {
     console.log(`👤 Processing contact input: "${text}" for user ${userId}`);
     // Validate username format
     if (!text.startsWith('@')) {
       console.log(`❌ Invalid username format: "${text}"`);
-      await this.sendMessage(chatId, '❌ Inserisci un username valido che inizi con @ (es. @username):');
+      await this.sendMessage(
+        chatId,
+        '❌ Inserisci un username valido che inizi con @ (es. @username):',
+      );
       return;
     }
 
     session.transactionData.contact = text;
     console.log(`✅ Contact saved: ${text}, completing transaction`);
-    
+
     // Complete the transaction
     await this.completeTransaction(chatId, userId, session);
   }
 
-  private async completeTransaction(chatId: number, userId: number, session: UserSession): Promise<void> {
+  private async completeTransaction(
+    chatId: number,
+    userId: number,
+    session: UserSession,
+  ): Promise<void> {
     try {
       const transaction = {
         family: session.transactionData.family!,
@@ -298,7 +352,7 @@ export class EnBot {
         contact: session.transactionData.contact!,
         recorded_by: `@${userId}`,
         recorded_at: new Date().toISOString(),
-        chat_id: chatId
+        chat_id: chatId,
       };
 
       const { data, error } = await this.supabase
@@ -309,12 +363,15 @@ export class EnBot {
 
       if (error) {
         console.error('Error saving transaction:', error);
-        await this.sendMessage(chatId, '❌ Errore durante il salvataggio della transazione. Riprova.');
+        await this.sendMessage(
+          chatId,
+          '❌ Errore durante il salvataggio della transazione. Riprova.',
+        );
         return;
       }
 
       const transactionId = data.id;
-      
+
       // Send confirmation to the group
       const confirmationMessage = `
 ✅ **Transazione registrata con successo!**
@@ -331,7 +388,9 @@ export class EnBot {
 📤 **Notifica inviata a:** ${transaction.contact}
       `;
 
-      await this.sendMessage(chatId, confirmationMessage, { parse_mode: 'Markdown' });
+      await this.sendMessage(chatId, confirmationMessage, {
+        parse_mode: 'Markdown',
+      });
 
       // Send notification to the contact
       const notificationMessage = `
@@ -347,25 +406,32 @@ export class EnBot {
       `;
 
       try {
-        await this.sendMessage(transaction.contact, notificationMessage, { parse_mode: 'Markdown' });
+        await this.sendMessage(transaction.contact, notificationMessage, {
+          parse_mode: 'Markdown',
+        });
       } catch (error) {
         console.error('Error sending notification:', error);
-        await this.sendMessage(chatId, `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`);
+        await this.sendMessage(
+          chatId,
+          `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`,
+        );
       }
 
       // Clear session
       this.userSessions.delete(userId);
-
     } catch (error) {
       console.error('Error saving transaction:', error);
-      await this.sendMessage(chatId, '❌ Errore durante il salvataggio della transazione. Riprova.');
+      await this.sendMessage(
+        chatId,
+        '❌ Errore durante il salvataggio della transazione. Riprova.',
+      );
     }
   }
 
   private async showTransactionHistory(msg: any): Promise<void> {
     try {
       console.log(`📊 Showing transaction history for user ${msg.from?.id}`);
-      
+
       const { data, error } = await this.supabase
         .from('transactions')
         .select('*')
@@ -374,24 +440,35 @@ export class EnBot {
 
       if (error) {
         console.error('Error fetching transactions:', error);
-        await this.sendMessage(msg.chat.id, '❌ Errore durante il recupero della cronologia delle transazioni.');
+        await this.sendMessage(
+          msg.chat.id,
+          '❌ Errore durante il recupero della cronologia delle transazioni.',
+        );
         return;
       }
-      
+
       if (data.length === 0) {
-        await this.sendMessage(msg.chat.id, '📋 Nessuna transazione trovata nel database.');
+        await this.sendMessage(
+          msg.chat.id,
+          '📋 Nessuna transazione trovata nel database.',
+        );
         return;
       }
 
       let historyMessage = '📊 **Ultime 10 Transazioni:**\n\n';
-      
+
       data.forEach((transaction, index) => {
-        const date = new Date(transaction.recorded_at).toLocaleDateString('it-IT');
-        const time = new Date(transaction.recorded_at).toLocaleTimeString('it-IT', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
-        
+        const date = new Date(transaction.recorded_at).toLocaleDateString(
+          'it-IT',
+        );
+        const time = new Date(transaction.recorded_at).toLocaleTimeString(
+          'it-IT',
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+          },
+        );
+
         historyMessage += `**${index + 1}.** #${transaction.id}\n`;
         historyMessage += `👨‍👩‍👧‍👦 **Famiglia:** ${transaction.family}\n`;
         historyMessage += `📋 **Categoria:** ${transaction.category}\n`;
@@ -406,24 +483,30 @@ export class EnBot {
       if (historyMessage.length > 4000) {
         const chunks = this.splitMessage(historyMessage, 4000);
         for (const chunk of chunks) {
-          await this.sendMessage(msg.chat.id, chunk, { parse_mode: 'Markdown' });
+          await this.sendMessage(msg.chat.id, chunk, {
+            parse_mode: 'Markdown',
+          });
         }
       } else {
-        await this.sendMessage(msg.chat.id, historyMessage, { parse_mode: 'Markdown' });
+        await this.sendMessage(msg.chat.id, historyMessage, {
+          parse_mode: 'Markdown',
+        });
       }
-      
     } catch (error) {
       console.error('Error showing transaction history:', error);
-      await this.sendMessage(msg.chat.id, '❌ Errore durante il recupero della cronologia delle transazioni.');
+      await this.sendMessage(
+        msg.chat.id,
+        '❌ Errore durante il recupero della cronologia delle transazioni.',
+      );
     }
   }
 
   private splitMessage(message: string, maxLength: number): string[] {
     const chunks: string[] = [];
     let currentChunk = '';
-    
+
     const lines = message.split('\n');
-    
+
     for (const line of lines) {
       if (currentChunk.length + line.length + 1 > maxLength) {
         if (currentChunk.length > 0) {
@@ -438,11 +521,11 @@ export class EnBot {
         currentChunk += (currentChunk.length > 0 ? '\n' : '') + line;
       }
     }
-    
+
     if (currentChunk.length > 0) {
       chunks.push(currentChunk.trim());
     }
-    
+
     return chunks;
   }
 
@@ -452,7 +535,7 @@ export class EnBot {
     const username = msg.from?.username;
     const firstName = msg.from?.first_name;
     const lastName = msg.from?.last_name;
-    
+
     const idMessage = `
 🆔 **Informazioni Chat e Utente:**
 
@@ -503,7 +586,9 @@ export class EnBot {
 • /testmsg @nome - Testa l'invio di messaggi
     `;
 
-    await this.sendMessage(msg.chat.id, helpMessage, { parse_mode: 'Markdown' });
+    await this.sendMessage(msg.chat.id, helpMessage, {
+      parse_mode: 'Markdown',
+    });
   }
 
   private async cancelTransaction(msg: any): Promise<void> {
@@ -515,66 +600,77 @@ export class EnBot {
       this.userSessions.delete(userId);
       await this.sendMessage(msg.chat.id, '❌ Transazione annullata.');
     } else {
-      await this.sendMessage(msg.chat.id, 'ℹ️ Nessuna transazione in corso da annullare.');
+      await this.sendMessage(
+        msg.chat.id,
+        'ℹ️ Nessuna transazione in corso da annullare.',
+      );
     }
   }
 
   private async sendTestMessage(msg: any, target: string): Promise<void> {
     try {
       console.log(`📤 Sending test message to: ${target}`);
-      
+
       const testMessage = `
 🧪 **Messaggio di Test**
 
 Ciao! Questo è un messaggio di test inviato dal bot EnBot.
 
-**Inviato da:** ${msg.from?.first_name} (${msg.from?.username ? '@' + msg.from.username : 'N/A'})
+**Inviato da:** ${msg.from?.first_name} (${
+        msg.from?.username ? '@' + msg.from.username : 'N/A'
+      })
 **Timestamp:** ${new Date().toLocaleString('it-IT')}
 
 Se ricevi questo messaggio, significa che il bot può contattarti correttamente! ✅
       `;
-      
-      await this.sendMessage(msg.chat.id, "Flusso completato!", {
+
+      await this.sendMessage(msg.chat.id, 'Flusso completato!', {
         reply_markup: {
           inline_keyboard: [[{
-            text: "💬 Invia messaggio privato",
-            url: `https://t.me/${target}?text=${encodeURIComponent(testMessage)}`
-          }]]
-        }
+            text: '💬 Invia messaggio privato',
+            url: `https://t.me/${target}?text=${
+              encodeURIComponent(testMessage)
+            }`,
+          }]],
+        },
       });
-        
     } catch (error) {
       console.error('❌ Error sending test message:', error);
-      
-      let errorMessage = '❌ Errore nell\'invio del messaggio.';
-      
+
+      let errorMessage = "❌ Errore nell'invio del messaggio.";
+
       if (error instanceof Error) {
         if (error.message.includes('chat not found')) {
-          errorMessage = '❌ Chat non trovata. L\'utente potrebbe non aver mai scritto al bot.';
+          errorMessage =
+            "❌ Chat non trovata. L'utente potrebbe non aver mai scritto al bot.";
         } else if (error.message.includes('user is deactivated')) {
-          errorMessage = '❌ L\'utente è disattivato.';
+          errorMessage = "❌ L'utente è disattivato.";
         } else if (error.message.includes('blocked')) {
-          errorMessage = '❌ L\'utente ha bloccato il bot.';
+          errorMessage = "❌ L'utente ha bloccato il bot.";
         }
       }
-      
+
       await this.sendMessage(msg.chat.id, errorMessage);
     }
   }
 
   // Telegram API methods
-  private async sendMessage(chatId: number | string, text: string, options?: any): Promise<void> {
+  private async sendMessage(
+    chatId: number | string,
+    text: string,
+    options?: any,
+  ): Promise<void> {
     const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
     const payload = {
       chat_id: chatId,
       text: text,
-      ...options
+      ...options,
     };
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -583,17 +679,21 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
     }
   }
 
-  private async answerCallbackQuery(callbackQueryId: string, text: string): Promise<void> {
-    const url = `https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`;
+  private async answerCallbackQuery(
+    callbackQueryId: string,
+    text: string,
+  ): Promise<void> {
+    const url =
+      `https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`;
     const payload = {
       callback_query_id: callbackQueryId,
-      text: text
+      text: text,
     };
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -611,7 +711,7 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -633,7 +733,7 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
