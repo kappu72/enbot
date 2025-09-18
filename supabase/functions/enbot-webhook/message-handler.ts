@@ -123,7 +123,7 @@ export class MessageHandler {
   async showHelp(msg: TelegramMessage): Promise<void> {
     const userId = msg.from?.id;
     const isAdmin = userId && this.config.adminUserIds.includes(userId);
-    
+
     let helpMessage = `
 🤖 **EnBot - Gestione Transazioni**
 
@@ -311,7 +311,9 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
         parse_mode: 'Markdown',
       });
 
-      console.log(`✅ Session cleanup completed: ${deletedCount} expired sessions removed`);
+      console.log(
+        `✅ Session cleanup completed: ${deletedCount} expired sessions removed`,
+      );
     } catch (error) {
       console.error('❌ Error in cleanSessions:', error);
       await this.telegram.sendMessage(
@@ -394,7 +396,9 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
         parse_mode: 'Markdown',
       });
 
-      console.log(`✅ Complete session cleanup completed: ${totalSessions} sessions removed`);
+      console.log(
+        `✅ Complete session cleanup completed: ${totalSessions} sessions removed`,
+      );
     } catch (error) {
       console.error('❌ Error in cleanAllSessions:', error);
       await this.telegram.sendMessage(
@@ -457,7 +461,9 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
         parse_mode: 'Markdown',
       });
 
-      console.log(`📊 Session stats displayed: total=${total}, active=${active}, expired=${expired}`);
+      console.log(
+        `📊 Session stats displayed: total=${total}, active=${active}, expired=${expired}`,
+      );
     } catch (error) {
       console.error('❌ Error in showSessionStats:', error);
       await this.telegram.sendMessage(
