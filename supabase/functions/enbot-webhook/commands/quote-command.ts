@@ -1,7 +1,11 @@
 // Quote command implementation - skips category selection
-import type { CommandContext, CommandResult, CommandSession } from './command-interface.ts';
+import type {
+  CommandContext,
+  CommandResult,
+  CommandSession,
+} from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
-import type { TelegramMessage, TelegramCallbackQuery } from '../types.ts';
+import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { FAMILY_OPTIONS } from '../types.ts';
 
 export class QuoteCommand extends BaseCommand {
@@ -15,9 +19,9 @@ export class QuoteCommand extends BaseCommand {
       return message.text === '/quote' || this.isQuoteInput(message.text);
     } else {
       // Handle callback queries for family selection
-      return message.data?.startsWith('quote_family_') || 
-             message.data === 'quote_recover_session' ||
-             message.data === 'quote_cancel_session';
+      return message.data?.startsWith('quote_family_') ||
+        message.data === 'quote_recover_session' ||
+        message.data === 'quote_cancel_session';
     }
   }
 
@@ -26,8 +30,9 @@ export class QuoteCommand extends BaseCommand {
     const amountRegex = /^\d+(\.\d{1,2})?$/;
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     const usernameRegex = /^@\w+$/;
-    
-    return amountRegex.test(text) || dateRegex.test(text) || usernameRegex.test(text);
+
+    return amountRegex.test(text) || dateRegex.test(text) ||
+      usernameRegex.test(text);
   }
 
   async execute(): Promise<CommandResult> {
@@ -36,11 +41,13 @@ export class QuoteCommand extends BaseCommand {
     } else if (this.context.callbackQuery) {
       return await this.handleCallbackQuery(this.context.callbackQuery);
     }
-    
+
     return { success: false, message: 'No message or callback query provided' };
   }
 
-  private async handleMessage(message: TelegramMessage): Promise<CommandResult> {
+  private async handleMessage(
+    message: TelegramMessage,
+  ): Promise<CommandResult> {
     if (message.text === '/quote') {
       return await this.startQuote();
     } else {
@@ -48,9 +55,11 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
-  private async handleCallbackQuery(callbackQuery: TelegramCallbackQuery): Promise<CommandResult> {
+  private async handleCallbackQuery(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
     const data = callbackQuery.data!;
-    
+
     if (data === 'quote_recover_session') {
       return await this.recoverSession();
     } else if (data === 'quote_cancel_session') {
@@ -58,16 +67,18 @@ export class QuoteCommand extends BaseCommand {
     } else if (data.startsWith('quote_family_')) {
       return await this.handleFamilySelection(callbackQuery);
     }
-    
+
     return { success: false, message: 'Unknown callback data' };
   }
 
   private async startQuote(): Promise<CommandResult> {
     // Check if user has an existing quote session
     const existingSession = await this.loadSession();
-    
+
     if (existingSession) {
-      console.log(`🔄 Found existing quote session for user ${this.context.userId}, step: ${existingSession.step}`);
+      console.log(
+        `🔄 Found existing quote session for user ${this.context.userId}, step: ${existingSession.step}`,
+      );
       await this.showSessionRecovery(existingSession);
       return { success: true, message: 'Quote session recovery shown' };
     }
@@ -88,7 +99,7 @@ export class QuoteCommand extends BaseCommand {
 
     await this.saveSession(session);
     await this.sendFamilySelection();
-    
+
     return { success: true, message: 'Quote started' };
   }
 
@@ -98,7 +109,9 @@ export class QuoteCommand extends BaseCommand {
       return { success: false, message: 'No active quote session found' };
     }
 
-    console.log(`🔄 Processing quote text input for user ${this.context.userId}, step: ${session.step}`);
+    console.log(
+      `🔄 Processing quote text input for user ${this.context.userId}, step: ${session.step}`,
+    );
 
     switch (session.step) {
       case 'amount':
@@ -112,7 +125,9 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
-  private async handleFamilySelection(callbackQuery: TelegramCallbackQuery): Promise<CommandResult> {
+  private async handleFamilySelection(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
     const session = await this.loadSession();
     if (!session) return { success: false, message: 'No active quote session' };
 
@@ -122,17 +137,25 @@ export class QuoteCommand extends BaseCommand {
     session.commandData.family = family;
 
     await this.saveSession(session);
-    await this.answerCallbackQuery(callbackQuery.id, `Famiglia selezionata: ${family}`);
+    await this.answerCallbackQuery(
+      callbackQuery.id,
+      `Famiglia selezionata: ${family}`,
+    );
     await this.sendAmountPrompt();
 
     return { success: true, message: 'Family selected for quote' };
   }
 
-  private async handleAmountInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handleAmountInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     const amount = parseFloat(text);
 
     if (isNaN(amount) || amount <= 0) {
-      await this.sendMessage('❌ Inserisci un importo valido in EUR (es. 25.50):');
+      await this.sendMessage(
+        '❌ Inserisci un importo valido in EUR (es. 25.50):',
+      );
       return { success: false, message: 'Invalid amount' };
     }
 
@@ -141,15 +164,22 @@ export class QuoteCommand extends BaseCommand {
     session.commandData.amount = amount;
 
     await this.saveSession(session);
-    await this.sendMessage('📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
+    await this.sendMessage(
+      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+    );
 
     return { success: true, message: 'Amount entered for quote' };
   }
 
-  private async handlePeriodInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handlePeriodInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(text)) {
-      await this.sendMessage('❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):');
+      await this.sendMessage(
+        '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):',
+      );
       return { success: false, message: 'Invalid date format' };
     }
 
@@ -158,14 +188,21 @@ export class QuoteCommand extends BaseCommand {
     session.commandData.period = text;
 
     await this.saveSession(session);
-    await this.sendMessage('👤 Inserisci il username del contatto (es. @username):');
+    await this.sendMessage(
+      '👤 Inserisci il username del contatto (es. @username):',
+    );
 
     return { success: true, message: 'Period entered for quote' };
   }
 
-  private async handleContactInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handleContactInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     if (!text.startsWith('@')) {
-      await this.sendMessage('❌ Inserisci un username valido che inizi con @ (es. @username):');
+      await this.sendMessage(
+        '❌ Inserisci un username valido che inizi con @ (es. @username):',
+      );
       return { success: false, message: 'Invalid username format' };
     }
 
@@ -196,7 +233,9 @@ export class QuoteCommand extends BaseCommand {
 
       if (error) {
         console.error('Error saving quote transaction:', error);
-        await this.sendMessage('❌ Errore durante il salvataggio della quota. Riprova.');
+        await this.sendMessage(
+          '❌ Errore durante il salvataggio della quota. Riprova.',
+        );
         return { success: false, message: 'Database error' };
       }
 
@@ -215,7 +254,9 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
-  private async showSessionRecovery(existingSession: CommandSession): Promise<void> {
+  private async showSessionRecovery(
+    existingSession: CommandSession,
+  ): Promise<void> {
     const sessionData = existingSession.transactionData;
     const stepNames = {
       'family': 'Selezione Famiglia',
@@ -224,12 +265,14 @@ export class QuoteCommand extends BaseCommand {
       'contact': 'Inserimento Contatto',
     };
 
-    const currentStep = stepNames[existingSession.step as keyof typeof stepNames] || existingSession.step;
-    
+    const currentStep =
+      stepNames[existingSession.step as keyof typeof stepNames] ||
+      existingSession.step;
+
     let sessionInfo = `🔄 **Sessione Quota Precedente Trovata**\n\n`;
     sessionInfo += `📊 **Stato attuale:** ${currentStep}\n`;
     sessionInfo += `📂 **Categoria:** quota mensile (fissa)\n`;
-    
+
     if (sessionData.family) {
       sessionInfo += `👨‍👩‍👧‍👦 **Famiglia:** ${sessionData.family}\n`;
     }
@@ -243,14 +286,18 @@ export class QuoteCommand extends BaseCommand {
       sessionInfo += `📞 **Contatto:** ${sessionData.contact}\n`;
     }
 
-    sessionInfo += `\n🤔 Vuoi riprendere questa sessione quota o iniziare una nuova?`;
+    sessionInfo +=
+      `\n🤔 Vuoi riprendere questa sessione quota o iniziare una nuova?`;
 
     await this.sendMessage(sessionInfo, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '🔄 Riprendi Quota', callback_data: 'quote_recover_session' },
+            {
+              text: '🔄 Riprendi Quota',
+              callback_data: 'quote_recover_session',
+            },
             { text: '🆕 Nuova Quota', callback_data: 'quote_cancel_session' },
           ],
         ],
@@ -262,11 +309,15 @@ export class QuoteCommand extends BaseCommand {
     try {
       const existingSession = await this.loadSession();
       if (!existingSession) {
-        await this.sendMessage('❌ Sessione quota non trovata. Iniziando una nuova quota.');
+        await this.sendMessage(
+          '❌ Sessione quota non trovata. Iniziando una nuova quota.',
+        );
         return await this.startQuote();
       }
 
-      await this.sendMessage('✅ Sessione quota ripristinata! Continuando da dove avevi lasciato...');
+      await this.sendMessage(
+        '✅ Sessione quota ripristinata! Continuando da dove avevi lasciato...',
+      );
 
       // Continue from the current step
       switch (existingSession.step) {
@@ -289,7 +340,9 @@ export class QuoteCommand extends BaseCommand {
       return { success: true, message: 'Quote session recovered' };
     } catch (error) {
       console.error('❌ Error recovering quote session:', error);
-      await this.sendMessage('❌ Errore nel ripristino della sessione quota. Iniziando una nuova quota.');
+      await this.sendMessage(
+        '❌ Errore nel ripristino della sessione quota. Iniziando una nuova quota.',
+      );
       return await this.startQuote();
     }
   }
@@ -297,11 +350,15 @@ export class QuoteCommand extends BaseCommand {
   private async cancelSession(): Promise<CommandResult> {
     try {
       await this.deleteSession();
-      await this.sendMessage('🗑️ Sessione quota precedente cancellata. Iniziando una nuova quota...');
+      await this.sendMessage(
+        '🗑️ Sessione quota precedente cancellata. Iniziando una nuova quota...',
+      );
       return await this.startQuote();
     } catch (error) {
       console.error('❌ Error canceling quote session:', error);
-      await this.sendMessage('❌ Errore nella cancellazione della sessione quota.');
+      await this.sendMessage(
+        '❌ Errore nella cancellazione della sessione quota.',
+      );
       return { success: false, message: 'Cancel error' };
     }
   }
@@ -316,22 +373,34 @@ export class QuoteCommand extends BaseCommand {
       },
     };
 
-    await this.sendMessage('👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:', keyboard);
+    await this.sendMessage(
+      '👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:',
+      keyboard,
+    );
   }
 
   private async sendAmountPrompt(): Promise<void> {
-    await this.sendMessage("💰 Inserisci l'importo della quota in EUR (es. 25.50):");
+    await this.sendMessage(
+      "💰 Inserisci l'importo della quota in EUR (es. 25.50):",
+    );
   }
 
   private async sendPeriodPrompt(): Promise<void> {
-    await this.sendMessage('📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
+    await this.sendMessage(
+      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+    );
   }
 
   private async sendContactPrompt(): Promise<void> {
-    await this.sendMessage('👤 Inserisci il username del contatto (es. @username):');
+    await this.sendMessage(
+      '👤 Inserisci il username del contatto (es. @username):',
+    );
   }
 
-  private async sendConfirmation(transaction: any, transactionId: number): Promise<void> {
+  private async sendConfirmation(
+    transaction: any,
+    transactionId: number,
+  ): Promise<void> {
     const confirmationMessage = `✅ **Quota Mensile Registrata!**
 
 📋 **Dettagli:**
@@ -347,7 +416,10 @@ export class QuoteCommand extends BaseCommand {
     await this.sendMessage(confirmationMessage, { parse_mode: 'Markdown' });
   }
 
-  private async sendNotification(transaction: any, transactionId: number): Promise<void> {
+  private async sendNotification(
+    transaction: any,
+    transactionId: number,
+  ): Promise<void> {
     const notificationMessage = `🔔 **Nuova Quota Mensile Registrata**
 
 📋 **Dettagli:**
@@ -359,9 +431,13 @@ export class QuoteCommand extends BaseCommand {
 • **ID Transazione:** #${transactionId}`;
 
     try {
-      await this.context.telegram.sendMessage(transaction.contact, notificationMessage, {
-        parse_mode: 'Markdown',
-      });
+      await this.context.telegram.sendMessage(
+        transaction.contact,
+        notificationMessage,
+        {
+          parse_mode: 'Markdown',
+        },
+      );
     } catch (error) {
       console.error('Error sending quote notification:', error);
       await this.sendMessage(
