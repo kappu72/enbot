@@ -30,7 +30,7 @@ export class EnBot {
       isDevelopment,
     };
 
-    this.telegram = new TelegramClient(botToken, isDevelopment);
+    this.telegram = new TelegramClient(this.config);
     this.authManager = new AuthManager(this.config);
     this.messageHandler = new MessageHandler(
       supabase,
@@ -44,36 +44,10 @@ export class EnBot {
   }
 
   private initializeCommands(supabase: SupabaseClient): void {
-    // Register all commands
-    this.commandRegistry.registerCommand(
-      new TransactionCommand({
-        supabase,
-        telegram: this.telegram,
-        sessionManager: this.commandRegistry['sessionManager'],
-        userId: 0, // Will be set per request
-        chatId: 0, // Will be set per request
-      }),
-    );
-
-    this.commandRegistry.registerCommand(
-      new QuoteCommand({
-        supabase,
-        telegram: this.telegram,
-        sessionManager: this.commandRegistry['sessionManager'],
-        userId: 0, // Will be set per request
-        chatId: 0, // Will be set per request
-      }),
-    );
-
-    this.commandRegistry.registerCommand(
-      new HelpCommand({
-        supabase,
-        telegram: this.telegram,
-        sessionManager: this.commandRegistry['sessionManager'],
-        userId: 0, // Will be set per request
-        chatId: 0, // Will be set per request
-      }),
-    );
+    // Register command classes (not instances)
+    this.commandRegistry.registerCommand(TransactionCommand);
+    this.commandRegistry.registerCommand(QuoteCommand);
+    this.commandRegistry.registerCommand(HelpCommand);
 
     console.log('🎯 Command system initialized');
   }

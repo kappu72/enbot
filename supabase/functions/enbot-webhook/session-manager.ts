@@ -78,7 +78,7 @@ export class SessionManager {
       chatId: persisted.chat_id,
       userId: persisted.user_id,
       step: persisted.step,
-      transactionData: persisted.transaction_data,
+      transactionData: persisted.transaction_data || {},
     };
   }
 
