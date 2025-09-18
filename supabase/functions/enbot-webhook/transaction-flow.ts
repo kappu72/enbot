@@ -8,15 +8,18 @@ import type {
 } from './types.ts';
 import { CATEGORY_OPTIONS, FAMILY_OPTIONS } from './types.ts';
 import { TelegramClient } from './telegram-client.ts';
+import { SessionManager } from './session-manager.ts';
 
 export class TransactionFlow {
   private userSessions: Map<number, UserSession> = new Map();
   private supabase: SupabaseClient;
   private telegram: TelegramClient;
+  private sessionManager: SessionManager;
 
   constructor(supabase: SupabaseClient, telegram: TelegramClient) {
     this.supabase = supabase;
     this.telegram = telegram;
+    this.sessionManager = new SessionManager(supabase);
   }
 
   async startTransaction(msg: TelegramMessage): Promise<void> {
@@ -30,7 +33,18 @@ export class TransactionFlow {
       return;
     }
 
-    // Initialize user session
+    // Check if user has an existing session
+    const existingSession = await this.sessionManager.loadSession(userId);
+
+    if (existingSession) {
+      console.log(
+        `🔄 Found existing session for user ${userId}, step: ${existingSession.step}`,
+      );
+      await this.showSessionRecovery(chatId, existingSession);
+      return;
+    }
+
+    // Initialize new user session
     this.userSessions.set(userId, {
       chatId,
       userId,
@@ -38,7 +52,10 @@ export class TransactionFlow {
       transactionData: {},
     });
 
-    console.log(`✅ Session created for user ${userId}, step: family`);
+    // Save session to database
+    await this.sessionManager.saveSession(this.userSessions.get(userId)!);
+
+    console.log(`✅ New session created for user ${userId}, step: family`);
     await this.sendFamilySelection(chatId);
   }
 
@@ -50,6 +67,17 @@ export class TransactionFlow {
     const userId = callbackQuery.from.id;
 
     if (!chatId || !data) return;
+
+    // Handle session recovery callbacks
+    if (data === 'recover_session') {
+      await this.recoverSession(userId, chatId);
+      return;
+    }
+
+    if (data === 'cancel_session') {
+      await this.cancelSession(userId, chatId);
+      return;
+    }
 
     const session = this.userSessions.get(userId);
     if (!session) return;
@@ -88,9 +116,11 @@ export class TransactionFlow {
     }
   }
 
-  cancelTransaction(userId: number): boolean {
+  async cancelTransaction(userId: number): Promise<boolean> {
     const session = this.userSessions.get(userId);
     if (session) {
+      // Delete session from database
+      await this.sessionManager.deleteSession(userId);
       this.userSessions.delete(userId);
       return true;
     }
@@ -137,6 +167,9 @@ export class TransactionFlow {
     session.transactionData.family = family;
     session.step = 'category';
 
+    // Save session to database
+    await this.sessionManager.saveSession(session);
+
     await this.telegram.answerCallbackQuery(
       callbackQuery.id,
       `Famiglia selezionata: ${family}`,
@@ -151,6 +184,9 @@ export class TransactionFlow {
     const category = callbackQuery.data!.replace('category_', '');
     session.transactionData.category = category;
     session.step = 'amount';
+
+    // Save session to database
+    await this.sessionManager.saveSession(session);
 
     await this.telegram.answerCallbackQuery(
       callbackQuery.id,
@@ -181,6 +217,9 @@ export class TransactionFlow {
     session.transactionData.amount = amount;
     session.step = 'period';
 
+    // Save session to database
+    await this.sessionManager.saveSession(session);
+
     await this.telegram.sendMessage(
       chatId,
       '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
@@ -204,6 +243,9 @@ export class TransactionFlow {
 
     session.transactionData.period = text;
     session.step = 'contact';
+
+    // Save session to database
+    await this.sessionManager.saveSession(session);
 
     await this.telegram.sendMessage(
       chatId,
@@ -260,6 +302,10 @@ export class TransactionFlow {
         );
         return;
       }
+
+      // Delete session after successful transaction completion
+      await this.sessionManager.deleteSession(userId);
+      this.userSessions.delete(userId);
 
       const transactionId = data.id;
 
@@ -336,5 +382,152 @@ export class TransactionFlow {
         `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`,
       );
     }
+  }
+
+  /**
+   * Show session recovery options to user
+   */
+  private async showSessionRecovery(
+    chatId: number,
+    existingSession: any,
+  ): Promise<void> {
+    const sessionData = existingSession.transaction_data;
+    const stepNames = {
+      'family': 'Selezione Famiglia',
+      'category': 'Selezione Categoria',
+      'amount': 'Inserimento Importo',
+      'period': 'Inserimento Periodo',
+      'contact': 'Inserimento Contatto',
+    };
+
+    const currentStep =
+      stepNames[existingSession.step as keyof typeof stepNames] ||
+      existingSession.step;
+
+    let sessionInfo = `🔄 **Sessione Precedente Trovata**\n\n`;
+    sessionInfo += `📊 **Stato attuale:** ${currentStep}\n`;
+
+    if (sessionData.family) {
+      sessionInfo += `👨‍👩‍👧‍👦 **Famiglia:** ${sessionData.family}\n`;
+    }
+    if (sessionData.category) {
+      sessionInfo += `📂 **Categoria:** ${sessionData.category}\n`;
+    }
+    if (sessionData.amount) {
+      sessionInfo += `💰 **Importo:** €${sessionData.amount}\n`;
+    }
+    if (sessionData.period) {
+      sessionInfo += `📅 **Periodo:** ${sessionData.period}\n`;
+    }
+    if (sessionData.contact) {
+      sessionInfo += `📞 **Contatto:** ${sessionData.contact}\n`;
+    }
+
+    sessionInfo += `\n🤔 Vuoi riprendere questa sessione o iniziare una nuova?`;
+
+    await this.telegram.sendMessage(chatId, sessionInfo, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🔄 Riprendi Sessione', callback_data: 'recover_session' },
+            { text: '🆕 Nuova Sessione', callback_data: 'cancel_session' },
+          ],
+        ],
+      },
+    });
+  }
+
+  /**
+   * Recover existing session
+   */
+  private async recoverSession(userId: number, chatId: number): Promise<void> {
+    try {
+      const existingSession = await this.sessionManager.loadSession(userId);
+      if (!existingSession) {
+        await this.telegram.sendMessage(
+          chatId,
+          '❌ Sessione non trovata. Iniziando una nuova sessione.',
+        );
+        await this.startNewSession(userId, chatId);
+        return;
+      }
+
+      // Convert persisted session to in-memory session
+      const session = this.sessionManager.persistedToMemory(existingSession);
+      this.userSessions.set(userId, session);
+
+      await this.telegram.sendMessage(
+        chatId,
+        '✅ Sessione ripristinata! Continuando da dove avevi lasciato...',
+      );
+
+      // Continue from the current step
+      switch (session.step) {
+        case 'family':
+          await this.sendFamilySelection(chatId);
+          break;
+        case 'category':
+          await this.sendCategorySelection(chatId);
+          break;
+        case 'amount':
+          await this.sendAmountPrompt(chatId);
+          break;
+        case 'period':
+          await this.sendPeriodPrompt(chatId);
+          break;
+        case 'contact':
+          await this.sendContactPrompt(chatId);
+          break;
+        default:
+          await this.sendFamilySelection(chatId);
+      }
+    } catch (error) {
+      console.error('❌ Error recovering session:', error);
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Errore nel ripristino della sessione. Iniziando una nuova sessione.',
+      );
+      await this.startNewSession(userId, chatId);
+    }
+  }
+
+  /**
+   * Cancel existing session and start new one
+   */
+  private async cancelSession(userId: number, chatId: number): Promise<void> {
+    try {
+      // Delete existing session
+      await this.sessionManager.deleteSession(userId);
+      this.userSessions.delete(userId);
+
+      await this.telegram.sendMessage(
+        chatId,
+        '🗑️ Sessione precedente cancellata. Iniziando una nuova sessione...',
+      );
+      await this.startNewSession(userId, chatId);
+    } catch (error) {
+      console.error('❌ Error canceling session:', error);
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Errore nella cancellazione della sessione.',
+      );
+    }
+  }
+
+  /**
+   * Start a completely new session
+   */
+  private async startNewSession(userId: number, chatId: number): Promise<void> {
+    const newSession: UserSession = {
+      chatId,
+      userId,
+      step: 'family',
+      transactionData: {},
+    };
+
+    this.userSessions.set(userId, newSession);
+    await this.sessionManager.saveSession(newSession);
+    await this.sendFamilySelection(chatId);
   }
 }

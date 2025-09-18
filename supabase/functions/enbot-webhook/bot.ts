@@ -106,7 +106,7 @@ export class EnBot {
   private async handleCancel(msg: TelegramUpdate['message']): Promise<void> {
     if (!msg?.from?.id) return;
 
-    const wasActive = this.transactionFlow.cancelTransaction(msg.from.id);
+    const wasActive = await this.transactionFlow.cancelTransaction(msg.from.id);
 
     if (wasActive) {
       await this.telegram.sendMessage(msg.chat.id, '❌ Transazione annullata.');
@@ -131,11 +131,11 @@ export class EnBot {
 
   // Webhook management (delegated to TelegramClient)
   async setupWebhook(webhookUrl: string): Promise<void> {
-    return this.telegram.setupWebhook(webhookUrl);
+    return await this.telegram.setupWebhook(webhookUrl);
   }
 
   async deleteWebhook(): Promise<void> {
-    return this.telegram.deleteWebhook();
+    return await this.telegram.deleteWebhook();
   }
 
   // Utility methods

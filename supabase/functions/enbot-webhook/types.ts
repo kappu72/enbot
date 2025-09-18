@@ -19,6 +19,17 @@ export interface UserSession {
   transactionData: Partial<Transaction>;
 }
 
+export interface PersistedUserSession {
+  id: number;
+  user_id: number;
+  chat_id: number;
+  step: 'idle' | 'family' | 'category' | 'amount' | 'period' | 'contact';
+  transaction_data: Partial<Transaction>;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+}
+
 export interface BotConfig {
   botToken: string;
   allowedGroupId: string;
