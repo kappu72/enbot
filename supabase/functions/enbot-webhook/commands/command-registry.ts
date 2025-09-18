@@ -95,13 +95,18 @@ export class CommandRegistry {
       }
     }
 
-    // If no command can handle it, check for active sessions
-    const persistedSession = await this.sessionManager.loadSession(userId);
-    if (persistedSession) {
-      // Try to find the command that owns this session based on command type
-      const commandType = persistedSession.transaction_data?.commandType ||
-        'transaction';
-      const command = this.createCommandInstance(commandType, context);
+    // If no command directly handles it, check if any command has an active session for this user
+    const allSessions = await this.sessionManager.loadAllUserSessions(userId);
+    if (allSessions.length > 0) {
+      // Try the most recently updated session first
+      const recentSession = allSessions.sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+
+      const command = this.createCommandInstance(
+        recentSession.command_type,
+        context,
+      );
       if (command) {
         console.log(
           `🔄 Continuing session with command: ${command.getCommandName()}`,
@@ -140,13 +145,34 @@ export class CommandRegistry {
       }
     }
 
-    // If no command can handle it, check for active sessions
-    const persistedSession = await this.sessionManager.loadSession(userId);
-    if (persistedSession) {
-      // Try to find the command that owns this session based on command type
-      const commandType = persistedSession.transaction_data?.commandType ||
-        'transaction';
-      const command = this.createCommandInstance(commandType, context);
+    // If no command directly handles it, check if any command has an active session for this user
+    const allSessions = await this.sessionManager.loadAllUserSessions(userId);
+    if (allSessions.length > 0) {
+      // For callbacks, try to match the callback data to the right command type
+      let targetSession = allSessions[0]; // Default to most recent
+
+      if (callbackQuery.data) {
+        // Try to determine command type from callback data
+        if (callbackQuery.data.startsWith('quota_')) {
+          targetSession = allSessions.find((s) => s.command_type === 'quota') ||
+            targetSession;
+        } else if (callbackQuery.data.startsWith('quote_')) {
+          targetSession = allSessions.find((s) => s.command_type === 'quote') ||
+            targetSession;
+        } else if (
+          callbackQuery.data.startsWith('family_') ||
+          callbackQuery.data.startsWith('category_')
+        ) {
+          targetSession = allSessions.find((s) =>
+            s.command_type === 'transaction'
+          ) || targetSession;
+        }
+      }
+
+      const command = this.createCommandInstance(
+        targetSession.command_type,
+        context,
+      );
       if (command) {
         console.log(
           `🔄 Continuing session with command: ${command.getCommandName()}`,

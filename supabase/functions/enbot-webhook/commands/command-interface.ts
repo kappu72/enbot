@@ -21,13 +21,14 @@ export interface CommandContext {
 export interface CommandResult {
   success: boolean;
   message?: string;
+  error?: string;
   shouldContinue?: boolean;
   nextStep?: string;
 }
 
 export interface CommandSession extends UserSession {
   commandType: string;
-  commandData: Record<string, any>;
+  commandData: Record<string, unknown>;
 }
 
 export abstract class BaseCommand {
@@ -61,7 +62,7 @@ export abstract class BaseCommand {
       ...session,
       userId: this.context.userId,
       chatId: this.context.chatId,
-    });
+    }, this.commandName);
   }
 
   /**
@@ -70,6 +71,7 @@ export abstract class BaseCommand {
   protected async loadSession(): Promise<CommandSession | null> {
     const persistedSession = await this.context.sessionManager.loadSession(
       this.context.userId,
+      this.commandName, // Load session specific to this command
     );
     if (!persistedSession) return null;
 
@@ -89,7 +91,10 @@ export abstract class BaseCommand {
    * Delete command session
    */
   protected async deleteSession(): Promise<void> {
-    await this.context.sessionManager.deleteSession(this.context.userId);
+    await this.context.sessionManager.deleteSession(
+      this.context.userId,
+      this.commandName,
+    );
   }
 
   /**
@@ -98,13 +103,17 @@ export abstract class BaseCommand {
   protected async hasActiveSession(): Promise<boolean> {
     return await this.context.sessionManager.hasActiveSession(
       this.context.userId,
+      this.commandName,
     );
   }
 
   /**
    * Send message with command context
    */
-  protected async sendMessage(text: string, options?: any): Promise<void> {
+  protected async sendMessage(
+    text: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
     await this.context.telegram.sendMessage(this.context.chatId, text, options);
   }
 
@@ -113,15 +122,24 @@ export abstract class BaseCommand {
    */
   protected async answerCallbackQuery(
     callbackQueryId: string,
-    text?: string,
+    text: string,
+    chatId: number | string,
+    messageId: number,
   ): Promise<void> {
-    await this.context.telegram.answerCallbackQuery(callbackQueryId, text);
+    await this.context.telegram.answerCallbackQuery(
+      callbackQueryId,
+      text || '',
+      chatId,
+      messageId,
+    );
   }
 
   /**
    * Abstract methods that must be implemented by each command
    */
-  abstract canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean;
+  abstract canHandle(
+    message: TelegramMessage | TelegramCallbackQuery,
+  ): Promise<boolean>;
   abstract execute(): Promise<CommandResult>;
   abstract getHelpText(): string;
   abstract getDescription(): string;

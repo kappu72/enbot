@@ -43,7 +43,24 @@ export class TelegramClient {
   async answerCallbackQuery(
     callbackQueryId: string,
     text: string,
+    chatId: number | string,
+    messageId: number,
   ): Promise<void> {
+    // Update message and remove keyboard
+    await fetch(
+      `https://api.telegram.org/bot${this.botToken}/editMessageText`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text,
+          parse_mode: 'Markdown',
+        }),
+      },
+    );
+
     const url =
       `https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`;
     const payload = {

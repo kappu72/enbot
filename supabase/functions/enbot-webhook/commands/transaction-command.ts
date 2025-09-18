@@ -20,26 +20,15 @@ export class TransactionCommand extends BaseCommand {
   canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean {
     if ('text' in message) {
       // Handle /start command or text input during transaction flow
-      return message.text === '/start' ||
-        message.text === '/transaction' ||
-        this.isTransactionInput(message.text);
-    } else {
+      return message.text === '/start';
+    } else if ('data' in message) {
       // Handle callback queries for family/category selection
       return message.data?.startsWith('family_') ||
         message.data?.startsWith('category_') ||
         message.data === 'recover_session' ||
         message.data === 'cancel_session';
     }
-  }
-
-  private isTransactionInput(text: string): boolean {
-    // Check if this looks like transaction input (amount, date, username)
-    const amountRegex = /^\d+(\.\d{1,2})?$/;
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const usernameRegex = /^@\w+$/;
-
-    return amountRegex.test(text) || dateRegex.test(text) ||
-      usernameRegex.test(text);
+    return false;
   }
 
   async execute(): Promise<CommandResult> {
@@ -142,9 +131,12 @@ export class TransactionCommand extends BaseCommand {
     session.commandData.family = family;
 
     await this.saveSession(session);
+
     await this.answerCallbackQuery(
       callbackQuery.id,
       `Famiglia selezionata: ${family}`,
+      callbackQuery.message!.chat.id,
+      callbackQuery.message!.message_id,
     );
     await this.sendCategorySelection();
 
@@ -166,6 +158,8 @@ export class TransactionCommand extends BaseCommand {
     await this.answerCallbackQuery(
       callbackQuery.id,
       `Categoria selezionata: ${category}`,
+      callbackQuery.message!.chat.id,
+      callbackQuery.message!.message_id,
     );
     await this.sendAmountPrompt();
 

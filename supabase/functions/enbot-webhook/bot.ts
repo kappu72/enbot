@@ -6,8 +6,10 @@ import { MessageHandler } from './message-handler.ts';
 import { AuthManager } from './auth-manager.ts';
 import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
-import { QuoteCommand } from './commands/quote-command.ts';
+import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
+import { SessionsCommand } from './commands/sessions-command.ts';
+import { TransactionsCommand } from './commands/transactions-command.ts';
 
 export class EnBot {
   private telegram: TelegramClient;
@@ -48,6 +50,8 @@ export class EnBot {
     this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(QuoteCommand);
     this.commandRegistry.registerCommand(HelpCommand);
+    this.commandRegistry.registerCommand(SessionsCommand);
+    this.commandRegistry.registerCommand(TransactionsCommand);
 
     console.log('🎯 Command system initialized');
   }
@@ -69,6 +73,7 @@ export class EnBot {
   }
 
   private async handleMessage(msg: TelegramUpdate['message']): Promise<void> {
+    console.log('handleMessage', msg);
     if (!msg?.from?.id) return;
 
     // Check authorization
