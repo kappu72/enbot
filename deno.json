@@ -1,4 +1,5 @@
 {
+  "nodeModulesDir": "auto",
   "compilerOptions": {
     "allowJs": true,
     "lib": ["deno.window", "deno.ns", "es2022"],
@@ -25,7 +26,18 @@
     "@supabase/functions-js/edge-runtime": "jsr:@supabase/functions-js/edge-runtime"
   },
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --watch supabase/functions/enbot-webhook/index.ts",
-    "check": "deno check supabase/functions/enbot-webhook/index.ts"
-  }
+    "dev": "deno run --allow-net --allow-env --allow-read --allow-import --watch local-dev.ts",
+    "check": "deno check supabase/functions/enbot-webhook/index.ts",
+    "check-local": "deno check local-dev.ts",
+    "test-webhook": "deno run --allow-net test-webhook.ts"
+  },
+  "include": [
+    "supabase/functions/**/*.ts",
+    "local-dev.ts",
+    "test-webhook.ts",
+    "types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

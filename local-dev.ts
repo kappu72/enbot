@@ -1,22 +1,26 @@
 #!/usr/bin/env -S deno run --allow-net --allow-env --allow-read
 
+/// <reference path="./types/deno.d.ts" />
+
+import { Bot } from 'https://deno.land/x/grammy@v1.21.1/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { EnBot } from './supabase/functions/enbot-webhook/bot.ts';
 
 // Load environment variables from .local.env file
-import { load } from "https://deno.land/std@0.208.0/dotenv/mod.ts";
+import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
 
-const env = await load({ envPath: "./.local.env" });
+const env = await load({ envPath: './.local.env' });
 
 // Initialize Supabase client
-const supabaseUrl = env.SUPABASE_URL || Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = env.SUPABASE_ANON_KEY || Deno.env.get('SUPABASE_ANON_KEY')!;
+const supabaseUrl = env.SUPABASE_URL;
+const supabaseKey = env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Bot configuration
-const botToken = env.TELEGRAM_BOT_TOKEN || Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-const allowedGroupId = env.ALLOWED_GROUP_ID || Deno.env.get('ALLOWED_GROUP_ID')!;
-const adminUserIds = (env.ADMIN_USER_IDS || Deno.env.get('ADMIN_USER_IDS'))?.split(',').map(id => parseInt(id.trim())) || [];
+const botToken = env.TELEGRAM_BOT_TOKEN;
+const allowedGroupId = env.ALLOWED_GROUP_ID;
+const adminUserIds =
+  env.ADMIN_USER_IDS?.split(',').map((id) => parseInt(id.trim())) || [];
 
 if (!botToken) {
   console.error('❌ TELEGRAM_BOT_TOKEN is required');
@@ -39,69 +43,67 @@ console.log(`👥 Allowed Group ID: ${allowedGroupId}`);
 console.log(`👑 Admin User IDs: ${adminUserIds.join(', ')}`);
 console.log(`🔗 Supabase URL: ${supabaseUrl}`);
 
-// Initialize bot
-const bot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase);
+// Initialize Grammy bot for local development
+const telegramBot = new Bot(botToken);
 
-// Polling configuration
-let lastUpdateId = 0;
-const POLLING_INTERVAL = 1000; // 1 second
+// Initialize our custom bot logic
+const enBot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase);
 
-async function pollForUpdates() {
-  try {
-    const url = `https://api.telegram.org/bot${botToken}/getUpdates`;
-    const params = new URLSearchParams({
-      offset: (lastUpdateId + 1).toString(),
-      timeout: '10',
-      limit: '100'
-    });
+// Set up Grammy bot handlers using our existing EnBot logic
+telegramBot.on('message', async (ctx) => {
+  const update = {
+    update_id: ctx.update.update_id,
+    message: ctx.message,
+  };
 
-    const response = await fetch(`${url}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`Telegram API error: ${response.status}`);
-    }
+  console.log(
+    `📨 Received message from ${ctx.from?.first_name}: "${ctx.message.text}"`,
+  );
+  await enBot.processUpdate(update);
+});
 
-    const data = await response.json();
-    
-    if (data.ok && data.result.length > 0) {
-      console.log(`📨 Received ${data.result.length} update(s)`);
-      
-      for (const update of data.result) {
-        console.log(`🔄 Processing update ${update.update_id}`);
-        await bot.processUpdate(update);
-        lastUpdateId = update.update_id;
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error polling for updates:', error);
-  }
-}
+telegramBot.on('callback_query', async (ctx) => {
+  const update = {
+    update_id: ctx.update.update_id,
+    callback_query: ctx.callbackQuery,
+  };
+
+  console.log(`🔘 Received callback query: ${ctx.callbackQuery.data}`);
+  await enBot.processUpdate(update);
+});
 
 // Clear any existing webhook first
 console.log('🗑️ Clearing webhook for local development...');
 try {
-  await bot.deleteWebhook();
+  await enBot.deleteWebhook();
   console.log('✅ Webhook cleared successfully');
 } catch (error) {
-  console.log('⚠️ Could not clear webhook (might not be set):', error.message);
+  console.log(
+    '⚠️ Could not clear webhook (might not be set):',
+    error instanceof Error ? error.message : error,
+  );
 }
 
-// Start polling
-console.log('🔄 Starting polling for updates...');
+// Start the bot with polling
+console.log('🚀 Starting Grammy bot with polling...');
 console.log('💡 Send a message to your bot to test!');
 console.log('🛑 Press Ctrl+C to stop');
 
-// Poll for updates
-const pollInterval = setInterval(pollForUpdates, POLLING_INTERVAL);
+// Start polling
+telegramBot.start({
+  onStart: (botInfo) => {
+    console.log(`✅ Bot @${botInfo.username} started successfully!`);
+  },
+});
 
 // Graceful shutdown
 const handleShutdown = async () => {
   console.log('\n🛑 Shutting down local bot...');
-  clearInterval(pollInterval);
-  
+  await telegramBot.stop();
+
   // Optionally restore webhook for production
-  // await bot.setupWebhook('https://your-production-webhook-url');
-  
+  // await enBot.setupWebhook('https://your-production-webhook-url');
+
   console.log('✅ Local bot stopped');
   Deno.exit(0);
 };
