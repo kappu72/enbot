@@ -198,13 +198,16 @@ export class QuoteCommand extends BaseCommand {
   }
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
+    // split the period into month and year
+    const [month, year] = session.transactionData.period!.split('-');
     try {
       const transaction = {
         family: session.transactionData.family!,
         category: 'quota mensile', // Fixed category
         amount: session.transactionData.amount!,
         period: session.transactionData.period!,
-        contact: session.transactionData.contact!,
+        month: month,
+        year: year,
         recorded_by: `@${this.context.userId}`,
         recorded_at: new Date().toISOString(),
         chat_id: this.context.chatId,
