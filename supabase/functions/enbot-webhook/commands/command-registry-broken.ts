@@ -1,13 +1,9 @@
-// Command registry and router - Fixed version
+// Command registry and router
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
-import type {
-  Command,
-  CommandContext,
-  CommandResult,
-} from './command-interface.ts';
+import type { Command, CommandContext } from './command-interface.ts';
 
 export class CommandRegistry {
   private commandClasses: Map<string, any> = new Map();
@@ -33,10 +29,7 @@ export class CommandRegistry {
   /**
    * Create a command instance with context
    */
-  private createCommandInstance(
-    commandName: string,
-    context: CommandContext,
-  ): Command | undefined {
+  private createCommandInstance(commandName: string, context: CommandContext): Command | undefined {
     const CommandClass = this.commandClasses.get(commandName);
     if (!CommandClass) return undefined;
     return new CommandClass(context);
@@ -74,6 +67,7 @@ export class CommandRegistry {
     };
   }
 
+
   /**
    * Route a message to the appropriate command
    */
@@ -96,17 +90,22 @@ export class CommandRegistry {
     }
 
     // If no command can handle it, check for active sessions
-    const persistedSession = await this.sessionManager.loadSession(userId);
-    if (persistedSession) {
+    const activeSession = await this.sessionManager.loadSession(userId);
+    if (activeSession) {
       // Try to find the command that owns this session based on command type
-      const commandType = persistedSession.transaction_data?.commandType ||
+      const commandType = activeSession.transactionData?.commandType ||
         'transaction';
-      const command = this.createCommandInstance(commandType, context);
-      if (command) {
+      const sessionCommand = this.commands.get(commandType);
+      if (sessionCommand) {
         console.log(
-          `🔄 Continuing session with command: ${command.getCommandName()}`,
+          `🔄 Continuing session with command: ${sessionCommand.getCommandName()}`,
         );
-        return await command.execute();
+
+        // Update the command context for this request
+        const context = this.createContext(userId, chatId, message);
+        this.updateCommandContext(sessionCommand, context);
+
+        return await sessionCommand.execute();
       }
     }
 
@@ -122,12 +121,7 @@ export class CommandRegistry {
     userId: number,
     chatId: number,
   ): Promise<CommandResult | null> {
-    const context = this.createContext(
-      userId,
-      chatId,
-      undefined,
-      callbackQuery,
-    );
+    const context = this.createContext(userId, chatId, undefined, callbackQuery);
 
     // First, try to find a command that can handle this callback
     for (const [commandName, CommandClass] of this.commandClasses.entries()) {
@@ -141,17 +135,22 @@ export class CommandRegistry {
     }
 
     // If no command can handle it, check for active sessions
-    const persistedSession = await this.sessionManager.loadSession(userId);
-    if (persistedSession) {
+    const activeSession = await this.sessionManager.loadSession(userId);
+    if (activeSession) {
       // Try to find the command that owns this session based on command type
-      const commandType = persistedSession.transaction_data?.commandType ||
+      const commandType = activeSession.transactionData?.commandType ||
         'transaction';
-      const command = this.createCommandInstance(commandType, context);
-      if (command) {
+      const sessionCommand = this.commands.get(commandType);
+      if (sessionCommand) {
         console.log(
-          `🔄 Continuing session with command: ${command.getCommandName()}`,
+          `🔄 Continuing session with command: ${sessionCommand.getCommandName()}`,
         );
-        return await command.execute();
+
+        // Update the command context for this request
+        const context = this.createContext(userId, chatId, message);
+        this.updateCommandContext(sessionCommand, context);
+
+        return await sessionCommand.execute();
       }
     }
 

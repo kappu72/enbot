@@ -30,7 +30,7 @@ export class EnBot {
       isDevelopment,
     };
 
-    this.telegram = new TelegramClient(botToken, isDevelopment);
+    this.telegram = new TelegramClient(this.config);
     this.authManager = new AuthManager(this.config);
     this.messageHandler = new MessageHandler(
       supabase,

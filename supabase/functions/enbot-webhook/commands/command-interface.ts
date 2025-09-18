@@ -1,6 +1,10 @@
 // Command interface and base classes
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import type { TelegramMessage, TelegramCallbackQuery, UserSession } from '../types.ts';
+import type {
+  TelegramCallbackQuery,
+  TelegramMessage,
+  UserSession,
+} from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
 
@@ -64,13 +68,20 @@ export abstract class BaseCommand {
    * Load command session from database
    */
   protected async loadSession(): Promise<CommandSession | null> {
-    const session = await this.context.sessionManager.loadSession(this.context.userId);
-    if (!session) return null;
+    const persistedSession = await this.context.sessionManager.loadSession(
+      this.context.userId,
+    );
+    if (!persistedSession) return null;
+
+    // Convert from snake_case database format to camelCase in-memory format
+    const memorySession = this.context.sessionManager.persistedToMemory(
+      persistedSession,
+    );
 
     return {
-      ...session,
+      ...memorySession,
       commandType: this.commandName,
-      commandData: session.transactionData || {},
+      commandData: persistedSession.transaction_data || {},
     };
   }
 
@@ -85,7 +96,9 @@ export abstract class BaseCommand {
    * Check if user has an active session for this command
    */
   protected async hasActiveSession(): Promise<boolean> {
-    return await this.context.sessionManager.hasActiveSession(this.context.userId);
+    return await this.context.sessionManager.hasActiveSession(
+      this.context.userId,
+    );
   }
 
   /**
@@ -98,7 +111,10 @@ export abstract class BaseCommand {
   /**
    * Answer callback query
    */
-  protected async answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void> {
+  protected async answerCallbackQuery(
+    callbackQueryId: string,
+    text?: string,
+  ): Promise<void> {
     await this.context.telegram.answerCallbackQuery(callbackQueryId, text);
   }
 

@@ -392,6 +392,7 @@ export class TransactionFlow {
     existingSession: any,
   ): Promise<void> {
     const sessionData = existingSession.transaction_data;
+    console.log('sessionData', sessionData);
     const stepNames = {
       'family': 'Selezione Famiglia',
       'category': 'Selezione Categoria',

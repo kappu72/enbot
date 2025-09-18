@@ -1,8 +1,16 @@
 // Transaction command implementation
-import type { CommandContext, CommandResult, CommandSession } from './command-interface.ts';
+import type {
+  CommandContext,
+  CommandResult,
+  CommandSession,
+} from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
-import type { TelegramMessage, TelegramCallbackQuery, Transaction } from '../types.ts';
-import { FAMILY_OPTIONS, CATEGORY_OPTIONS } from '../types.ts';
+import type {
+  TelegramCallbackQuery,
+  TelegramMessage,
+  Transaction,
+} from '../types.ts';
+import { CATEGORY_OPTIONS, FAMILY_OPTIONS } from '../types.ts';
 
 export class TransactionCommand extends BaseCommand {
   constructor(context: CommandContext) {
@@ -12,15 +20,15 @@ export class TransactionCommand extends BaseCommand {
   canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean {
     if ('text' in message) {
       // Handle /start command or text input during transaction flow
-      return message.text === '/start' || 
-             message.text === '/transaction' ||
-             this.isTransactionInput(message.text);
+      return message.text === '/start' ||
+        message.text === '/transaction' ||
+        this.isTransactionInput(message.text);
     } else {
       // Handle callback queries for family/category selection
-      return message.data?.startsWith('family_') || 
-             message.data?.startsWith('category_') ||
-             message.data === 'recover_session' ||
-             message.data === 'cancel_session';
+      return message.data?.startsWith('family_') ||
+        message.data?.startsWith('category_') ||
+        message.data === 'recover_session' ||
+        message.data === 'cancel_session';
     }
   }
 
@@ -29,8 +37,9 @@ export class TransactionCommand extends BaseCommand {
     const amountRegex = /^\d+(\.\d{1,2})?$/;
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     const usernameRegex = /^@\w+$/;
-    
-    return amountRegex.test(text) || dateRegex.test(text) || usernameRegex.test(text);
+
+    return amountRegex.test(text) || dateRegex.test(text) ||
+      usernameRegex.test(text);
   }
 
   async execute(): Promise<CommandResult> {
@@ -39,11 +48,13 @@ export class TransactionCommand extends BaseCommand {
     } else if (this.context.callbackQuery) {
       return await this.handleCallbackQuery(this.context.callbackQuery);
     }
-    
+
     return { success: false, message: 'No message or callback query provided' };
   }
 
-  private async handleMessage(message: TelegramMessage): Promise<CommandResult> {
+  private async handleMessage(
+    message: TelegramMessage,
+  ): Promise<CommandResult> {
     if (message.text === '/start' || message.text === '/transaction') {
       return await this.startTransaction();
     } else {
@@ -51,9 +62,11 @@ export class TransactionCommand extends BaseCommand {
     }
   }
 
-  private async handleCallbackQuery(callbackQuery: TelegramCallbackQuery): Promise<CommandResult> {
+  private async handleCallbackQuery(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
     const data = callbackQuery.data!;
-    
+
     if (data === 'recover_session') {
       return await this.recoverSession();
     } else if (data === 'cancel_session') {
@@ -63,16 +76,18 @@ export class TransactionCommand extends BaseCommand {
     } else if (data.startsWith('category_')) {
       return await this.handleCategorySelection(callbackQuery);
     }
-    
+
     return { success: false, message: 'Unknown callback data' };
   }
 
   private async startTransaction(): Promise<CommandResult> {
     // Check if user has an existing session
     const existingSession = await this.loadSession();
-    
+
     if (existingSession) {
-      console.log(`🔄 Found existing session for user ${this.context.userId}, step: ${existingSession.step}`);
+      console.log(
+        `🔄 Found existing session for user ${this.context.userId}, step: ${existingSession.step}`,
+      );
       await this.showSessionRecovery(existingSession);
       return { success: true, message: 'Session recovery shown' };
     }
@@ -89,7 +104,7 @@ export class TransactionCommand extends BaseCommand {
 
     await this.saveSession(session);
     await this.sendFamilySelection();
-    
+
     return { success: true, message: 'Transaction started' };
   }
 
@@ -99,7 +114,9 @@ export class TransactionCommand extends BaseCommand {
       return { success: false, message: 'No active session found' };
     }
 
-    console.log(`🔄 Processing text input for user ${this.context.userId}, step: ${session.step}`);
+    console.log(
+      `🔄 Processing text input for user ${this.context.userId}, step: ${session.step}`,
+    );
 
     switch (session.step) {
       case 'amount':
@@ -113,7 +130,9 @@ export class TransactionCommand extends BaseCommand {
     }
   }
 
-  private async handleFamilySelection(callbackQuery: TelegramCallbackQuery): Promise<CommandResult> {
+  private async handleFamilySelection(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
     const session = await this.loadSession();
     if (!session) return { success: false, message: 'No active session' };
 
@@ -123,13 +142,18 @@ export class TransactionCommand extends BaseCommand {
     session.commandData.family = family;
 
     await this.saveSession(session);
-    await this.answerCallbackQuery(callbackQuery.id, `Famiglia selezionata: ${family}`);
+    await this.answerCallbackQuery(
+      callbackQuery.id,
+      `Famiglia selezionata: ${family}`,
+    );
     await this.sendCategorySelection();
 
     return { success: true, message: 'Family selected' };
   }
 
-  private async handleCategorySelection(callbackQuery: TelegramCallbackQuery): Promise<CommandResult> {
+  private async handleCategorySelection(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
     const session = await this.loadSession();
     if (!session) return { success: false, message: 'No active session' };
 
@@ -139,17 +163,25 @@ export class TransactionCommand extends BaseCommand {
     session.commandData.category = category;
 
     await this.saveSession(session);
-    await this.answerCallbackQuery(callbackQuery.id, `Categoria selezionata: ${category}`);
+    await this.answerCallbackQuery(
+      callbackQuery.id,
+      `Categoria selezionata: ${category}`,
+    );
     await this.sendAmountPrompt();
 
     return { success: true, message: 'Category selected' };
   }
 
-  private async handleAmountInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handleAmountInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     const amount = parseFloat(text);
 
     if (isNaN(amount) || amount <= 0) {
-      await this.sendMessage('❌ Inserisci un importo valido in EUR (es. 25.50):');
+      await this.sendMessage(
+        '❌ Inserisci un importo valido in EUR (es. 25.50):',
+      );
       return { success: false, message: 'Invalid amount' };
     }
 
@@ -158,15 +190,22 @@ export class TransactionCommand extends BaseCommand {
     session.commandData.amount = amount;
 
     await this.saveSession(session);
-    await this.sendMessage('📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
+    await this.sendMessage(
+      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+    );
 
     return { success: true, message: 'Amount entered' };
   }
 
-  private async handlePeriodInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handlePeriodInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(text)) {
-      await this.sendMessage('❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):');
+      await this.sendMessage(
+        '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):',
+      );
       return { success: false, message: 'Invalid date format' };
     }
 
@@ -175,14 +214,21 @@ export class TransactionCommand extends BaseCommand {
     session.commandData.period = text;
 
     await this.saveSession(session);
-    await this.sendMessage('👤 Inserisci il username del contatto (es. @username):');
+    await this.sendMessage(
+      '👤 Inserisci il username del contatto (es. @username):',
+    );
 
     return { success: true, message: 'Period entered' };
   }
 
-  private async handleContactInput(text: string, session: CommandSession): Promise<CommandResult> {
+  private async handleContactInput(
+    text: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     if (!text.startsWith('@')) {
-      await this.sendMessage('❌ Inserisci un username valido che inizi con @ (es. @username):');
+      await this.sendMessage(
+        '❌ Inserisci un username valido che inizi con @ (es. @username):',
+      );
       return { success: false, message: 'Invalid username format' };
     }
 
@@ -192,7 +238,9 @@ export class TransactionCommand extends BaseCommand {
     return await this.completeTransaction(session);
   }
 
-  private async completeTransaction(session: CommandSession): Promise<CommandResult> {
+  private async completeTransaction(
+    session: CommandSession,
+  ): Promise<CommandResult> {
     try {
       const transaction = {
         family: session.transactionData.family!,
@@ -213,7 +261,9 @@ export class TransactionCommand extends BaseCommand {
 
       if (error) {
         console.error('Error saving transaction:', error);
-        await this.sendMessage('❌ Errore durante il salvataggio della transazione. Riprova.');
+        await this.sendMessage(
+          '❌ Errore durante il salvataggio della transazione. Riprova.',
+        );
         return { success: false, message: 'Database error' };
       }
 
@@ -227,12 +277,16 @@ export class TransactionCommand extends BaseCommand {
       return { success: true, message: 'Transaction completed successfully' };
     } catch (error) {
       console.error('Error completing transaction:', error);
-      await this.sendMessage('❌ Errore durante il completamento della transazione.');
+      await this.sendMessage(
+        '❌ Errore durante il completamento della transazione.',
+      );
       return { success: false, message: 'Completion error' };
     }
   }
 
-  private async showSessionRecovery(existingSession: CommandSession): Promise<void> {
+  private async showSessionRecovery(
+    existingSession: CommandSession,
+  ): Promise<void> {
     const sessionData = existingSession.transactionData;
     const stepNames = {
       'family': 'Selezione Famiglia',
@@ -241,12 +295,15 @@ export class TransactionCommand extends BaseCommand {
       'period': 'Inserimento Periodo',
       'contact': 'Inserimento Contatto',
     };
+    console.log('stepNames', existingSession);
 
-    const currentStep = stepNames[existingSession.step as keyof typeof stepNames] || existingSession.step;
-    
+    const currentStep =
+      stepNames[existingSession.step as keyof typeof stepNames] ||
+      existingSession.step;
+
     let sessionInfo = `🔄 **Sessione Precedente Trovata**\n\n`;
     sessionInfo += `📊 **Stato attuale:** ${currentStep}\n`;
-    
+
     if (sessionData.family) {
       sessionInfo += `👨‍👩‍👧‍👦 **Famiglia:** ${sessionData.family}\n`;
     }
@@ -282,11 +339,15 @@ export class TransactionCommand extends BaseCommand {
     try {
       const existingSession = await this.loadSession();
       if (!existingSession) {
-        await this.sendMessage('❌ Sessione non trovata. Iniziando una nuova sessione.');
+        await this.sendMessage(
+          '❌ Sessione non trovata. Iniziando una nuova sessione.',
+        );
         return await this.startTransaction();
       }
 
-      await this.sendMessage('✅ Sessione ripristinata! Continuando da dove avevi lasciato...');
+      await this.sendMessage(
+        '✅ Sessione ripristinata! Continuando da dove avevi lasciato...',
+      );
 
       // Continue from the current step
       switch (existingSession.step) {
@@ -312,7 +373,9 @@ export class TransactionCommand extends BaseCommand {
       return { success: true, message: 'Session recovered' };
     } catch (error) {
       console.error('❌ Error recovering session:', error);
-      await this.sendMessage('❌ Errore nel ripristino della sessione. Iniziando una nuova sessione.');
+      await this.sendMessage(
+        '❌ Errore nel ripristino della sessione. Iniziando una nuova sessione.',
+      );
       return await this.startTransaction();
     }
   }
@@ -320,7 +383,9 @@ export class TransactionCommand extends BaseCommand {
   private async cancelSession(): Promise<CommandResult> {
     try {
       await this.deleteSession();
-      await this.sendMessage('🗑️ Sessione precedente cancellata. Iniziando una nuova sessione...');
+      await this.sendMessage(
+        '🗑️ Sessione precedente cancellata. Iniziando una nuova sessione...',
+      );
       return await this.startTransaction();
     } catch (error) {
       console.error('❌ Error canceling session:', error);
@@ -359,14 +424,21 @@ export class TransactionCommand extends BaseCommand {
   }
 
   private async sendPeriodPrompt(): Promise<void> {
-    await this.sendMessage('📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):');
+    await this.sendMessage(
+      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+    );
   }
 
   private async sendContactPrompt(): Promise<void> {
-    await this.sendMessage('👤 Inserisci il username del contatto (es. @username):');
+    await this.sendMessage(
+      '👤 Inserisci il username del contatto (es. @username):',
+    );
   }
 
-  private async sendConfirmation(transaction: any, transactionId: number): Promise<void> {
+  private async sendConfirmation(
+    transaction: any,
+    transactionId: number,
+  ): Promise<void> {
     const confirmationMessage = `✅ **Transazione Registrata!**
 
 📋 **Dettagli:**
@@ -382,7 +454,10 @@ export class TransactionCommand extends BaseCommand {
     await this.sendMessage(confirmationMessage, { parse_mode: 'Markdown' });
   }
 
-  private async sendNotification(transaction: any, transactionId: number): Promise<void> {
+  private async sendNotification(
+    transaction: any,
+    transactionId: number,
+  ): Promise<void> {
     const notificationMessage = `🔔 **Nuova Transazione Registrata**
 
 📋 **Dettagli:**
@@ -394,9 +469,13 @@ export class TransactionCommand extends BaseCommand {
 • **ID Transazione:** #${transactionId}`;
 
     try {
-      await this.context.telegram.sendMessage(transaction.contact, notificationMessage, {
-        parse_mode: 'Markdown',
-      });
+      await this.context.telegram.sendMessage(
+        transaction.contact,
+        notificationMessage,
+        {
+          parse_mode: 'Markdown',
+        },
+      );
     } catch (error) {
       console.error('Error sending notification:', error);
       await this.sendMessage(
