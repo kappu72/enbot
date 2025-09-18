@@ -79,6 +79,12 @@ export class EnBot {
       await this.messageHandler.showChatId(msg);
     } else if (msg.text.startsWith('/testmsg')) {
       await this.handleTestMessage(msg);
+    } else if (msg.text.startsWith('/cleansession')) {
+      await this.messageHandler.cleanSessions(msg);
+    } else if (msg.text.startsWith('/cleanallsessions')) {
+      await this.messageHandler.cleanAllSessions(msg);
+    } else if (msg.text.startsWith('/sessionstats')) {
+      await this.messageHandler.showSessionStats(msg);
     } else {
       // Handle regular text messages (transaction input)
       await this.transactionFlow.handleTextInput(msg);

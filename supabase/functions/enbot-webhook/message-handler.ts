@@ -121,7 +121,10 @@ export class MessageHandler {
   }
 
   async showHelp(msg: TelegramMessage): Promise<void> {
-    const helpMessage = `
+    const userId = msg.from?.id;
+    const isAdmin = userId && this.config.adminUserIds.includes(userId);
+    
+    let helpMessage = `
 🤖 **EnBot - Gestione Transazioni**
 
 **Comandi disponibili:**
@@ -130,7 +133,18 @@ export class MessageHandler {
 • /getid - Mostra ID chat e utente
 • /testmsg @username - Invia messaggio di test a un utente
 • /help - Mostra questo messaggio di aiuto
-• /cancel - Annulla la transazione in corso
+• /cancel - Annulla la transazione in corso`;
+
+    if (isAdmin) {
+      helpMessage += `
+
+👑 **Comandi Amministratore:**
+• /cleansession - Pulisce le sessioni scadute
+• /cleanallsessions - Pulisce tutte le sessioni (⚠️ ATTENZIONE)
+• /sessionstats - Mostra statistiche delle sessioni`;
+    }
+
+    helpMessage += `
 
 **Come utilizzare:**
 1. Usa /start per iniziare
@@ -227,5 +241,229 @@ Se ricevi questo messaggio, significa che il bot può contattarti correttamente!
     }
 
     return chunks;
+  }
+
+  /**
+   * Clean sessions command (admin only)
+   */
+  async cleanSessions(msg: TelegramMessage): Promise<void> {
+    const userId = msg.from?.id;
+    const chatId = msg.chat.id;
+
+    if (!userId) return;
+
+    // Check if user is admin
+    if (!this.config.adminUserIds.includes(userId)) {
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Accesso negato. Solo gli amministratori possono utilizzare questo comando.',
+      );
+      return;
+    }
+
+    try {
+      console.log(`🧹 Admin ${userId} requested session cleanup`);
+
+      // Get session statistics first
+      const { data: stats, error: statsError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      if (statsError) {
+        console.error('❌ Error getting session stats:', statsError);
+        await this.telegram.sendMessage(
+          chatId,
+          '❌ Errore nel recupero delle statistiche delle sessioni.',
+        );
+        return;
+      }
+
+      const totalSessions = stats?.length || 0;
+
+      // Clean expired sessions
+      const { data: expiredData, error: expiredError } = await this.supabase
+        .from('user_sessions')
+        .delete({ count: 'exact' })
+        .lt('expires_at', new Date().toISOString());
+
+      if (expiredError) {
+        console.error('❌ Error cleaning expired sessions:', expiredError);
+        await this.telegram.sendMessage(
+          chatId,
+          '❌ Errore nella pulizia delle sessioni scadute.',
+        );
+        return;
+      }
+
+      const deletedCount = expiredData?.length || 0;
+      const remainingCount = totalSessions - deletedCount;
+
+      const resultMessage = `🧹 **Pulizia Sessioni Completata**
+
+📊 **Statistiche:**
+• Sessioni totali: ${totalSessions}
+• Sessioni scadute rimosse: ${deletedCount}
+• Sessioni attive rimanenti: ${remainingCount}
+
+✅ Pulizia completata con successo!`;
+
+      await this.telegram.sendMessage(chatId, resultMessage, {
+        parse_mode: 'Markdown',
+      });
+
+      console.log(`✅ Session cleanup completed: ${deletedCount} expired sessions removed`);
+    } catch (error) {
+      console.error('❌ Error in cleanSessions:', error);
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Errore durante la pulizia delle sessioni. Riprova più tardi.',
+      );
+    }
+  }
+
+  /**
+   * Clean all sessions command (admin only) - use with caution
+   */
+  async cleanAllSessions(msg: TelegramMessage): Promise<void> {
+    const userId = msg.from?.id;
+    const chatId = msg.chat.id;
+
+    if (!userId) return;
+
+    // Check if user is admin
+    if (!this.config.adminUserIds.includes(userId)) {
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Accesso negato. Solo gli amministratori possono utilizzare questo comando.',
+      );
+      return;
+    }
+
+    try {
+      console.log(`🧹 Admin ${userId} requested complete session cleanup`);
+
+      // Get total session count first
+      const { count: totalCount, error: countError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError) {
+        console.error('❌ Error getting session count:', countError);
+        await this.telegram.sendMessage(
+          chatId,
+          '❌ Errore nel recupero del numero di sessioni.',
+        );
+        return;
+      }
+
+      const totalSessions = totalCount || 0;
+
+      if (totalSessions === 0) {
+        await this.telegram.sendMessage(
+          chatId,
+          'ℹ️ Nessuna sessione da pulire.',
+        );
+        return;
+      }
+
+      // Delete all sessions
+      const { error: deleteError } = await this.supabase
+        .from('user_sessions')
+        .delete();
+
+      if (deleteError) {
+        console.error('❌ Error deleting all sessions:', deleteError);
+        await this.telegram.sendMessage(
+          chatId,
+          '❌ Errore nella cancellazione di tutte le sessioni.',
+        );
+        return;
+      }
+
+      const resultMessage = `🧹 **Pulizia Completa Sessioni**
+
+⚠️ **ATTENZIONE:** Tutte le sessioni sono state cancellate!
+
+📊 **Risultato:**
+• Sessioni rimosse: ${totalSessions}
+• Sessioni attive: 0
+
+✅ Pulizia completa terminata!`;
+
+      await this.telegram.sendMessage(chatId, resultMessage, {
+        parse_mode: 'Markdown',
+      });
+
+      console.log(`✅ Complete session cleanup completed: ${totalSessions} sessions removed`);
+    } catch (error) {
+      console.error('❌ Error in cleanAllSessions:', error);
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Errore durante la pulizia completa delle sessioni. Riprova più tardi.',
+      );
+    }
+  }
+
+  /**
+   * Show session statistics (admin only)
+   */
+  async showSessionStats(msg: TelegramMessage): Promise<void> {
+    const userId = msg.from?.id;
+    const chatId = msg.chat.id;
+
+    if (!userId) return;
+
+    // Check if user is admin
+    if (!this.config.adminUserIds.includes(userId)) {
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Accesso negato. Solo gli amministratori possono utilizzare questo comando.',
+      );
+      return;
+    }
+
+    try {
+      console.log(`📊 Admin ${userId} requested session statistics`);
+
+      // Get total sessions
+      const { count: totalCount, error: totalError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      if (totalError) throw totalError;
+
+      // Get expired sessions
+      const { count: expiredCount, error: expiredError } = await this.supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true })
+        .lt('expires_at', new Date().toISOString());
+
+      if (expiredError) throw expiredError;
+
+      const total = totalCount || 0;
+      const expired = expiredCount || 0;
+      const active = total - expired;
+
+      const statsMessage = `📊 **Statistiche Sessioni**
+
+🔢 **Conteggi:**
+• Sessioni totali: ${total}
+• Sessioni attive: ${active}
+• Sessioni scadute: ${expired}
+
+⏰ **Ultimo aggiornamento:** ${new Date().toLocaleString('it-IT')}`;
+
+      await this.telegram.sendMessage(chatId, statsMessage, {
+        parse_mode: 'Markdown',
+      });
+
+      console.log(`📊 Session stats displayed: total=${total}, active=${active}, expired=${expired}`);
+    } catch (error) {
+      console.error('❌ Error in showSessionStats:', error);
+      await this.telegram.sendMessage(
+        chatId,
+        '❌ Errore nel recupero delle statistiche delle sessioni.',
+      );
+    }
   }
 }
