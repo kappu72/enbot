@@ -4,7 +4,7 @@
 
 import { Bot } from 'https://deno.land/x/grammy@v1.21.1/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { EnBot } from './supabase/functions/enbot-webhook/bot.ts';
+import { EnBot } from './supabase/functions/enbot-webhook/bot-refactored.ts';
 
 // Load environment variables from .local.env file
 import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
@@ -46,8 +46,8 @@ console.log(`🔗 Supabase URL: ${supabaseUrl}`);
 // Initialize Grammy bot for local development
 const telegramBot = new Bot(botToken);
 
-// Initialize our custom bot logic
-const enBot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase);
+// Initialize our custom bot logic (development mode)
+const enBot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase, true);
 
 // Set up Grammy bot handlers using our existing EnBot logic
 telegramBot.on('message', async (ctx) => {

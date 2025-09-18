@@ -1,6 +1,6 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { EnBot } from './bot.ts';
+import { EnBot } from './bot-refactored.ts';
 
 // Initialize Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -10,14 +10,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Bot configuration
 const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
 const allowedGroupId = Deno.env.get('ALLOWED_GROUP_ID')!;
-const adminUserIds = Deno.env.get('ADMIN_USER_IDS')?.split(',').map(id => parseInt(id.trim())) || [];
+const adminUserIds =
+  Deno.env.get('ADMIN_USER_IDS')?.split(',').map((id) => parseInt(id.trim())) ||
+  [];
 
-// Initialize bot
-const bot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase);
+// Initialize bot (production mode)
+const bot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase, false);
 
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
-  
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -31,22 +33,28 @@ Deno.serve(async (req: Request) => {
   }
 
   // Health check endpoint
-  if (url.pathname === '/enbot-webhook/health' || url.pathname === '/enbot-webhook/' || url.pathname === '/enbot-webhook') {
-    return new Response(JSON.stringify({
-      status: 'ok',
-      service: 'EnBot Telegram Webhook',
-      mode: 'edge-function',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      env_check: {
-        has_bot_token: !!botToken,
-        has_group_id: !!allowedGroupId,
-        has_supabase_url: !!supabaseUrl,
-        has_supabase_key: !!supabaseKey
-      }
-    }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+  if (
+    url.pathname === '/enbot-webhook/health' ||
+    url.pathname === '/enbot-webhook/' || url.pathname === '/enbot-webhook'
+  ) {
+    return new Response(
+      JSON.stringify({
+        status: 'ok',
+        service: 'EnBot Telegram Webhook',
+        mode: 'edge-function',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+        env_check: {
+          has_bot_token: !!botToken,
+          has_group_id: !!allowedGroupId,
+          has_supabase_url: !!supabaseUrl,
+          has_supabase_key: !!supabaseKey,
+        },
+      }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   // Webhook endpoint - NO JWT REQUIRED for Telegram webhooks
@@ -54,9 +62,9 @@ Deno.serve(async (req: Request) => {
     try {
       const update = await req.json();
       console.log('📨 Received webhook update:', update.update_id);
-      
+
       await bot.processUpdate(update);
-      
+
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -70,12 +78,15 @@ Deno.serve(async (req: Request) => {
   }
 
   // 404 for other paths
-  return new Response(JSON.stringify({ 
-    error: 'Not found',
-    pathname: url.pathname,
-    method: req.method
-  }), {
-    status: 404,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response(
+    JSON.stringify({
+      error: 'Not found',
+      pathname: url.pathname,
+      method: req.method,
+    }),
+    {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
 });
