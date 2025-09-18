@@ -4,7 +4,7 @@
 
 import { Bot } from 'https://deno.land/x/grammy@v1.21.1/mod.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { EnBot } from './supabase/functions/enbot-webhook/bot-refactored.ts';
+import { EnBot } from './supabase/functions/enbot-webhook/bot.ts';
 
 // Load environment variables from .local.env file
 import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
