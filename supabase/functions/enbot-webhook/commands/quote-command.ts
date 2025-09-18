@@ -81,7 +81,7 @@ export class QuoteCommand extends BaseCommand {
 
     if (existingSession) {
       console.log(
-        `🔄 Found existing quote session for user ${this.context.userId}, step: ${existingSession.step}`,
+        `🔄 Trovata una sessione per inserire una quota mensile per utente ${this.context.userId}, step: ${existingSession.step}`,
       );
       await this.showSessionRecovery(existingSession);
       return { success: true, message: 'Quote session recovery shown' };
@@ -104,13 +104,13 @@ export class QuoteCommand extends BaseCommand {
     await this.saveSession(session);
     await this.sendFamilySelection();
 
-    return { success: true, message: 'Quote started' };
+    return { success: true, message: 'Quota started' };
   }
 
   private async handleTextInput(text: string): Promise<CommandResult> {
     const session = await this.loadSession();
     if (!session) {
-      return { success: false, message: 'No active quote session found' };
+      return { success: false, message: 'Nessuna sessione trovata' };
     }
     switch (session.step) {
       case STEPS.Amount:
@@ -118,7 +118,10 @@ export class QuoteCommand extends BaseCommand {
       case STEPS.Period:
         return await this.handlePeriodInput(text, session);
       default:
-        return { success: false, message: 'Invalid step for quote text input' };
+        return {
+          success: false,
+          message: "Passo non valido per l'inserimento di una quota",
+        };
     }
   }
 
@@ -126,7 +129,9 @@ export class QuoteCommand extends BaseCommand {
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
     const session = await this.loadSession();
-    if (!session) return { success: false, message: 'No active quote session' };
+    if (!session) {
+      return { success: false, message: 'Nessuna sessione trovata' };
+    }
 
     const family = callbackQuery.data!.replace('quota_family_', '');
     session.transactionData.family = family;
@@ -157,7 +162,7 @@ export class QuoteCommand extends BaseCommand {
       await this.sendMessage(
         '❌ Inserisci un importo valido in EUR (es. 25.50):',
       );
-      return { success: false, message: 'Invalid amount' };
+      return { success: false, message: 'Importo non valido' };
     }
 
     session.transactionData.amount = amount;
@@ -166,7 +171,7 @@ export class QuoteCommand extends BaseCommand {
 
     await this.saveSession(session);
     await this.sendMessage(
-      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+      '📅 Inserisci mese anno di riferimento (formato: MM-YYYY, es. 01-2024)',
     );
 
     return { success: true, message: 'Amount entered for quote' };
@@ -176,10 +181,10 @@ export class QuoteCommand extends BaseCommand {
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const dateRegex = /^\d{2}-\d{4}$/;
     if (!dateRegex.test(text)) {
       await this.sendMessage(
-        '❌ Inserisci una data valida nel formato YYYY-MM-DD (es. 2024-01-15):',
+        '❌ Inserisci una data valida nel formato MM-YYYY (es. 01-2024):',
       );
       return { success: false, message: 'Invalid date format' };
     }
@@ -189,8 +194,7 @@ export class QuoteCommand extends BaseCommand {
     session.commandData.period = text;
 
     await this.saveSession(session);
-    await this.completeQuote(session);
-    return { success: true, message: 'Period entered for quote' };
+    return await this.completeQuote(session);
   }
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
@@ -292,7 +296,7 @@ export class QuoteCommand extends BaseCommand {
         await this.sendMessage(
           '❌ Sessione quota non trovata. Iniziando una nuova quota.',
         );
-        return await this.startQuote();
+        return await this.startQuota();
       }
 
       await this.sendMessage(
@@ -323,7 +327,7 @@ export class QuoteCommand extends BaseCommand {
       await this.sendMessage(
         '❌ Errore nel ripristino della sessione quota. Iniziando una nuova quota.',
       );
-      return await this.startQuote();
+      return await this.startQuota();
     }
   }
 
@@ -333,7 +337,7 @@ export class QuoteCommand extends BaseCommand {
       await this.sendMessage(
         '🗑️ Sessione quota precedente cancellata. Iniziando una nuova quota...',
       );
-      return await this.startQuote();
+      return await this.startQuota();
     } catch (error) {
       console.error('❌ Error canceling quote session:', error);
       await this.sendMessage(
@@ -389,9 +393,7 @@ export class QuoteCommand extends BaseCommand {
 • **Importo:** €${transaction.amount}
 • **Periodo:** ${transaction.period}
 • **Contatto:** ${transaction.contact}
-• **ID Transazione:** #${transactionId}
-
-📤 Una notifica è stata inviata al contatto specificato.`;
+• **ID Transazione:** #${transactionId}`;
 
     await this.sendMessage(confirmationMessage, { parse_mode: 'Markdown' });
   }
