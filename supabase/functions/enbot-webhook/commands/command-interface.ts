@@ -3,6 +3,7 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type {
   TelegramCallbackQuery,
   TelegramMessage,
+  TransactionPayload,
   UserSession,
 } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';

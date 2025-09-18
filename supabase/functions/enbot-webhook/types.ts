@@ -1,6 +1,30 @@
 // Base types and interfaces for the EnBot system
 
+// Nuova struttura Transaction con payload JSON
 export interface Transaction {
+  id: number;
+  payload: TransactionPayload;
+  created_at: string;
+  created_by_user_id: number;
+  command_type: string;
+  is_synced: boolean;
+  synced_at?: string;
+  chat_id: number;
+}
+
+// Payload della transazione (il contenuto effettivo)
+export interface TransactionPayload {
+  family: string;
+  category: string;
+  amount: number;
+  period: string;
+  contact: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+// Interfaccia per compatibilità con il vecchio formato (per Google Sheets)
+export interface LegacyTransaction {
   id: number;
   family: string;
   category: string;
@@ -26,7 +50,7 @@ export interface UserSession {
     | 'year'
     | 'contact'
     | 'complete';
-  transactionData: Partial<Transaction>;
+  transactionData: Partial<TransactionPayload>;
 }
 
 export interface PersistedUserSession {
@@ -45,7 +69,7 @@ export interface PersistedUserSession {
     | 'month'
     | 'year'
     | 'contact';
-  transaction_data: Partial<Transaction>;
+  transaction_data: Partial<TransactionPayload>;
   created_at: string;
   updated_at: string;
   expires_at: string;

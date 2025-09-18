@@ -6,29 +6,35 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type {
+  LegacyTransaction,
   TelegramCallbackQuery,
   TelegramMessage,
-  Transaction,
+  TransactionPayload,
 } from '../types.ts';
 import { CATEGORY_OPTIONS, FAMILY_OPTIONS } from '../types.ts';
+import { createGoogleSheetsClient } from '../google-sheets-client.ts';
 
 export class TransactionCommand extends BaseCommand {
   constructor(context: CommandContext) {
     super(context, 'transaction');
   }
 
-  canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean {
+  canHandle(
+    message: TelegramMessage | TelegramCallbackQuery,
+  ): Promise<boolean> {
     if ('text' in message) {
       // Handle /start command or text input during transaction flow
-      return message.text === '/start';
+      return Promise.resolve(message.text === '/start');
     } else if ('data' in message) {
       // Handle callback queries for family/category selection
-      return message.data?.startsWith('family_') ||
-        message.data?.startsWith('category_') ||
-        message.data === 'recover_session' ||
-        message.data === 'cancel_session';
+      return Promise.resolve(
+        message.data?.startsWith('family_') ||
+          message.data?.startsWith('category_') ||
+          message.data === 'recover_session' ||
+          message.data === 'cancel_session' || false,
+      );
     }
-    return false;
+    return Promise.resolve(false);
   }
 
   async execute(): Promise<CommandResult> {
@@ -236,20 +242,29 @@ export class TransactionCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     try {
-      const transaction = {
+      // Crea il payload della transazione
+      const payload: TransactionPayload = {
         family: session.transactionData.family!,
         category: session.transactionData.category!,
         amount: session.transactionData.amount!,
         period: session.transactionData.period!,
         contact: session.transactionData.contact!,
-        recorded_by: `@${this.context.userId}`,
-        recorded_at: new Date().toISOString(),
+        recordedBy: `@${this.context.userId}`,
+        recordedAt: new Date().toISOString(),
+      };
+
+      // Inserisce la transazione nel database con la nuova struttura
+      const transactionRecord = {
+        payload: payload,
+        created_by_user_id: this.context.userId,
+        command_type: 'transaction',
         chat_id: this.context.chatId,
+        is_synced: false,
       };
 
       const { data, error } = await this.context.supabase
         .from('transactions')
-        .insert(transaction)
+        .insert(transactionRecord)
         .select('id')
         .single();
 
@@ -265,8 +280,12 @@ export class TransactionCommand extends BaseCommand {
       await this.deleteSession();
 
       const transactionId = data.id;
-      await this.sendConfirmation(transaction, transactionId);
-      await this.sendNotification(transaction, transactionId);
+
+      // Sincronizza con Google Sheets e aggiorna flag is_synced
+      await this.syncToGoogleSheets(transactionId, payload);
+
+      await this.sendConfirmation(payload, transactionId);
+      await this.sendNotification(payload, transactionId);
 
       return { success: true, message: 'Transaction completed successfully' };
     } catch (error) {
@@ -275,6 +294,73 @@ export class TransactionCommand extends BaseCommand {
         '❌ Errore durante il completamento della transazione.',
       );
       return { success: false, message: 'Completion error' };
+    }
+  }
+
+  /**
+   * Sincronizza transazione con Google Sheets e aggiorna flag nel database
+   */
+  private async syncToGoogleSheets(
+    transactionId: number,
+    payload: TransactionPayload,
+  ): Promise<boolean> {
+    try {
+      const googleSheetsClient = createGoogleSheetsClient();
+      if (!googleSheetsClient) {
+        // Google Sheets integration not configured, skip silently
+        console.log('ℹ️ Google Sheets not configured, skipping sync');
+        return false;
+      }
+
+      // Converte al formato legacy per Google Sheets
+      const legacyTransaction: LegacyTransaction = {
+        id: transactionId,
+        family: payload.family,
+        category: payload.category,
+        amount: payload.amount,
+        period: payload.period,
+        contact: payload.contact,
+        recordedBy: payload.recordedBy,
+        recordedAt: payload.recordedAt,
+        chatId: this.context.chatId,
+      };
+
+      await googleSheetsClient.pushTransaction(legacyTransaction);
+
+      // Aggiorna il flag is_synced nel database
+      const { error: updateError } = await this.context.supabase
+        .from('transactions')
+        .update({
+          is_synced: true,
+          synced_at: new Date().toISOString(),
+        })
+        .eq('id', transactionId);
+
+      if (updateError) {
+        console.error('❌ Failed to update sync status:', updateError);
+      }
+
+      console.log(
+        `✅ Transaction ${transactionId} synchronized to Google Sheets`,
+      );
+      return true;
+    } catch (error) {
+      // Log error but don't fail the transaction
+      console.error('❌ Failed to sync transaction to Google Sheets:', error);
+
+      // Notifica l'errore all'utente
+      try {
+        await this.sendMessage(
+          `⚠️ Transazione salvata con successo, ma non è stato possibile sincronizzare con Google Sheets. ` +
+            `Usa /sync-sheets per sincronizzare manualmente.`,
+        );
+      } catch (notificationError) {
+        console.error(
+          '❌ Failed to send Google Sheets error notification:',
+          notificationError,
+        );
+      }
+      return false;
     }
   }
 
@@ -430,17 +516,17 @@ export class TransactionCommand extends BaseCommand {
   }
 
   private async sendConfirmation(
-    transaction: any,
+    payload: TransactionPayload,
     transactionId: number,
   ): Promise<void> {
     const confirmationMessage = `✅ **Transazione Registrata!**
 
 📋 **Dettagli:**
-• **Famiglia:** ${transaction.family}
-• **Categoria:** ${transaction.category}
-• **Importo:** €${transaction.amount}
-• **Periodo:** ${transaction.period}
-• **Contatto:** ${transaction.contact}
+• **Famiglia:** ${payload.family}
+• **Categoria:** ${payload.category}
+• **Importo:** €${payload.amount}
+• **Periodo:** ${payload.period}
+• **Contatto:** ${payload.contact}
 • **ID Transazione:** #${transactionId}
 
 📤 Una notifica è stata inviata al contatto specificato.`;
@@ -449,22 +535,22 @@ export class TransactionCommand extends BaseCommand {
   }
 
   private async sendNotification(
-    transaction: any,
+    payload: TransactionPayload,
     transactionId: number,
   ): Promise<void> {
     const notificationMessage = `🔔 **Nuova Transazione Registrata**
 
 📋 **Dettagli:**
-• **Famiglia:** ${transaction.family}
-• **Categoria:** ${transaction.category}
-• **Importo:** €${transaction.amount}
-• **Periodo:** ${transaction.period}
-• **Registrato da:** ${transaction.recorded_by}
+• **Famiglia:** ${payload.family}
+• **Categoria:** ${payload.category}
+• **Importo:** €${payload.amount}
+• **Periodo:** ${payload.period}
+• **Registrato da:** ${payload.recordedBy}
 • **ID Transazione:** #${transactionId}`;
 
     try {
       await this.context.telegram.sendMessage(
-        transaction.contact,
+        payload.contact,
         notificationMessage,
         {
           parse_mode: 'Markdown',
@@ -473,8 +559,7 @@ export class TransactionCommand extends BaseCommand {
     } catch (error) {
       console.error('Error sending notification:', error);
       await this.sendMessage(
-        transaction.chat_id,
-        `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`,
+        `⚠️ Impossibile inviare la notifica a ${payload.contact}. Verifica che l'username sia corretto.`,
       );
     }
   }
