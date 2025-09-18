@@ -6,33 +6,35 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
-import { FAMILY_OPTIONS } from '../types.ts';
+import { FAMILY_OPTIONS, hasCallbackData, isTextMessage } from '../types.ts';
+
+enum STEPS {
+  'Family' = 'family',
+  'Amount' = 'amount',
+  'Period' = 'period',
+  'Complete' = 'complete',
+}
 
 export class QuoteCommand extends BaseCommand {
+  private readonly messagePrefix = '__quota:';
   constructor(context: CommandContext) {
-    super(context, 'quote');
+    super(context, 'quota');
   }
 
-  canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean {
-    if ('text' in message) {
-      // Handle /quote command or text input during quote flow
-      return message.text === '/quote' || this.isQuoteInput(message.text);
-    } else {
+  async canHandle(
+    message: TelegramMessage | TelegramCallbackQuery,
+  ): Promise<boolean> {
+    const session = await this.loadSession();
+    if ('text' in message && isTextMessage(message)) {
+      // Or we are asking to start a quota session or it exists
+      return message.text === `/${this.commandName}` || !!session?.step;
+    } else if ('data' in message && hasCallbackData(message)) {
       // Handle callback queries for family selection
-      return message.data?.startsWith('quote_family_') ||
-        message.data === 'quote_recover_session' ||
-        message.data === 'quote_cancel_session';
+      return message.data.startsWith('quota_family_') ||
+        message.data === 'quota_recover_session' ||
+        message.data === 'quota_cancel_session';
     }
-  }
-
-  private isQuoteInput(text: string): boolean {
-    // Check if this looks like quote input (amount, date, username)
-    const amountRegex = /^\d+(\.\d{1,2})?$/;
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const usernameRegex = /^@\w+$/;
-
-    return amountRegex.test(text) || dateRegex.test(text) ||
-      usernameRegex.test(text);
+    return false;
   }
 
   async execute(): Promise<CommandResult> {
@@ -42,14 +44,17 @@ export class QuoteCommand extends BaseCommand {
       return await this.handleCallbackQuery(this.context.callbackQuery);
     }
 
-    return { success: false, message: 'No message or callback query provided' };
+    return {
+      success: false,
+      message: `${this.commandName} command execution failed`,
+    };
   }
 
   private async handleMessage(
     message: TelegramMessage,
   ): Promise<CommandResult> {
-    if (message.text === '/quote') {
-      return await this.startQuote();
+    if (message.text === `/${this.commandName}`) {
+      return await this.startQuota();
     } else {
       return await this.handleTextInput(message.text!);
     }
@@ -60,18 +65,17 @@ export class QuoteCommand extends BaseCommand {
   ): Promise<CommandResult> {
     const data = callbackQuery.data!;
 
-    if (data === 'quote_recover_session') {
+    if (data === 'quota_recover_session') {
       return await this.recoverSession();
-    } else if (data === 'quote_cancel_session') {
+    } else if (data === 'quota_cancel_session') {
       return await this.cancelSession();
-    } else if (data.startsWith('quote_family_')) {
+    } else if (data.startsWith('quota_family_')) {
       return await this.handleFamilySelection(callbackQuery);
     }
-
     return { success: false, message: 'Unknown callback data' };
   }
 
-  private async startQuote(): Promise<CommandResult> {
+  private async startQuota(): Promise<CommandResult> {
     // Check if user has an existing quote session
     const existingSession = await this.loadSession();
 
@@ -87,7 +91,7 @@ export class QuoteCommand extends BaseCommand {
     const session: CommandSession = {
       chatId: this.context.chatId,
       userId: this.context.userId,
-      step: 'family',
+      step: STEPS.Family,
       transactionData: {
         category: 'quota mensile', // Fixed category for quotes
       },
@@ -108,18 +112,11 @@ export class QuoteCommand extends BaseCommand {
     if (!session) {
       return { success: false, message: 'No active quote session found' };
     }
-
-    console.log(
-      `🔄 Processing quote text input for user ${this.context.userId}, step: ${session.step}`,
-    );
-
     switch (session.step) {
-      case 'amount':
+      case STEPS.Amount:
         return await this.handleAmountInput(text, session);
-      case 'period':
+      case STEPS.Period:
         return await this.handlePeriodInput(text, session);
-      case 'contact':
-        return await this.handleContactInput(text, session);
       default:
         return { success: false, message: 'Invalid step for quote text input' };
     }
@@ -131,15 +128,19 @@ export class QuoteCommand extends BaseCommand {
     const session = await this.loadSession();
     if (!session) return { success: false, message: 'No active quote session' };
 
-    const family = callbackQuery.data!.replace('quote_family_', '');
+    const family = callbackQuery.data!.replace('quota_family_', '');
     session.transactionData.family = family;
-    session.step = 'amount'; // Skip category, go directly to amount
+    session.step = STEPS.Amount; // Skip category, go directly to amount
     session.commandData.family = family;
 
     await this.saveSession(session);
+    // clean keyboard and show prompt
+
     await this.answerCallbackQuery(
       callbackQuery.id,
-      `Famiglia selezionata: ${family}`,
+      `✅ Famiglia selezionata:\n<b>${family}</b>`,
+      callbackQuery.message!.chat.id,
+      callbackQuery.message!.message_id,
     );
     await this.sendAmountPrompt();
 
@@ -160,7 +161,7 @@ export class QuoteCommand extends BaseCommand {
     }
 
     session.transactionData.amount = amount;
-    session.step = 'period';
+    session.step = STEPS.Period;
     session.commandData.amount = amount;
 
     await this.saveSession(session);
@@ -184,32 +185,12 @@ export class QuoteCommand extends BaseCommand {
     }
 
     session.transactionData.period = text;
-    session.step = 'contact';
+    session.step = STEPS.Complete;
     session.commandData.period = text;
 
     await this.saveSession(session);
-    await this.sendMessage(
-      '👤 Inserisci il username del contatto (es. @username):',
-    );
-
+    await this.completeQuote(session);
     return { success: true, message: 'Period entered for quote' };
-  }
-
-  private async handleContactInput(
-    text: string,
-    session: CommandSession,
-  ): Promise<CommandResult> {
-    if (!text.startsWith('@')) {
-      await this.sendMessage(
-        '❌ Inserisci un username valido che inizi con @ (es. @username):',
-      );
-      return { success: false, message: 'Invalid username format' };
-    }
-
-    session.transactionData.contact = text;
-    session.commandData.contact = text;
-
-    return await this.completeQuote(session);
   }
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
@@ -259,10 +240,9 @@ export class QuoteCommand extends BaseCommand {
   ): Promise<void> {
     const sessionData = existingSession.transactionData;
     const stepNames = {
-      'family': 'Selezione Famiglia',
-      'amount': 'Inserimento Importo',
-      'period': 'Inserimento Periodo',
-      'contact': 'Inserimento Contatto',
+      [STEPS.Family]: 'Selezione Famiglia',
+      [STEPS.Amount]: 'Inserimento Importo',
+      [STEPS.Period]: 'Inserimento Periodo',
     };
 
     const currentStep =
@@ -296,9 +276,9 @@ export class QuoteCommand extends BaseCommand {
           [
             {
               text: '🔄 Riprendi Quota',
-              callback_data: 'quote_recover_session',
+              callback_data: 'quota_recover_session',
             },
-            { text: '🆕 Nuova Quota', callback_data: 'quote_cancel_session' },
+            { text: '🆕 Nuova Quota', callback_data: 'quota_cancel_session' },
           ],
         ],
       },
@@ -368,7 +348,7 @@ export class QuoteCommand extends BaseCommand {
     const keyboard = {
       reply_markup: {
         inline_keyboard: FAMILY_OPTIONS.map((family) => [
-          { text: family, callback_data: `quote_family_${family}` },
+          { text: family, callback_data: `quota_family_${family}` },
         ]),
       },
     };
@@ -448,10 +428,10 @@ export class QuoteCommand extends BaseCommand {
   }
 
   getHelpText(): string {
-    return '/quote - Registra una quota mensile (salta selezione categoria)';
+    return '/quote - Registra una quota mensile';
   }
 
   getDescription(): string {
-    return 'Gestisce il flusso di registrazione quote mensili con selezione famiglia, importo, periodo e contatto (categoria fissa: quota mensile)';
+    return 'Gestisce il flusso di registrazione quote mensili con selezione famiglia, importo, periodo';
   }
 }
