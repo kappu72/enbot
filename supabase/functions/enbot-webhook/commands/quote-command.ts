@@ -150,7 +150,7 @@ export class QuoteCommand extends BaseCommand {
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    const dateRegex = /^\d{2} \d{4}$/;
+    const dateRegex = /^\d{2}-\d{4}$/;
     if (!dateRegex.test(text.trim())) {
       await this.sendMessage(
         '❌ Inserisci una data valida nel formato MM-YYYY (es. 01-2024):',
@@ -167,17 +167,13 @@ export class QuoteCommand extends BaseCommand {
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
     // split the period into month and year
-    const [month, year] = session.transactionData.period!.split(' ');
+    const transactionPayload = this.getTransactionPayload(session);
     try {
       const transaction = {
-        family: session.transactionData.family!,
-        category: session.transactionData.category!,
-        amount: session.transactionData.amount!,
-        period: session.transactionData.period!,
-        month: month,
-        year: year,
-        recorded_by: `@${this.context.userId}`,
-        recorded_at: new Date().toISOString(),
+        payload: transactionPayload,
+        created_by_user_id: this.context.userId,
+        command_type: session.commandType,
+        is_synced: false,
         chat_id: this.context.chatId,
       };
 
@@ -199,8 +195,21 @@ export class QuoteCommand extends BaseCommand {
       await this.deleteSession();
 
       const transactionId = data.id;
-      await this.sendConfirmation(transaction, transactionId);
-      await this.sendNotification(transaction, transactionId);
+
+      // Sync with Google Sheets
+      const syncResult = await this.syncTransactionToGoogleSheets(
+        transactionId,
+      );
+      if (!syncResult.success) {
+        console.warn(
+          `⚠️ Failed to sync transaction ${transactionId} to Google Sheets: ${syncResult.error}`,
+        );
+        await this.sendMessage(
+          '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita. Verrà ritentata automaticamente.',
+        );
+      }
+
+      await this.sendNotification(transactionPayload, transactionId);
 
       return { success: true, message: 'Quote completed successfully' };
     } catch (error) {
@@ -208,56 +217,6 @@ export class QuoteCommand extends BaseCommand {
       await this.sendMessage('❌ Errore durante il completamento della quota.');
       return { success: false, message: 'Completion error' };
     }
-  }
-
-  private async showSessionRecovery(
-    existingSession: CommandSession,
-  ): Promise<void> {
-    const sessionData = existingSession.transactionData;
-    const stepNames = {
-      [STEPS.Family]: 'Selezione Famiglia',
-      [STEPS.Amount]: 'Inserimento Importo',
-      [STEPS.Period]: 'Inserimento Periodo',
-    };
-
-    const currentStep =
-      stepNames[existingSession.step as keyof typeof stepNames] ||
-      existingSession.step;
-
-    let sessionInfo = `🔄 **Sessione Quota Precedente Trovata**\n\n`;
-    sessionInfo += `📊 **Stato attuale:** ${currentStep}\n`;
-    sessionInfo += `📂 **Categoria:** quota mensile (fissa)\n`;
-
-    if (sessionData.family) {
-      sessionInfo += `👨‍👩‍👧‍👦 **Famiglia:** ${sessionData.family}\n`;
-    }
-    if (sessionData.amount) {
-      sessionInfo += `💰 **Importo:** €${sessionData.amount}\n`;
-    }
-    if (sessionData.period) {
-      sessionInfo += `📅 **Periodo:** ${sessionData.period}\n`;
-    }
-    if (sessionData.contact) {
-      sessionInfo += `📞 **Contatto:** ${sessionData.contact}\n`;
-    }
-
-    sessionInfo +=
-      `\n🤔 Vuoi riprendere questa sessione quota o iniziare una nuova?`;
-
-    await this.sendMessage(sessionInfo, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🔄 Riprendi Quota',
-              callback_data: 'quota_recover_session',
-            },
-            { text: '🆕 Nuova Quota', callback_data: 'quota_cancel_session' },
-          ],
-        ],
-      },
-    });
   }
 
   private async recoverSession(): Promise<CommandResult> {
@@ -302,22 +261,6 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
-  private async cancelSession(): Promise<CommandResult> {
-    try {
-      await this.deleteSession();
-      await this.sendMessage(
-        '🗑️ Sessione quota precedente cancellata. Iniziando una nuova quota...',
-      );
-      return await this.startQuota();
-    } catch (error) {
-      console.error('❌ Error canceling quote session:', error);
-      await this.sendMessage(
-        '❌ Errore nella cancellazione della sessione quota.',
-      );
-      return { success: false, message: 'Cancel error' };
-    }
-  }
-
   // UI Helper methods
   private async sendFamilyPrompt(): Promise<void> {
     const keyboard = {
@@ -333,7 +276,7 @@ export class QuoteCommand extends BaseCommand {
     const mention = username ? `@${username}` : '';
     const message = `${mention} 👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:`;
 
-    return await this.sendMessage(message, keyboard);
+    await this.sendMessage(message, keyboard);
   }
 
   private async sendAmountPrompt(): Promise<void> {
@@ -358,7 +301,7 @@ export class QuoteCommand extends BaseCommand {
     const keyboard = {
       reply_markup: {
         force_reply: true,
-        input_field_placeholder: 'MESE ANNO',
+        input_field_placeholder: 'MM-YYYY (es. 01-2024)',
         selective: true,
       },
     };
@@ -366,8 +309,7 @@ export class QuoteCommand extends BaseCommand {
     // Get username for mention
     const username = this.context.message?.from?.username;
     const mention = username ? `@${username}` : '';
-    const message =
-      `${mention} 📅 Inserisci il mese ed anno di riferimento (formato: MM YYYY, es. 01 2024):`;
+    const message = `${mention} 📅 Inserisci il mese ed anno di riferimento:`;
 
     await this.sendMessage(message, keyboard);
   }
@@ -378,52 +320,24 @@ export class QuoteCommand extends BaseCommand {
     );
   }
 
-  private async sendConfirmation(
-    transaction: Record<string, unknown>,
-    transactionId: number,
-  ): Promise<void> {
-    const confirmationMessage = `✅ **Quota Mensile Registrata!**
-
-📋 **Dettagli:**
-• **Famiglia:** ${transaction.family}
-• **Categoria:** ${transaction.category}
-• **Importo:** €${transaction.amount}
-• **Periodo:** ${transaction.period}
-• **Contatto:** ${transaction.contact}
-• **ID Transazione:** #${transactionId}`;
-
-    await this.sendMessage(confirmationMessage, { parse_mode: 'Markdown' });
-  }
-
   private async sendNotification(
-    transaction: Record<string, unknown>,
+    transactionPayload: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
     const notificationMessage = `🔔 **Nuova Quota Mensile Registrata**
 
 📋 **Dettagli:**
-• **Famiglia:** ${transaction.family}
-• **Categoria:** ${transaction.category}
-• **Importo:** €${transaction.amount}
-• **Periodo:** ${transaction.period}
-• **Registrato da:** ${transaction.recorded_by}
+• **Famiglia:** ${transactionPayload.family}
+• **Categoria:** ${transactionPayload.category}
+• **Importo:** €${transactionPayload.amount}
+• **Periodo:** ${transactionPayload.month}-${transactionPayload.year}
+• **Registrato da:** ${transactionPayload.recorded_by}
 • **ID Transazione:** #${transactionId}`;
 
-    try {
-      await this.context.telegram.sendMessage(
-        transaction.contact as string | number,
-        notificationMessage,
-        {
-          parse_mode: 'Markdown',
-        },
-      );
-    } catch (error) {
-      console.error('Error sending quote notification:', error);
-      await this.context.telegram.sendMessage(
-        transaction.chat_id as string | number,
-        `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`,
-      );
-    }
+    // Send confirmation message to the chat where the command was issued
+    await this.sendMessage(notificationMessage, { parse_mode: 'Markdown' });
+
+    console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }
 
   getHelpText(): string {

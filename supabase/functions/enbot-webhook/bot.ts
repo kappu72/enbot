@@ -8,6 +8,7 @@ import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
 import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
+import { createGoogleSheetsClient } from './google-sheets-client.ts';
 
 export class EnBot {
   private telegram: TelegramClient;
@@ -38,8 +39,15 @@ export class EnBot {
       this.config,
     );
 
+    // Initialize Google Sheets client (optional)
+    const googleSheetsClient = createGoogleSheetsClient() || undefined;
+
     // Initialize command registry
-    this.commandRegistry = new CommandRegistry(supabase, this.telegram);
+    this.commandRegistry = new CommandRegistry(
+      supabase,
+      this.telegram,
+      googleSheetsClient,
+    );
     this.initializeCommands();
   }
 

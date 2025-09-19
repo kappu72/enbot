@@ -3,6 +3,7 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
+import type { GoogleSheetsClient } from '../google-sheets-client.ts';
 import type {
   Command,
   CommandContext,
@@ -10,21 +11,32 @@ import type {
 } from './command-interface.ts';
 
 export class CommandRegistry {
-  private commandClasses: Map<string, any> = new Map();
+  private commandClasses: Map<
+    string,
+    new (context: CommandContext) => Command
+  > = new Map();
   private supabase: SupabaseClient;
   private telegram: TelegramClient;
   private sessionManager: SessionManager;
+  private googleSheetsClient?: GoogleSheetsClient;
 
-  constructor(supabase: SupabaseClient, telegram: TelegramClient) {
+  constructor(
+    supabase: SupabaseClient,
+    telegram: TelegramClient,
+    googleSheetsClient?: GoogleSheetsClient,
+  ) {
     this.supabase = supabase;
     this.telegram = telegram;
     this.sessionManager = new SessionManager(supabase);
+    this.googleSheetsClient = googleSheetsClient;
   }
 
   /**
    * Register a command class
    */
-  registerCommand(commandClass: any): void {
+  registerCommand(
+    commandClass: new (context: CommandContext) => Command,
+  ): void {
     const tempInstance = new commandClass(this.createContext(0, 0));
     this.commandClasses.set(tempInstance.getCommandName(), commandClass);
     console.log(`📝 Registered command: ${tempInstance.getCommandName()}`);
@@ -47,7 +59,7 @@ export class CommandRegistry {
    */
   getAllCommands(): Command[] {
     const commands: Command[] = [];
-    for (const [name, CommandClass] of this.commandClasses.entries()) {
+    for (const [_name, CommandClass] of this.commandClasses.entries()) {
       const tempContext = this.createContext(0, 0);
       commands.push(new CommandClass(tempContext));
     }
@@ -67,6 +79,7 @@ export class CommandRegistry {
       supabase: this.supabase,
       telegram: this.telegram,
       sessionManager: this.sessionManager,
+      googleSheetsClient: this.googleSheetsClient,
       userId,
       chatId,
       message,

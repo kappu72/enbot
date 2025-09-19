@@ -53,7 +53,7 @@ const enBot = new EnBot(
   allowedGroupIds,
   adminUserIds,
   supabase,
-  true,
+  false,
 );
 
 // Set up Grammy bot handlers using our existing EnBot logic

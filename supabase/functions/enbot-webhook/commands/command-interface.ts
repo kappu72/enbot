@@ -7,11 +7,13 @@ import type {
 } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
+import type { GoogleSheetsClient } from '../google-sheets-client.ts';
 
 export interface CommandContext {
   supabase: SupabaseClient;
   telegram: TelegramClient;
   sessionManager: SessionManager;
+  googleSheetsClient?: GoogleSheetsClient;
   userId: number;
   chatId: number;
   message?: TelegramMessage;
@@ -156,13 +158,89 @@ export abstract class BaseCommand {
     );
   }
 
+  /**
+   * Synchronize transaction with Google Sheets and mark as synced
+   */
+  protected async syncTransactionToGoogleSheets(
+    transactionId: number,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Check if Google Sheets client is available
+      if (!this.context.googleSheetsClient) {
+        console.warn('⚠️ Google Sheets client not available, skipping sync');
+        return { success: false, error: 'Google Sheets client not configured' };
+      }
+
+      // Fetch transaction from database
+      const { data: transaction, error: fetchError } = await this.context
+        .supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single();
+
+      if (fetchError || !transaction) {
+        console.error('❌ Failed to fetch transaction:', fetchError);
+        return { success: false, error: 'Transaction not found' };
+      }
+
+      // Convert JSONB payload to Google Sheets format
+      const googleSheetsRow = transaction.payload;
+
+      // Push to Google Sheets
+      await this.context.googleSheetsClient.pushTransaction(googleSheetsRow);
+
+      // Update transaction as synced in database
+      const { error: updateError } = await this.context.supabase
+        .from('transactions')
+        .update({
+          is_synced: true,
+          synced_at: new Date().toISOString(),
+        })
+        .eq('id', transactionId);
+
+      if (updateError) {
+        console.error('❌ Failed to update sync status:', updateError);
+        return { success: false, error: 'Failed to update sync status' };
+      }
+
+      console.log(
+        `✅ Transaction ${transactionId} successfully synced to Google Sheets`,
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error syncing transaction to Google Sheets:', error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Unknown sync error';
+      return { success: false, error: errorMessage };
+    }
+  }
+  protected getTransactionPayload(
+    session: CommandSession,
+  ): Record<string, unknown> {
+    // split the period into month and year
+    const [month, year] = session.transactionData.period!.split('-');
+    return {
+      category: session.transactionData.category || '',
+      amount: session.transactionData.amount || '',
+      year: year,
+      month: month,
+      description: session.transactionData.description || '',
+      family: session.transactionData.family || '',
+      recorded_at: new Date().toISOString(),
+      recorded_by: `@${
+        this.context.message?.from?.username || this.context.userId
+      }`,
+    };
+  }
   canHandleCommand(
     message: TelegramMessage,
   ): Promise<boolean> | boolean {
     return message.text === `/${this.commandName}`;
   }
   canHandleCallback(
-    callbackQuery: TelegramCallbackQuery,
+    _callbackQuery: TelegramCallbackQuery,
   ): Promise<boolean> | boolean {
     return false;
   }
@@ -176,7 +254,7 @@ export interface Command {
     message: TelegramMessage,
   ): Promise<boolean> | boolean;
   canHandleCallback(
-    callbackQuery: TelegramCallbackQuery,
+    _callbackQuery: TelegramCallbackQuery,
   ): Promise<boolean> | boolean;
   execute(): Promise<CommandResult>;
   getHelpText(): string;
