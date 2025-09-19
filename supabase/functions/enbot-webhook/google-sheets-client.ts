@@ -482,23 +482,58 @@ export class GoogleSheetsClient {
   }
 }
 
+export interface GoogleSheetsEnvConfig {
+  GOOGLE_SERVICE_ACCOUNT_KEY?: string;
+  GOOGLE_SPREADSHEET_ID?: string;
+  GOOGLE_SHEET_NAME?: string;
+}
+
 /**
- * Factory function to create Google Sheets client from environment variables
+ * Factory function to create Google Sheets client from config object
+ * @param envConfig Config object with Google Sheets environment variables
  */
-export function createGoogleSheetsClient(): GoogleSheetsClient | null {
-  const serviceAccountKey = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY');
-  const spreadsheetId = Deno.env.get('GOOGLE_SPREADSHEET_ID');
+export function createGoogleSheetsClient(
+  envConfig?: GoogleSheetsEnvConfig,
+): GoogleSheetsClient | null {
+  if (!envConfig) {
+    console.warn('⚠️ No Google Sheets configuration provided');
+    return null;
+  }
+
+  const serviceAccountKey = envConfig.GOOGLE_SERVICE_ACCOUNT_KEY;
+  const spreadsheetId = envConfig.GOOGLE_SPREADSHEET_ID;
+  const sheetName = envConfig.GOOGLE_SHEET_NAME || 'Transactions';
+
+  // Debug logging
+  console.log('🔍 Checking Google Sheets configuration:');
+  console.log(
+    `- GOOGLE_SERVICE_ACCOUNT_KEY: ${
+      serviceAccountKey ? 'Set ✅' : 'Missing ❌'
+    }`,
+  );
+  console.log(
+    `- GOOGLE_SPREADSHEET_ID: ${spreadsheetId ? 'Set ✅' : 'Missing ❌'}`,
+  );
+  console.log(
+    `- GOOGLE_SHEET_NAME: ${sheetName} ${
+      sheetName !== 'Transactions' ? '(custom)' : '(default)'
+    }`,
+  );
 
   if (!serviceAccountKey || !spreadsheetId) {
     console.warn(
-      '⚠️ Google Sheets integration not configured. Missing GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_SPREADSHEET_ID',
+      '⚠️ Google Sheets integration not configured. Missing required configuration.',
+    );
+    console.warn(
+      '📖 Required: GOOGLE_SERVICE_ACCOUNT_KEY and GOOGLE_SPREADSHEET_ID',
     );
     return null;
   }
 
+  console.log('✅ Google Sheets client configuration valid');
   return new GoogleSheetsClient({
     serviceAccountKey,
     spreadsheetId,
-    sheetName: Deno.env.get('GOOGLE_SHEET_NAME') || 'Transactions',
+    sheetName,
   });
 }

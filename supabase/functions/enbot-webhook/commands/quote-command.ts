@@ -196,7 +196,7 @@ export class QuoteCommand extends BaseCommand {
 
       const transactionId = data.id;
 
-      // Sync with Google Sheets
+      // Sync with Google Sheets (optional)
       const syncResult = await this.syncTransactionToGoogleSheets(
         transactionId,
       );
@@ -204,8 +204,15 @@ export class QuoteCommand extends BaseCommand {
         console.warn(
           `⚠️ Failed to sync transaction ${transactionId} to Google Sheets: ${syncResult.error}`,
         );
-        await this.sendMessage(
-          '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita. Verrà ritentata automaticamente.',
+        // Only show error message if it's not a configuration issue
+        if (!syncResult.error?.includes('not configured')) {
+          await this.sendMessage(
+            '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita. Verrà ritentata automaticamente.',
+          );
+        }
+      } else {
+        console.log(
+          `✅ Transaction ${transactionId} synced to Google Sheets successfully`,
         );
       }
 
