@@ -77,7 +77,7 @@ const enBot = new EnBot(
   allowedGroupIds,
   adminUserIds,
   supabase,
-  true, // isDevelopment = true for local dev
+  false, // isDevelopment = true for local dev
   googleSheetsConfig,
 );
 
@@ -120,6 +120,17 @@ try {
 console.log('🚀 Starting Grammy bot with polling...');
 console.log('💡 Send a message to your bot to test!');
 console.log('🛑 Press Ctrl+C to stop');
+
+// Optionally setup bot commands on startup
+if (env.SETUP_COMMANDS_ON_START === 'true') {
+  try {
+    console.log('⚙️ Setting up bot commands...');
+    await enBot.setupBotCommands();
+    console.log('✅ Bot commands configured successfully');
+  } catch (error) {
+    console.warn('⚠️ Failed to setup bot commands:', error);
+  }
+}
 
 // Start polling
 telegramBot.start({

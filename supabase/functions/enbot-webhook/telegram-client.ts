@@ -1,5 +1,10 @@
 // Telegram API client wrapper
-import type { BotConfig } from './types.ts';
+import type {
+  BotCommand,
+  BotCommandScope,
+  BotConfig,
+  MenuButton,
+} from './types.ts';
 
 export class TelegramClient {
   private botToken: string;
@@ -39,6 +44,57 @@ export class TelegramClient {
       throw new Error(`Telegram API error: ${error}`);
     }
     return (await response.json()).result;
+  }
+
+  /**
+   * Set bot commands menu for groups/chats
+   */
+  async setBotCommands(
+    commands: BotCommand[],
+    scope?: BotCommandScope,
+  ): Promise<void> {
+    const url = `https://api.telegram.org/bot${this.botToken}/setMyCommands`;
+    const payload = {
+      commands,
+      scope,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Telegram API error setting commands: ${error}`);
+    }
+  }
+
+  /**
+   * Set custom menu button for chats
+   */
+  async setChatMenuButton(
+    chatId: number | string,
+    menuButton: MenuButton,
+  ): Promise<void> {
+    const url =
+      `https://api.telegram.org/bot${this.botToken}/setChatMenuButton`;
+    const payload = {
+      chat_id: chatId,
+      menu_button: menuButton,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Telegram API error setting menu button: ${error}`);
+    }
   }
 
   async answerCallbackQuery(
