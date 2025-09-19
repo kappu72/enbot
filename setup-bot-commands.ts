@@ -13,8 +13,14 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { EnBot } from './supabase/functions/enbot-webhook/bot.ts';
 
 async function main(): Promise<void> {
+  // Determine environment
+  const envArg = Deno.args.find((arg) => arg.startsWith('--env='))
+    ?.split('=')[1];
+  const envFile = envArg === 'prod' ? '.prod.env' : '.local.env';
+  console.log(`🌍 Loading environment from ${envFile}`);
+
   // Load environment variables
-  const env = await load({ envPath: './.local.env' });
+  const env = await load({ envPath: `./${envFile}`, export: true });
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseAnonKey = env.SUPABASE_ANON_KEY;
   const botToken = env.TELEGRAM_BOT_TOKEN;
