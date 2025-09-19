@@ -142,7 +142,10 @@ telegramBot.start({
 // Graceful shutdown
 const handleShutdown = async () => {
   console.log('\n🛑 Shutting down local bot...');
-  await telegramBot.stop();
+  if (telegramBot.isInited()) {
+    await telegramBot.stop();
+    console.log('✅ Polling stopped.');
+  }
 
   // Optionally restore webhook for production
   // await enBot.setupWebhook('https://your-production-webhook-url');
