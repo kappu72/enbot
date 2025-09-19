@@ -290,7 +290,7 @@ export class QuoteCommand extends BaseCommand {
     const keyboard = {
       reply_markup: {
         force_reply: true,
-        input_field_placeholder: 'Quanto ha versato la famiglia?',
+        input_field_placeholder: '25.50 (solo numeri e punto)',
         selective: true,
       },
     };
@@ -299,7 +299,7 @@ export class QuoteCommand extends BaseCommand {
     const username = this.context.message?.from?.username;
     const mention = username ? `@${username}` : '';
     const message =
-      `${mention} 💰 Inserisci l'importo della quota in EUR (es. 25.50):`;
+      `${mention} 💰 Inserisci l'importo della quota in EUR:\n🔢 Esempio: 25.50\n📱 Usa il tastierino numerico del telefono`;
 
     await this.sendMessage(message, keyboard);
   }

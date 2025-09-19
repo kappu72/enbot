@@ -12,11 +12,15 @@ export interface GoogleSheetsRow {
   family: string;
   category: string;
   amount: number;
-  period: string;
-  contact: string;
+  year: string;
+  month: string;
+  description?: string;
   recordedBy: string;
   recordedAt: string;
   chatId: number;
+  // Legacy fields for backward compatibility
+  period?: string;
+  contact?: string;
 }
 
 export interface GoogleAuthToken {
@@ -229,7 +233,7 @@ export class GoogleSheetsClient {
             title: sheetName,
             gridProperties: {
               rowCount: 1000,
-              columnCount: 10,
+              columnCount: 10, // Updated to match new structure (A-J)
             },
           },
         },
@@ -267,14 +271,15 @@ export class GoogleSheetsClient {
       'Family',
       'Category',
       'Amount',
-      'Period',
-      'Contact',
+      'Year',
+      'Month',
+      'Description',
       'Recorded By',
       'Recorded At',
       'Chat ID',
     ];
 
-    const range = `${sheetName}!A1:I1`;
+    const range = `${sheetName}!A1:J1`;
 
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}?valueInputOption=RAW`,
@@ -297,16 +302,22 @@ export class GoogleSheetsClient {
   private transactionToRow(
     transaction: LegacyTransaction | GoogleSheetsRow,
   ): (string | number)[] {
+    // Handle new format (with year/month) or legacy format (with period)
+    const year = 'year' in transaction ? transaction.year : '';
+    const month = 'month' in transaction ? transaction.month : '';
+    const description = 'description' in transaction
+      ? (transaction.description || '')
+      : '';
+
     return [
-      transaction.id || '',
-      transaction.family,
       transaction.category,
       transaction.amount,
-      transaction.period,
-      transaction.contact,
-      transaction.recordedBy,
+      year,
+      month,
+      description,
+      transaction.family,
       transaction.recordedAt,
-      transaction.chatId,
+      transaction.recordedBy,
     ];
   }
 
@@ -321,7 +332,7 @@ export class GoogleSheetsClient {
       await this.ensureValidToken();
 
       const row = this.transactionToRow(transaction);
-      const range = `${sheetName}!A:I`;
+      const range = `${sheetName}!A:J`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
@@ -369,7 +380,7 @@ export class GoogleSheetsClient {
       const rows = transactions.map((transaction) =>
         this.transactionToRow(transaction)
       );
-      const range = `${sheetName}!A:I`;
+      const range = `${sheetName}!A:J`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
@@ -407,7 +418,7 @@ export class GoogleSheetsClient {
       const sheetName = await this.ensureSheetExists();
       await this.ensureValidToken();
 
-      const range = `${sheetName}!A2:I`; // Skip header row
+      const range = `${sheetName}!A2:J`; // Skip header row
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}`,
@@ -433,11 +444,12 @@ export class GoogleSheetsClient {
         family: row[1] || '',
         category: row[2] || '',
         amount: row[3] ? parseFloat(row[3]) : 0,
-        period: row[4] || '',
-        contact: row[5] || '',
-        recordedBy: row[6] || '',
-        recordedAt: row[7] || '',
-        chatId: row[8] ? parseInt(row[8]) : 0,
+        year: row[4] || '',
+        month: row[5] || '',
+        description: row[6] || '',
+        recordedBy: row[7] || '',
+        recordedAt: row[8] || '',
+        chatId: row[9] ? parseInt(row[9]) : 0,
       }));
     } catch (error) {
       console.error('❌ Error getting transactions from Google Sheets:', error);
@@ -453,7 +465,7 @@ export class GoogleSheetsClient {
       const sheetName = await this.ensureSheetExists();
       await this.ensureValidToken();
 
-      const range = `${sheetName}!A2:I`;
+      const range = `${sheetName}!A2:J`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:clear`,
