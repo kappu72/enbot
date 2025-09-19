@@ -90,10 +90,6 @@ export class EnBot {
         description: '📊 Gestisci transazioni generali',
       },
       {
-        command: 'menu',
-        description: '🎛️ Mostra menu comandi interattivo',
-      },
-      {
         command: 'help',
         description: '❓ Mostra aiuto e lista comandi',
       },
@@ -134,44 +130,6 @@ export class EnBot {
     console.log(`✅ Commands configured for group ${chatId}`);
   }
 
-  /**
-   * Send a menu with inline keyboard for group usage
-   */
-  async sendMenuKeyboard(chatId: number | string): Promise<void> {
-    const menuKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '💰 Quota Mensile',
-              callback_data: 'menu_quota',
-            },
-          ],
-          [
-            {
-              text: '📊 Transazione',
-              callback_data: 'menu_transazione',
-            },
-          ],
-          [
-            {
-              text: '❓ Help',
-              callback_data: 'menu_help',
-            },
-          ],
-        ],
-      },
-    };
-
-    const message =
-      '🎛️ **Menu Comandi EnBot**\n\nSeleziona un comando dal menu qui sotto:';
-
-    await this.telegram.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      ...menuKeyboard,
-    });
-  }
-
   async processUpdate(update: TelegramUpdate): Promise<void> {
     try {
       // Process callback queries (button presses)
@@ -201,15 +159,6 @@ export class EnBot {
       return;
     }
     console.log('handleMessage', msg);
-
-    // Handle special /menu command for groups
-    if (
-      msg.text === '/menu' ||
-      msg.text === '/menu@' + Deno.env.get('BOT_USERNAME')
-    ) {
-      await this.sendMenuKeyboard(msg.chat.id);
-      return;
-    }
 
     // Try to route to command system first
     const commandResult = await this.commandRegistry.routeMessage(
