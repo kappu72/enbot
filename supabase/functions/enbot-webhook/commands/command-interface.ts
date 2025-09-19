@@ -167,8 +167,17 @@ export abstract class BaseCommand {
     try {
       // Check if Google Sheets client is available
       if (!this.context.googleSheetsClient) {
-        console.warn('⚠️ Google Sheets client not available, skipping sync');
-        return { success: false, error: 'Google Sheets client not configured' };
+        console.warn(
+          '⚠️ Google Sheets client not available, skipping sync for transaction',
+          transactionId,
+        );
+        console.warn(
+          'Configure GOOGLE_SERVICE_ACCOUNT_KEY and GOOGLE_SPREADSHEET_ID env vars',
+        );
+        return {
+          success: false,
+          error: 'Google Sheets not configured - sync skipped',
+        };
       }
 
       // Fetch transaction from database

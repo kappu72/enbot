@@ -38,11 +38,35 @@ if (!supabaseUrl || !supabaseKey) {
   Deno.exit(1);
 }
 
+// Prepare Google Sheets configuration for development
+const googleSheetsConfig = {
+  GOOGLE_SERVICE_ACCOUNT_KEY: env.GOOGLE_SERVICE_ACCOUNT_KEY,
+  GOOGLE_SPREADSHEET_ID: env.GOOGLE_SPREADSHEET_ID,
+  GOOGLE_SHEET_NAME: env.GOOGLE_SHEET_NAME,
+};
+
 console.log('🚀 Starting EnBot in local development mode...');
 console.log(`📱 Bot Token: ${botToken.substring(0, 10)}...`);
 console.log(`👥 Allowed Group ID: ${allowedGroupIds.join(', ')}`);
 console.log(`👑 Admin User IDs: ${adminUserIds.join(', ')}`);
 console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+console.log('📊 Google Sheets Config:');
+console.log(
+  `  - Service Account Key: ${
+    googleSheetsConfig.GOOGLE_SERVICE_ACCOUNT_KEY ? 'Loaded ✅' : 'Missing ❌'
+  }`,
+);
+console.log(
+  `  - Spreadsheet ID: ${
+    googleSheetsConfig.GOOGLE_SPREADSHEET_ID ? 'Loaded ✅' : 'Missing ❌'
+  }`,
+);
+console.log(
+  `  - Sheet Name: ${
+    googleSheetsConfig.GOOGLE_SHEET_NAME || 'Transactions (default)'
+  }`,
+);
+console.log('---');
 
 // Initialize Grammy bot for local development
 const telegramBot = new Bot(botToken);
@@ -53,7 +77,8 @@ const enBot = new EnBot(
   allowedGroupIds,
   adminUserIds,
   supabase,
-  false,
+  true, // isDevelopment = true for local dev
+  googleSheetsConfig,
 );
 
 // Set up Grammy bot handlers using our existing EnBot logic

@@ -8,7 +8,10 @@ import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
 import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
-import { createGoogleSheetsClient } from './google-sheets-client.ts';
+import {
+  createGoogleSheetsClient,
+  type GoogleSheetsEnvConfig,
+} from './google-sheets-client.ts';
 
 export class EnBot {
   private telegram: TelegramClient;
@@ -23,6 +26,7 @@ export class EnBot {
     adminUserIds: number[] = [],
     supabase: SupabaseClient,
     isDevelopment: boolean = false,
+    googleSheetsConfig?: GoogleSheetsEnvConfig,
   ) {
     this.config = {
       botToken,
@@ -40,7 +44,17 @@ export class EnBot {
     );
 
     // Initialize Google Sheets client (optional)
-    const googleSheetsClient = createGoogleSheetsClient() || undefined;
+    const googleSheetsClient = createGoogleSheetsClient(googleSheetsConfig) ||
+      undefined;
+
+    // Debug logging
+    if (googleSheetsClient) {
+      console.log('✅ Google Sheets client initialized successfully');
+    } else {
+      console.warn(
+        '⚠️ Google Sheets client not available - check configuration',
+      );
+    }
 
     // Initialize command registry
     this.commandRegistry = new CommandRegistry(
