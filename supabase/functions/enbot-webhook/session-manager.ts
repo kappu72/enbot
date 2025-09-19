@@ -38,7 +38,7 @@ export class SessionManager {
           },
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id,command_type,chat_id',
+          onConflict: 'user_id,chat_id',
         }).eq('user_id', session.userId).eq('chat_id', session.chatId);
 
       if (error) {
