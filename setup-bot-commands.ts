@@ -6,63 +6,33 @@
  * - Global commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
  * - Group commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
  */
+/// <reference path="./types/deno.d.ts" />
 
 import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
-
-interface SetupCommandsResponse {
-  status: string;
-  message: string;
-  error?: string;
-}
-
-async function setupBotCommandsForGroup(
-  chatId: string,
-  supabaseUrl: string,
-  supabaseAnonKey: string,
-): Promise<void> {
-  console.log(`\n🎯 Setting up commands for group: ${chatId}`);
-  const endpoint = `${supabaseUrl}/functions/v1/enbot-webhook/setup-commands`;
-  const payload = { chatId };
-
-  try {
-    console.log(`📡 Calling setup-commands endpoint for group ${chatId}...`);
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result: SetupCommandsResponse = await response.json();
-
-    if (response.ok) {
-      console.log(`✅ Success for group ${chatId}:`, result.message);
-    } else {
-      console.error(
-        `❌ Error for group ${chatId}:`,
-        result.error || result.message,
-      );
-      // Don't exit on single failure, try next group
-    }
-  } catch (error) {
-    console.error(`❌ Failed to setup commands for group ${chatId}:`, error);
-  }
-}
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { EnBot } from './supabase/functions/enbot-webhook/bot.ts';
 
 async function main(): Promise<void> {
   // Load environment variables
   const env = await load({ envPath: './.local.env' });
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseAnonKey = env.SUPABASE_ANON_KEY;
+  const botToken = env.TELEGRAM_BOT_TOKEN;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey || !botToken) {
     console.error('❌ Missing required environment variables:');
     console.error('   - SUPABASE_URL');
     console.error('   - SUPABASE_ANON_KEY');
+    console.error('   - TELEGRAM_BOT_TOKEN');
     Deno.exit(1);
   }
+
+  // Supabase client
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  // Bot configuration
+  const adminUserIds =
+    env.ADMIN_USER_IDS?.split(',').map((id) => parseInt(id.trim())) || [];
 
   // Determine which groups to set up
   let groupIds: string[] = [];
@@ -80,26 +50,32 @@ async function main(): Promise<void> {
     groupIds = groupIdsFromEnv.split(',').map((id) => id.trim());
   }
 
+  // Instantiate EnBot
+  const enBot = new EnBot(
+    botToken,
+    groupIds.map(Number),
+    adminUserIds,
+    supabase,
+    false, // isDevelopment = true for setup script
+  );
+
   if (groupIds.length === 0) {
     console.warn(
       '⚠️ No group IDs specified via --group flag or ALLOWED_GROUP_ID env var.',
     );
-    console.log('🌍 Setting up global commands as a fallback...');
-    // Add logic for global setup if needed, or exit
-    // For now, let's just show the configured commands and exit gracefully.
   } else {
     for (const id of groupIds) {
-      await setupBotCommandsForGroup(id, supabaseUrl, supabaseAnonKey);
+      try {
+        await enBot.setupGroupCommands(id);
+        console.log(`✅ Commands successfully set for group ${id}`);
+      } catch (error) {
+        console.error(
+          `❌ Failed to set commands for group ${id}:`,
+          error.message,
+        );
+      }
     }
   }
-
-  console.log('\n\n📱 Commands configured:');
-  console.log('   /quota - 💰 Registra una quota mensile familiare');
-  console.log('   /transazione - 📊 Gestisci transazioni generali');
-  console.log('   /menu - 🎛️ Mostra menu comandi interattivo (per gruppi)');
-  console.log('   /help - ❓ Mostra aiuto e lista comandi');
-  console.log('\n🎉 Users can now see commands in the "/" menu!');
-  console.log('💡 In gruppi usa /menu per bottoni interattivi!');
 }
 
 // Run the setup immediately
