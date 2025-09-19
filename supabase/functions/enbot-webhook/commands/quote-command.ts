@@ -16,7 +16,7 @@ enum STEPS {
 
 export class QuoteCommand extends BaseCommand {
   static commandName = 'quota';
-  static description = '💰 Registra una quota mensile familiare';
+  static description = '💰 Registra una quota mensile';
   private readonly messagePrefix = '__quota:';
   constructor(context: CommandContext) {
     super(context, QuoteCommand.commandName);
