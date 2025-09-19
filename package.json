@@ -13,7 +13,8 @@
     "type-check": "deno check supabase/functions/enbot-webhook/index.ts",
     "test-webhook": "deno run --allow-net test-webhook.ts",
     "deploy:commands": "deno run --allow-env --allow-read --allow-net setup-bot-commands.ts",
-    "deploy:prod": "supabase functions deploy enbot-webhook && npm run deploy:commands"
+    "deploy:commands:prod": "deno run --allow-env --allow-read --allow-net setup-bot-commands.ts --env=prod",
+    "deploy:prod": "supabase functions deploy enbot-webhook && npm run deploy:commands:prod"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0"
