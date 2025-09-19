@@ -267,7 +267,15 @@ export abstract class BaseCommand {
   }
   abstract execute(): Promise<CommandResult>;
   abstract getHelpText(): string;
-  abstract getDescription(): string;
+  getDescription(): string {
+    return 'Nessuna descrizione fornita per questo comando.';
+  }
+}
+
+export interface CommandStatic {
+  new (context: CommandContext): Command;
+  commandName: string;
+  description: string;
 }
 
 export interface Command {

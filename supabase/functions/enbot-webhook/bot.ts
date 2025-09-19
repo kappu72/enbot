@@ -80,20 +80,12 @@ export class EnBot {
   async setupBotCommands(
     scope?: import('./types.ts').BotCommandScope,
   ): Promise<void> {
-    const commands: import('./types.ts').BotCommand[] = [
-      {
-        command: 'quota',
-        description: '💰 Registra una quota mensile familiare',
-      },
-      {
-        command: 'transazione',
-        description: '📊 Gestisci transazioni generali',
-      },
-      {
-        command: 'help',
-        description: '❓ Mostra aiuto e lista comandi',
-      },
-    ];
+    const commands: import('./types.ts').BotCommand[] = this.commandRegistry
+      .getAllCommands()
+      .map((command) => ({
+        command: command.getCommandName(),
+        description: command.getDescription(),
+      }));
 
     try {
       await this.telegram.setBotCommands(commands, scope);

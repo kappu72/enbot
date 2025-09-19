@@ -8,12 +8,13 @@ import type {
   Command,
   CommandContext,
   CommandResult,
+  CommandStatic,
 } from './command-interface.ts';
 
 export class CommandRegistry {
   private commandClasses: Map<
     string,
-    new (context: CommandContext) => Command
+    CommandStatic
   > = new Map();
   private supabase: SupabaseClient;
   private telegram: TelegramClient;
@@ -35,11 +36,10 @@ export class CommandRegistry {
    * Register a command class
    */
   registerCommand(
-    commandClass: new (context: CommandContext) => Command,
+    commandClass: CommandStatic,
   ): void {
-    const tempInstance = new commandClass(this.createContext(0, 0));
-    this.commandClasses.set(tempInstance.getCommandName(), commandClass);
-    console.log(`📝 Registered command: ${tempInstance.getCommandName()}`);
+    this.commandClasses.set(commandClass.commandName, commandClass);
+    console.log(`📝 Registered command: ${commandClass.commandName}`);
   }
 
   /**
