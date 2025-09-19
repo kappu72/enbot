@@ -333,15 +333,13 @@ export class QuoteCommand extends BaseCommand {
     transactionPayload: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
-    const notificationMessage = `🔔 **Nuova Quota Mensile Registrata**
-
+    const notificationMessage = `🔔 **Quota Mensile Registrata**
 📋 **Dettagli:**
 • **Famiglia:** ${transactionPayload.family}
 • **Categoria:** ${transactionPayload.category}
 • **Importo:** €${transactionPayload.amount}
 • **Periodo:** ${transactionPayload.month}-${transactionPayload.year}
-• **Registrato da:** ${transactionPayload.recorded_by}
-• **ID Transazione:** #${transactionId}`;
+• **Registrato da:** ${transactionPayload.recorded_by}`;
 
     // Send confirmation message to the chat where the command was issued
     await this.sendMessage(notificationMessage, { parse_mode: 'Markdown' });
