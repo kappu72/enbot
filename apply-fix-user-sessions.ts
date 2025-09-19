@@ -3,7 +3,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
 
-async function applyUserSessionsMigration() {
+async function fixUserSessionsConstraint() {
   try {
     console.log('📋 Step 1: Connessione a Supabase...');
 
@@ -21,17 +21,16 @@ async function applyUserSessionsMigration() {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('📄 Step 2: Lettura file migrazione...');
+
     // Read migration file
     const migrationSql = await Deno.readTextFile(
-      './supabase/migrations/20250118_update_user_sessions_constraint.sql',
+      './supabase/migrations/20250118_fix_user_sessions_constraint.sql',
     );
 
-    console.log('📄 Step 2: Lettura file migrazione user_sessions...');
-
-    // Execute migration
-    console.log('⚙️ Step 3: Esecuzione migrazione...');
+    console.log('⚙️ Step 3: Esecuzione fix constraint...');
     console.log(
-      '⚠️  Attenzione: Questa operazione modificherà la struttura della tabella user_sessions!',
+      '🎯 Rimuovo il constraint che impedisce sessioni multiple in chat diverse',
     );
 
     // Split SQL into individual statements and execute them
@@ -57,17 +56,18 @@ async function applyUserSessionsMigration() {
       }
     }
 
-    console.log('🔄 Aggiornamento constraint user_sessions completato!');
-    console.log('\n📋 Prossimi passi:');
+    console.log('🎉 Fix constraint user_sessions completato!');
+    console.log('\n📋 Risultato:');
+    console.log(
+      '   ✅ Un utente può ora avere sessioni diverse in chat diverse',
+    );
+    console.log('   ✅ Mantenuta logica: una sessione per utente per chat');
+    console.log('   ✅ Il comando può essere sovrascritto nella stessa chat');
+    console.log('\n🚀 Prossimi passi:');
     console.log('   1. Riavvia il tuo bot locale');
-    console.log(
-      '   2. Ora gli utenti possono avere sessioni attive per comandi diversi nella stessa chat',
-    );
-    console.log('   3. Testa il comando /transaction in chat diverse');
+    console.log('   2. Testa /transaction in chat diverse');
   } catch (error) {
-    console.log(
-      "❌ Errore durante l'applicazione della migrazione user_sessions:",
-    );
+    console.log("❌ Errore durante l'applicazione del fix:");
     console.log(error.message);
     console.log('\n💡 Suggerimenti:');
     console.log(
@@ -80,5 +80,5 @@ async function applyUserSessionsMigration() {
   }
 }
 
-// Esegui la migrazione
-await applyUserSessionsMigration();
+// Esegui il fix
+await fixUserSessionsConstraint();
