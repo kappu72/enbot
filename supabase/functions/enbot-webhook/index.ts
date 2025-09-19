@@ -82,6 +82,62 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // Setup commands endpoint - requires JWT
+  if (
+    url.pathname === '/enbot-webhook/setup-commands' && req.method === 'POST'
+  ) {
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Missing or invalid authorization header' }),
+          {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
+
+      const body = await req.json();
+      const { chatId, scope } = body;
+
+      if (chatId) {
+        // Setup commands for specific group
+        await bot.setupGroupCommands(chatId);
+        return new Response(
+          JSON.stringify({
+            status: 'success',
+            message: `Commands configured for group ${chatId}`,
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      } else {
+        // Setup global commands
+        await bot.setupBotCommands(scope);
+        return new Response(
+          JSON.stringify({
+            status: 'success',
+            message: 'Global commands configured',
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error setting up commands:', error);
+      return new Response(
+        JSON.stringify({ error: 'Failed to setup commands' }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+  }
+
   // Webhook endpoint - NO JWT REQUIRED for Telegram webhooks
   if (url.pathname === '/enbot-webhook/webhook' && req.method === 'POST') {
     try {

@@ -74,16 +74,115 @@ export class EnBot {
     console.log('🎯 Command system initialized');
   }
 
+  /**
+   * Configure bot commands menu for Telegram
+   */
+  async setupBotCommands(
+    scope?: import('./types.ts').BotCommandScope,
+  ): Promise<void> {
+    const commands: import('./types.ts').BotCommand[] = [
+      {
+        command: 'quota',
+        description: '💰 Registra una quota mensile familiare',
+      },
+      {
+        command: 'transazione',
+        description: '📊 Gestisci transazioni generali',
+      },
+      {
+        command: 'menu',
+        description: '🎛️ Mostra menu comandi interattivo',
+      },
+      {
+        command: 'help',
+        description: '❓ Mostra aiuto e lista comandi',
+      },
+    ];
+
+    try {
+      await this.telegram.setBotCommands(commands, scope);
+      console.log('✅ Bot commands menu configured successfully');
+    } catch (error) {
+      console.error('❌ Failed to configure bot commands:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setup commands for a specific group
+   */
+  async setupGroupCommands(chatId: number | string): Promise<void> {
+    const groupScope: import('./types.ts').BotCommandScope = {
+      type: 'chat',
+      chat_id: chatId,
+    };
+
+    // Setup slash commands menu
+    await this.setupBotCommands(groupScope);
+
+    // Try to setup menu button for group (may not always be visible)
+    try {
+      const menuButton: import('./types.ts').MenuButton = {
+        type: 'commands',
+      };
+      await this.telegram.setChatMenuButton(chatId, menuButton);
+      console.log(`✅ Menu button configured for group ${chatId}`);
+    } catch (error) {
+      console.warn(`⚠️ Could not set menu button for group ${chatId}:`, error);
+    }
+
+    console.log(`✅ Commands configured for group ${chatId}`);
+  }
+
+  /**
+   * Send a menu with inline keyboard for group usage
+   */
+  async sendMenuKeyboard(chatId: number | string): Promise<void> {
+    const menuKeyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '💰 Quota Mensile',
+              callback_data: 'menu_quota',
+            },
+          ],
+          [
+            {
+              text: '📊 Transazione',
+              callback_data: 'menu_transazione',
+            },
+          ],
+          [
+            {
+              text: '❓ Help',
+              callback_data: 'menu_help',
+            },
+          ],
+        ],
+      },
+    };
+
+    const message =
+      '🎛️ **Menu Comandi EnBot**\n\nSeleziona un comando dal menu qui sotto:';
+
+    await this.telegram.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      ...menuKeyboard,
+    });
+  }
+
   async processUpdate(update: TelegramUpdate): Promise<void> {
     try {
+      // Process callback queries (button presses)
+      if (update.callback_query) {
+        await this.handleMenuCallback(update.callback_query);
+        return;
+      }
+
       // Process messages
       if (update.message) {
         await this.handleMessage(update.message);
-      }
-
-      // Process callback queries
-      if (update.callback_query) {
-        await this.handleCallbackQuery(update.callback_query);
       }
     } catch (error) {
       console.error('❌ Error processing update:', error);
@@ -102,6 +201,16 @@ export class EnBot {
       return;
     }
     console.log('handleMessage', msg);
+
+    // Handle special /menu command for groups
+    if (
+      msg.text === '/menu' ||
+      msg.text === '/menu@' + Deno.env.get('BOT_USERNAME')
+    ) {
+      await this.sendMenuKeyboard(msg.chat.id);
+      return;
+    }
+
     // Try to route to command system first
     const commandResult = await this.commandRegistry.routeMessage(
       msg,
@@ -116,6 +225,66 @@ export class EnBot {
 
     // Fallback to legacy message handler for non-command messages
     await this.handleLegacyMessage(msg);
+  }
+
+  /**
+   * Handle menu button callbacks (menu_quota, menu_transazione, menu_help)
+   */
+  private async handleMenuCallback(
+    callbackQuery: TelegramUpdate['callback_query'],
+  ): Promise<void> {
+    if (!callbackQuery?.data || !callbackQuery?.message?.chat.id) return;
+
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
+
+    // Answer the callback query first
+    await this.telegram.answerCallbackQuery(
+      callbackQuery.id,
+      '✅ Comando selezionato',
+    );
+
+    // Route to appropriate command
+    if (data === 'menu_quota') {
+      // Create a fake message object for /quota command
+      const fakeMessage = {
+        ...callbackQuery.message,
+        text: '/quota',
+        from: callbackQuery.from,
+      };
+      await this.commandRegistry.routeMessage(
+        fakeMessage,
+        callbackQuery.from.id,
+        chatId,
+      );
+    } else if (data === 'menu_transazione') {
+      // Create a fake message object for /transazione command
+      const fakeMessage = {
+        ...callbackQuery.message,
+        text: '/transazione',
+        from: callbackQuery.from,
+      };
+      await this.commandRegistry.routeMessage(
+        fakeMessage,
+        callbackQuery.from.id,
+        chatId,
+      );
+    } else if (data === 'menu_help') {
+      // Create a fake message object for /help command
+      const fakeMessage = {
+        ...callbackQuery.message,
+        text: '/help',
+        from: callbackQuery.from,
+      };
+      await this.commandRegistry.routeMessage(
+        fakeMessage,
+        callbackQuery.from.id,
+        chatId,
+      );
+    } else {
+      // If it's not a menu callback, route to regular callback handler
+      await this.handleCallbackQuery(callbackQuery);
+    }
   }
 
   private async handleCallbackQuery(
@@ -146,7 +315,7 @@ export class EnBot {
     }
 
     // Fallback to legacy callback handling
-    await this.handleLegacyCallbackQuery(callbackQuery);
+    this.handleLegacyCallbackQuery(callbackQuery);
   }
 
   private async handleLegacyMessage(
@@ -175,11 +344,13 @@ export class EnBot {
     }
   }
 
-  private async handleLegacyCallbackQuery(
+  private handleLegacyCallbackQuery(
     callbackQuery: TelegramUpdate['callback_query'],
-  ): Promise<void> {
+  ): void {
     // Handle any legacy callback queries that aren't in the command system
-    console.log(`🔘 Unhandled callback query: ${callbackQuery.data}`);
+    if (callbackQuery?.data) {
+      console.log(`🔘 Unhandled callback query: ${callbackQuery.data}`);
+    }
   }
 
   private async handleCancel(msg: TelegramUpdate['message']): Promise<void> {
