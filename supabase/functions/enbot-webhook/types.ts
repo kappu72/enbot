@@ -21,6 +21,7 @@ export interface TransactionPayload {
   contact: string;
   recordedBy: string;
   recordedAt: string;
+  description: string;
 }
 
 // Interfaccia per compatibilità con il vecchio formato (per Google Sheets)
@@ -50,7 +51,8 @@ export interface UserSession {
     | 'billing_year'
     | 'year'
     | 'contact'
-    | 'complete';
+    | 'complete'
+    | 'description';
   transactionData: Partial<TransactionPayload>;
 }
 
@@ -70,7 +72,8 @@ export interface PersistedUserSession {
     | 'billing_month'
     | 'billing_year'
     | 'year'
-    | 'contact';
+    | 'contact'
+    | 'description';
   transaction_data: Partial<TransactionPayload>;
   created_at: string;
   updated_at: string;
