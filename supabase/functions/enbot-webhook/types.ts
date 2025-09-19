@@ -90,6 +90,7 @@ export interface BotConfig {
 
 // Import official Telegram types from Grammy (always up-to-date with Telegram Bot API)
 import type {
+  BotCommandScope as GrammyBotCommandScope,
   CallbackQuery,
   Message,
   Update,
@@ -99,6 +100,7 @@ import type {
 export type TelegramMessage = Message;
 export type TelegramCallbackQuery = CallbackQuery;
 export type TelegramUpdate = Update;
+export type TelegramBotCommandScope = GrammyBotCommandScope;
 
 export const FAMILY_OPTIONS = [
   'Famiglia Rossi',
@@ -140,19 +142,6 @@ export function hasCallbackData(
 export interface BotCommand {
   command: string; // Command name (without /)
   description: string; // Command description
-}
-
-export interface BotCommandScope {
-  type:
-    | 'default'
-    | 'all_private_chats'
-    | 'all_group_chats'
-    | 'all_chat_administrators'
-    | 'chat'
-    | 'chat_administrators'
-    | 'chat_member';
-  chat_id?: number | string; // Required if type is 'chat', 'chat_administrators', or 'chat_member'
-  user_id?: number; // Required if type is 'chat_member'
 }
 
 export interface MenuButton {
