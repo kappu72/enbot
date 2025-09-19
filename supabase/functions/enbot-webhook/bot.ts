@@ -71,11 +71,10 @@ export class EnBot {
   }
 
   private initializeCommands(): void {
-    // Register command classes (not instances)
-    this.commandRegistry.registerCommand(TransactionCommand);
+    // Register command classes (not instances) this order matters
     this.commandRegistry.registerCommand(QuoteCommand);
+    this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(HelpCommand);
-
     console.log('🎯 Command system initialized');
   }
 
@@ -105,7 +104,7 @@ export class EnBot {
     try {
       // Process callback queries (button presses)
       if (update.callback_query) {
-        await this.handleMenuCallback(update.callback_query);
+        await this.handleCallbackQuery(update.callback_query);
         return;
       }
 
@@ -142,69 +141,6 @@ export class EnBot {
       console.log(`✅ Command executed: ${commandResult.message}`);
       return;
     }
-
-    // Fallback to legacy message handler for non-command messages
-    await this.handleLegacyMessage(msg);
-  }
-
-  /**
-   * Handle menu button callbacks (menu_quota, menu_transazione, menu_help)
-   */
-  private async handleMenuCallback(
-    callbackQuery: TelegramUpdate['callback_query'],
-  ): Promise<void> {
-    if (!callbackQuery?.data || !callbackQuery?.message?.chat.id) return;
-
-    const chatId = callbackQuery.message.chat.id;
-    const data = callbackQuery.data;
-
-    // Answer the callback query first
-    await this.telegram.answerCallbackQuery(
-      callbackQuery.id,
-      '✅ Comando selezionato',
-    );
-
-    // Route to appropriate command
-    if (data === 'menu_quota') {
-      // Create a fake message object for /quota command
-      const fakeMessage = {
-        ...callbackQuery.message,
-        text: '/quota',
-        from: callbackQuery.from,
-      };
-      await this.commandRegistry.routeMessage(
-        fakeMessage,
-        callbackQuery.from.id,
-        chatId,
-      );
-    } else if (data === 'menu_transazione') {
-      // Create a fake message object for /transazione command
-      const fakeMessage = {
-        ...callbackQuery.message,
-        text: '/transazione',
-        from: callbackQuery.from,
-      };
-      await this.commandRegistry.routeMessage(
-        fakeMessage,
-        callbackQuery.from.id,
-        chatId,
-      );
-    } else if (data === 'menu_help') {
-      // Create a fake message object for /help command
-      const fakeMessage = {
-        ...callbackQuery.message,
-        text: '/help',
-        from: callbackQuery.from,
-      };
-      await this.commandRegistry.routeMessage(
-        fakeMessage,
-        callbackQuery.from.id,
-        chatId,
-      );
-    } else {
-      // If it's not a menu callback, route to regular callback handler
-      await this.handleCallbackQuery(callbackQuery);
-    }
   }
 
   private async handleCallbackQuery(
@@ -233,73 +169,6 @@ export class EnBot {
       console.log(`✅ Callback command executed: ${commandResult.message}`);
       return;
     }
-
-    // Fallback to legacy callback handling
-    this.handleLegacyCallbackQuery(callbackQuery);
-  }
-
-  private async handleLegacyMessage(
-    msg: TelegramUpdate['message'],
-  ): Promise<void> {
-    if (!msg?.text) return;
-
-    // Handle legacy commands that aren't in the command system yet
-    if (msg.text.startsWith('/cancel')) {
-      await this.handleCancel(msg);
-    } else if (msg.text.startsWith('/history')) {
-      await this.messageHandler.showTransactionHistory(msg);
-    } else if (msg.text.startsWith('/getid')) {
-      await this.messageHandler.showChatId(msg);
-    } else if (msg.text.startsWith('/testmsg')) {
-      await this.handleTestMessage(msg);
-    } else if (msg.text.startsWith('/cleansession')) {
-      await this.messageHandler.cleanSessions(msg);
-    } else if (msg.text.startsWith('/cleanallsessions')) {
-      await this.messageHandler.cleanAllSessions(msg);
-    } else if (msg.text.startsWith('/sessionstats')) {
-      await this.messageHandler.showSessionStats(msg);
-    } else {
-      // Handle regular text messages (could be transaction input)
-      console.log(`📝 Unhandled text message: ${msg.text}`);
-    }
-  }
-
-  private handleLegacyCallbackQuery(
-    callbackQuery: TelegramUpdate['callback_query'],
-  ): void {
-    // Handle any legacy callback queries that aren't in the command system
-    if (callbackQuery?.data) {
-      console.log(`🔘 Unhandled callback query: ${callbackQuery.data}`);
-    }
-  }
-
-  private async handleCancel(msg: TelegramUpdate['message']): Promise<void> {
-    if (!msg?.from?.id) return;
-
-    // For now, we'll need to implement session cancellation in the command system
-    // This is a temporary fallback
-    await this.telegram.sendMessage(
-      msg.chat.id,
-      'ℹ️ Usa /start per iniziare una nuova transazione.',
-    );
-  }
-
-  private async handleTestMessage(
-    msg: TelegramUpdate['message'],
-  ): Promise<void> {
-    if (!msg?.text) return;
-
-    const parts = msg.text.split(' ');
-    if (parts.length < 2) {
-      await this.telegram.sendMessage(
-        msg.chat.id,
-        '❌ Usa: /testmsg @username',
-      );
-      return;
-    }
-
-    const target = parts[1];
-    await this.messageHandler.sendTestMessage(msg, target);
   }
 
   async setupWebhook(webhookUrl: string): Promise<void> {

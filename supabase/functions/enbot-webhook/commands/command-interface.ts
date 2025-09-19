@@ -133,14 +133,18 @@ export abstract class BaseCommand {
       text,
       options,
     );
-    await this.context.sessionManager.saveMessageId(
-      this.context.userId,
-      this.context.chatId,
-      result.message_id,
-    );
+    try {
+      await this.context.sessionManager.saveMessageId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+        result.message_id,
+      );
+    } catch (error) {
+      console.warn('❌ Error saving message id:', error);
+    }
     return result;
   }
-
   /**
    * Answer callback query
    */

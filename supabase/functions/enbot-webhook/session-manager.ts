@@ -12,13 +12,15 @@ export class SessionManager {
   async saveMessageId(
     userId: number,
     chatId: number,
+    commandType: string,
     messageId: number,
   ): Promise<void> {
     await this.supabase
       .from('user_sessions')
       .update({ message_id: messageId })
       .eq('user_id', userId)
-      .eq('chat_id', chatId);
+      .eq('chat_id', chatId)
+      .eq('command_type', commandType);
   }
   /**
    * Save a user session to the database

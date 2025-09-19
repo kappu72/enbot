@@ -21,37 +21,10 @@ export class TransactionCommand extends BaseCommand {
   constructor(context: CommandContext) {
     super(context, TransactionCommand.commandName);
   }
-
-  async canHandle(
-    message: TelegramMessage | TelegramCallbackQuery,
-  ): Promise<boolean> {
-    const session = await this.loadSession();
-    console.log('session', session);
-    return false;
-    if ('text' in message) {
-      // Handle /start command or text input during transaction flow
-      return message.text === '/start' || !!session?.step;
-    } else if (
-      'data' in message && hasCallbackData(message) && !!session?.step
-    ) {
-      // Handle callback queries for family/category selection
-      return Promise.resolve(
-        message.data?.startsWith('family_') ||
-          message.data?.startsWith('category_') ||
-          message.data === 'recover_session' ||
-          message.data === 'cancel_session' || false,
-      );
-    }
-    return Promise.resolve(false);
-  }
-
   async execute(): Promise<CommandResult> {
-    if (this.context.message) {
-      return await this.handleMessage(this.context.message);
-    } else if (this.context.callbackQuery) {
-      return await this.handleCallbackQuery(this.context.callbackQuery);
-    }
-
+    await this.sendMessage(
+      'Digita / e seleziona una delle opzioni disponibili',
+    );
     return { success: false, message: 'No message or callback query provided' };
   }
 
@@ -302,73 +275,6 @@ export class TransactionCommand extends BaseCommand {
         '❌ Errore durante il completamento della transazione.',
       );
       return { success: false, message: 'Completion error' };
-    }
-  }
-
-  /**
-   * Sincronizza transazione con Google Sheets e aggiorna flag nel database
-   */
-  private async syncToGoogleSheets(
-    transactionId: number,
-    payload: TransactionPayload,
-  ): Promise<boolean> {
-    try {
-      const googleSheetsClient = createGoogleSheetsClient();
-      if (!googleSheetsClient) {
-        // Google Sheets integration not configured, skip silently
-        console.log('ℹ️ Google Sheets not configured, skipping sync');
-        return false;
-      }
-
-      // Converte al formato legacy per Google Sheets
-      const legacyTransaction: LegacyTransaction = {
-        id: transactionId,
-        family: payload.family,
-        category: payload.category,
-        amount: payload.amount,
-        period: payload.period,
-        contact: payload.contact,
-        recordedBy: payload.recordedBy,
-        recordedAt: payload.recordedAt,
-        chatId: this.context.chatId,
-      };
-
-      await googleSheetsClient.pushTransaction(legacyTransaction);
-
-      // Aggiorna il flag is_synced nel database
-      const { error: updateError } = await this.context.supabase
-        .from('transactions')
-        .update({
-          is_synced: true,
-          synced_at: new Date().toISOString(),
-        })
-        .eq('id', transactionId);
-
-      if (updateError) {
-        console.error('❌ Failed to update sync status:', updateError);
-      }
-
-      console.log(
-        `✅ Transaction ${transactionId} synchronized to Google Sheets`,
-      );
-      return true;
-    } catch (error) {
-      // Log error but don't fail the transaction
-      console.error('❌ Failed to sync transaction to Google Sheets:', error);
-
-      // Notifica l'errore all'utente
-      try {
-        await this.sendMessage(
-          `⚠️ Transazione salvata con successo, ma non è stato possibile sincronizzare con Google Sheets. ` +
-            `Usa /sync-sheets per sincronizzare manualmente.`,
-        );
-      } catch (notificationError) {
-        console.error(
-          '❌ Failed to send Google Sheets error notification:',
-          notificationError,
-        );
-      }
-      return false;
     }
   }
 
