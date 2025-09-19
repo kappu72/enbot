@@ -50,13 +50,13 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
-  private async handleCallbackQuery(
+  private handleCallbackQuery(
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
-    return {
+    return Promise.resolve({
       success: false,
       message: `Unknown callback data ${callbackQuery.data}`,
-    };
+    });
   }
 
   private async startQuota(): Promise<CommandResult> {
@@ -67,6 +67,7 @@ export class QuoteCommand extends BaseCommand {
     const session: CommandSession = {
       chatId: this.context.chatId,
       userId: this.context.userId,
+      messageId: this.context.message?.message_id || 0, // Save original command message_id
       step: STEPS.Family,
       transactionData: {
         category: 'quota mensile', // Fixed category for quotes
@@ -327,10 +328,12 @@ export class QuoteCommand extends BaseCommand {
       },
     };
 
-    return await this.sendMessage(
-      '👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:',
-      keyboard,
-    );
+    // Get username for mention
+    const username = this.context.message?.from?.username;
+    const mention = username ? `@${username}` : '';
+    const message = `${mention} 👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:`;
+
+    return await this.sendMessage(message, keyboard);
   }
 
   private async sendAmountPrompt(): Promise<void> {
@@ -341,10 +344,14 @@ export class QuoteCommand extends BaseCommand {
         selective: true,
       },
     };
-    await this.sendMessage(
-      "💰 Inserisci l'importo della quota in EUR (es. 25.50):",
-      keyboard,
-    );
+
+    // Get username for mention
+    const username = this.context.message?.from?.username;
+    const mention = username ? `@${username}` : '';
+    const message =
+      `${mention} 💰 Inserisci l'importo della quota in EUR (es. 25.50):`;
+
+    await this.sendMessage(message, keyboard);
   }
 
   private async sendPeriodPrompt(): Promise<void> {
@@ -355,10 +362,14 @@ export class QuoteCommand extends BaseCommand {
         selective: true,
       },
     };
-    await this.sendMessage(
-      '📅 Inserisci il mese ed anno di riferimento (formato: MM YYYY, es. 01 2024):',
-      keyboard,
-    );
+
+    // Get username for mention
+    const username = this.context.message?.from?.username;
+    const mention = username ? `@${username}` : '';
+    const message =
+      `${mention} 📅 Inserisci il mese ed anno di riferimento (formato: MM YYYY, es. 01 2024):`;
+
+    await this.sendMessage(message, keyboard);
   }
 
   private async sendContactPrompt(): Promise<void> {
@@ -368,7 +379,7 @@ export class QuoteCommand extends BaseCommand {
   }
 
   private async sendConfirmation(
-    transaction: any,
+    transaction: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
     const confirmationMessage = `✅ **Quota Mensile Registrata!**
@@ -385,7 +396,7 @@ export class QuoteCommand extends BaseCommand {
   }
 
   private async sendNotification(
-    transaction: any,
+    transaction: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
     const notificationMessage = `🔔 **Nuova Quota Mensile Registrata**
@@ -400,7 +411,7 @@ export class QuoteCommand extends BaseCommand {
 
     try {
       await this.context.telegram.sendMessage(
-        transaction.contact,
+        transaction.contact as string | number,
         notificationMessage,
         {
           parse_mode: 'Markdown',
@@ -408,8 +419,8 @@ export class QuoteCommand extends BaseCommand {
       );
     } catch (error) {
       console.error('Error sending quote notification:', error);
-      await this.sendMessage(
-        transaction.chat_id,
+      await this.context.telegram.sendMessage(
+        transaction.chat_id as string | number,
         `⚠️ Impossibile inviare la notifica a ${transaction.contact}. Verifica che l'username sia corretto.`,
       );
     }

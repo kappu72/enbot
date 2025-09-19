@@ -106,7 +106,11 @@ export class CommandRegistry {
       userId,
       chatId,
     );
-    if (userSession) {
+    // The bot should only answer to the last sent message saved in the session row the other messages has to pass
+    if (
+      userSession &&
+      message.reply_to_message?.message_id === userSession.message_id
+    ) {
       const command = this.createCommandInstance(
         userSession.command_type,
         context,
