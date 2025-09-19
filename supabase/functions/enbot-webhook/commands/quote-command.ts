@@ -6,7 +6,6 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
-import { FAMILY_OPTIONS, hasCallbackData, isTextMessage } from '../types.ts';
 
 enum STEPS {
   'Family' = 'family',
@@ -21,20 +20,11 @@ export class QuoteCommand extends BaseCommand {
     super(context, 'quota');
   }
 
-  async canHandle(
-    message: TelegramMessage | TelegramCallbackQuery,
-  ): Promise<boolean> {
-    const session = await this.loadSession();
-    if ('text' in message && isTextMessage(message)) {
-      // Or we are asking to start a quota session or it exists
-      return message.text === `/${this.commandName}` || !!session?.step;
-    } else if ('data' in message && hasCallbackData(message)) {
-      // Handle callback queries for family selection
-      return message.data.startsWith('quota_family_') ||
-        message.data === 'quota_recover_session' ||
-        message.data === 'quota_cancel_session';
-    }
-    return false;
+  override canHandleCallback(
+    callbackQuery: TelegramCallbackQuery,
+  ) {
+    return callbackQuery.data === 'quota_recover_session' ||
+      callbackQuery.data === 'quota_cancel_session';
   }
 
   async execute(): Promise<CommandResult> {
@@ -63,29 +53,15 @@ export class QuoteCommand extends BaseCommand {
   private async handleCallbackQuery(
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
-    const data = callbackQuery.data!;
-
-    if (data === 'quota_recover_session') {
-      return await this.recoverSession();
-    } else if (data === 'quota_cancel_session') {
-      return await this.cancelSession();
-    } else if (data.startsWith('quota_family_')) {
-      return await this.handleFamilySelection(callbackQuery);
-    }
-    return { success: false, message: 'Unknown callback data' };
+    return {
+      success: false,
+      message: `Unknown callback data ${callbackQuery.data}`,
+    };
   }
 
   private async startQuota(): Promise<CommandResult> {
-    // Check if user has an existing quote session
-    const existingSession = await this.loadSession();
-
-    if (existingSession) {
-      console.log(
-        `🔄 Trovata una sessione per inserire una quota mensile per utente ${this.context.userId}, step: ${existingSession.step}`,
-      );
-      await this.showSessionRecovery(existingSession);
-      return { success: true, message: 'Quote session recovery shown' };
-    }
+    // clean any existing session
+    await this.deleteUserSession();
 
     // Initialize new quote session
     const session: CommandSession = {
@@ -102,7 +78,8 @@ export class QuoteCommand extends BaseCommand {
     };
 
     await this.saveSession(session);
-    await this.sendFamilySelection();
+    const result = await this.sendFamilyPrompt();
+    console.log('result', result);
 
     return { success: true, message: 'Quota started' };
   }
@@ -113,6 +90,8 @@ export class QuoteCommand extends BaseCommand {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
     switch (session.step) {
+      case STEPS.Family:
+        return await this.handleFamilySelection(text, session);
       case STEPS.Amount:
         return await this.handleAmountInput(text, session);
       case STEPS.Period:
@@ -126,28 +105,19 @@ export class QuoteCommand extends BaseCommand {
   }
 
   private async handleFamilySelection(
-    callbackQuery: TelegramCallbackQuery,
+    text: string,
+    session: CommandSession,
   ): Promise<CommandResult> {
-    const session = await this.loadSession();
-    if (!session) {
-      return { success: false, message: 'Nessuna sessione trovata' };
-    }
-
-    const family = callbackQuery.data!.replace('quota_family_', '');
+    // TODO:: we should clean the message text
+    const family = text!.trim();
     session.transactionData.family = family;
     session.step = STEPS.Amount; // Skip category, go directly to amount
-    session.commandData.family = family;
 
     await this.saveSession(session);
     // clean keyboard and show prompt
 
-    await this.answerCallbackQuery(
-      callbackQuery.id,
-      `✅ Famiglia selezionata:\n<b>${family}</b>`,
-      callbackQuery.message!.chat.id,
-      callbackQuery.message!.message_id,
-    );
-    await this.sendAmountPrompt();
+    const result = await this.sendAmountPrompt();
+    console.log('result', result);
 
     return { success: true, message: 'Family selected for quote' };
   }
@@ -167,12 +137,10 @@ export class QuoteCommand extends BaseCommand {
 
     session.transactionData.amount = amount;
     session.step = STEPS.Period;
-    session.commandData.amount = amount;
 
     await this.saveSession(session);
-    await this.sendMessage(
-      '📅 Inserisci mese anno di riferimento (formato: MM-YYYY, es. 01-2024)',
-    );
+    const result = await this.sendPeriodPrompt();
+    console.log('result', result);
 
     return { success: true, message: 'Amount entered for quote' };
   }
@@ -181,17 +149,16 @@ export class QuoteCommand extends BaseCommand {
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    const dateRegex = /^\d{2}-\d{4}$/;
-    if (!dateRegex.test(text)) {
+    const dateRegex = /^\d{2} \d{4}$/;
+    if (!dateRegex.test(text.trim())) {
       await this.sendMessage(
         '❌ Inserisci una data valida nel formato MM-YYYY (es. 01-2024):',
       );
       return { success: false, message: 'Invalid date format' };
     }
 
-    session.transactionData.period = text;
+    session.transactionData.period = text.trim();
     session.step = STEPS.Complete;
-    session.commandData.period = text;
 
     await this.saveSession(session);
     return await this.completeQuote(session);
@@ -199,11 +166,11 @@ export class QuoteCommand extends BaseCommand {
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
     // split the period into month and year
-    const [month, year] = session.transactionData.period!.split('-');
+    const [month, year] = session.transactionData.period!.split(' ');
     try {
       const transaction = {
         family: session.transactionData.family!,
-        category: 'quota mensile', // Fixed category
+        category: session.transactionData.category!,
         amount: session.transactionData.amount!,
         period: session.transactionData.period!,
         month: month,
@@ -309,7 +276,7 @@ export class QuoteCommand extends BaseCommand {
       // Continue from the current step
       switch (existingSession.step) {
         case 'family':
-          await this.sendFamilySelection();
+          await this.sendFamilyPrompt();
           break;
         case 'amount':
           await this.sendAmountPrompt();
@@ -321,7 +288,7 @@ export class QuoteCommand extends BaseCommand {
           await this.sendContactPrompt();
           break;
         default:
-          await this.sendFamilySelection();
+          await this.sendFamilyPrompt();
       }
 
       return { success: true, message: 'Quote session recovered' };
@@ -351,30 +318,46 @@ export class QuoteCommand extends BaseCommand {
   }
 
   // UI Helper methods
-  private async sendFamilySelection(): Promise<void> {
+  private async sendFamilyPrompt(): Promise<void> {
     const keyboard = {
       reply_markup: {
-        inline_keyboard: FAMILY_OPTIONS.map((family) => [
-          { text: family, callback_data: `quota_family_${family}` },
-        ]),
+        force_reply: true,
+        input_field_placeholder: 'Inserisci la famiglia',
+        selective: true,
       },
     };
 
-    await this.sendMessage(
+    return await this.sendMessage(
       '👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:',
       keyboard,
     );
   }
 
   private async sendAmountPrompt(): Promise<void> {
+    const keyboard = {
+      reply_markup: {
+        force_reply: true,
+        input_field_placeholder: 'Quanto ha versato la famiglia?',
+        selective: true,
+      },
+    };
     await this.sendMessage(
       "💰 Inserisci l'importo della quota in EUR (es. 25.50):",
+      keyboard,
     );
   }
 
   private async sendPeriodPrompt(): Promise<void> {
+    const keyboard = {
+      reply_markup: {
+        force_reply: true,
+        input_field_placeholder: 'MESE ANNO',
+        selective: true,
+      },
+    };
     await this.sendMessage(
-      '📅 Inserisci il periodo (formato: YYYY-MM-DD, es. 2024-01-15):',
+      '📅 Inserisci il mese ed anno di riferimento (formato: MM YYYY, es. 01 2024):',
+      keyboard,
     );
   }
 

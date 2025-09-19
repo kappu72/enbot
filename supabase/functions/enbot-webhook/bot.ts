@@ -8,9 +8,6 @@ import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
 import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
-import { SessionsCommand } from './commands/sessions-command.ts';
-import { TransactionsCommand } from './commands/transactions-command.ts';
-import { SyncSheetsCommand } from './commands/sync-sheets-command.ts';
 
 export class EnBot {
   private telegram: TelegramClient;
@@ -21,7 +18,7 @@ export class EnBot {
 
   constructor(
     botToken: string,
-    allowedGroupId: string,
+    allowedGroupId: number[] = [],
     adminUserIds: number[] = [],
     supabase: SupabaseClient,
     isDevelopment: boolean = false,
@@ -43,17 +40,14 @@ export class EnBot {
 
     // Initialize command registry
     this.commandRegistry = new CommandRegistry(supabase, this.telegram);
-    this.initializeCommands(supabase);
+    this.initializeCommands();
   }
 
-  private initializeCommands(supabase: SupabaseClient): void {
+  private initializeCommands(): void {
     // Register command classes (not instances)
     this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(QuoteCommand);
     this.commandRegistry.registerCommand(HelpCommand);
-    this.commandRegistry.registerCommand(SessionsCommand);
-    this.commandRegistry.registerCommand(TransactionsCommand);
-    this.commandRegistry.registerCommand(SyncSheetsCommand);
 
     console.log('🎯 Command system initialized');
   }
@@ -75,7 +69,6 @@ export class EnBot {
   }
 
   private async handleMessage(msg: TelegramUpdate['message']): Promise<void> {
-    console.log('handleMessage', msg);
     if (!msg?.from?.id) return;
 
     // Check authorization
@@ -86,7 +79,7 @@ export class EnBot {
       );
       return;
     }
-
+    console.log('handleMessage', msg);
     // Try to route to command system first
     const commandResult = await this.commandRegistry.routeMessage(
       msg,

@@ -18,7 +18,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Bot configuration
 const botToken = env.TELEGRAM_BOT_TOKEN;
-const allowedGroupId = env.ALLOWED_GROUP_ID;
+const allowedGroupIds =
+  env.ALLOWED_GROUP_ID?.split(',').map((id) => parseInt(id.trim())) || [];
 const adminUserIds =
   env.ADMIN_USER_IDS?.split(',').map((id) => parseInt(id.trim())) || [];
 
@@ -27,7 +28,7 @@ if (!botToken) {
   Deno.exit(1);
 }
 
-if (!allowedGroupId) {
+if (!allowedGroupIds) {
   console.error('❌ ALLOWED_GROUP_ID is required');
   Deno.exit(1);
 }
@@ -39,7 +40,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 console.log('🚀 Starting EnBot in local development mode...');
 console.log(`📱 Bot Token: ${botToken.substring(0, 10)}...`);
-console.log(`👥 Allowed Group ID: ${allowedGroupId}`);
+console.log(`👥 Allowed Group ID: ${allowedGroupIds.join(', ')}`);
 console.log(`👑 Admin User IDs: ${adminUserIds.join(', ')}`);
 console.log(`🔗 Supabase URL: ${supabaseUrl}`);
 
@@ -47,7 +48,13 @@ console.log(`🔗 Supabase URL: ${supabaseUrl}`);
 const telegramBot = new Bot(botToken);
 
 // Initialize our custom bot logic (development mode)
-const enBot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase, true);
+const enBot = new EnBot(
+  botToken,
+  allowedGroupIds,
+  adminUserIds,
+  supabase,
+  true,
+);
 
 // Set up Grammy bot handlers using our existing EnBot logic
 telegramBot.on('message', async (ctx) => {

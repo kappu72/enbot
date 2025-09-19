@@ -2,7 +2,7 @@
 import type { BotConfig } from './types.ts';
 
 export class AuthManager {
-  private allowedGroupId: string;
+  private allowedGroupId: number[];
   private adminUserIds: number[];
 
   constructor(config: BotConfig) {
@@ -16,7 +16,7 @@ export class AuthManager {
       return true;
     }
     // Allow anyone from the specified group
-    return chatId.toString() === this.allowedGroupId;
+    return this.allowedGroupId.includes(chatId);
   }
 
   isAdmin(userId: number): boolean {
@@ -25,7 +25,7 @@ export class AuthManager {
 
   getAuthInfo(): { allowedGroupId: string; adminCount: number } {
     return {
-      allowedGroupId: this.allowedGroupId,
+      allowedGroupId: this.allowedGroupId.join(', '),
       adminCount: this.adminUserIds.length,
     };
   }

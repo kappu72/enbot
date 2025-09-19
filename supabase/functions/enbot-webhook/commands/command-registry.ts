@@ -82,37 +82,36 @@ export class CommandRegistry {
     userId: number,
     chatId: number,
   ): Promise<CommandResult | null> {
+    // get user session, should be one per user
     const context = this.createContext(userId, chatId, message);
 
-    // First, try to find a command that can handle this message
-    for (const [commandName, CommandClass] of this.commandClasses.entries()) {
-      const command = new CommandClass(context);
-      if (command.canHandle(message)) {
-        console.log(
-          `🎯 Routing message to command: ${command.getCommandName()}`,
-        );
-        return await command.execute();
+    // first of all check if the message is a command
+    // its delegated to the command instance to clean or not the current user session
+    // some commands does not need to clean the session
+    const isCommand = 'text' in message && message.text?.startsWith('/');
+    if (isCommand) {
+      for (const [_, CommandClass] of this.commandClasses.entries()) {
+        const command = new CommandClass(context);
+        const canHandle = await command.canHandleCommand(message);
+        if (canHandle) {
+          return await command.execute();
+        }
       }
+      console.log(`❌ No command found to handle message: ${message.text}`);
+      return null;
     }
 
-    // If no command directly handles it, check if any command has an active session for this user
-    const allSessions = await this.sessionManager.loadAllUserSessions(userId);
-    if (allSessions.length > 0) {
-      // Try the most recently updated session first
-      const recentSession = allSessions.sort((a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      )[0];
-
+    // If no command directly handles it and we have a session for this user, execute the command
+    const userSession = await this.sessionManager.loadUserSession(
+      userId,
+      chatId,
+    );
+    if (userSession) {
       const command = this.createCommandInstance(
-        recentSession.command_type,
+        userSession.command_type,
         context,
       );
-      if (command) {
-        console.log(
-          `🔄 Continuing session with command: ${command.getCommandName()}`,
-        );
-        return await command.execute();
-      }
+      if (command) return await command.execute();
     }
 
     console.log(`❌ No command found to handle message: ${message.text}`);
@@ -134,55 +133,31 @@ export class CommandRegistry {
       callbackQuery,
     );
 
-    // First, try to find a command that can handle this callback
-    for (const [commandName, CommandClass] of this.commandClasses.entries()) {
-      const command = new CommandClass(context);
-      if (command.canHandle(callbackQuery)) {
-        console.log(
-          `🎯 Routing callback to command: ${command.getCommandName()}`,
-        );
-        return await command.execute();
-      }
-    }
+    // The callback should always be handled by a command
+    const userSession = await this.sessionManager.loadUserSession(
+      userId,
+      chatId,
+    );
 
-    // If no command directly handles it, check if any command has an active session for this user
-    const allSessions = await this.sessionManager.loadAllUserSessions(userId);
-    if (allSessions.length > 0) {
-      // For callbacks, try to match the callback data to the right command type
-      let targetSession = allSessions[0]; // Default to most recent
-
-      if (callbackQuery.data) {
-        // Try to determine command type from callback data
-        if (callbackQuery.data.startsWith('quota_')) {
-          targetSession = allSessions.find((s) => s.command_type === 'quota') ||
-            targetSession;
-        } else if (callbackQuery.data.startsWith('quote_')) {
-          targetSession = allSessions.find((s) => s.command_type === 'quote') ||
-            targetSession;
-        } else if (
-          callbackQuery.data.startsWith('family_') ||
-          callbackQuery.data.startsWith('category_')
-        ) {
-          targetSession = allSessions.find((s) =>
-            s.command_type === 'transaction'
-          ) || targetSession;
-        }
-      }
-
+    if (userSession) {
       const command = this.createCommandInstance(
-        targetSession.command_type,
+        userSession.command_type,
         context,
       );
-      if (command) {
-        console.log(
-          `🔄 Continuing session with command: ${command.getCommandName()}`,
-        );
+      if (command && command.canHandleCallback(callbackQuery)) {
         return await command.execute();
       }
     }
 
     console.log(
       `❌ No command found to handle callback: ${callbackQuery.data}`,
+    );
+    // we have in any case to respond to the callback query
+    await this.telegram.answerCallbackQuery(
+      callbackQuery.id,
+      'Unknown callback data',
+      chatId,
+      callbackQuery.inline_message_id,
     );
     return null;
   }
