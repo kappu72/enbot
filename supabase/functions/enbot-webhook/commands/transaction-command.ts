@@ -577,6 +577,6 @@ export class TransactionCommand extends BaseCommand {
   }
 
   override getDescription(): string {
-    return 'Gestisce il flusso di registrazione delle transazioni, guidando l-utente attraverso la selezione di categoria, inserimento importo, data e descrizione.';
+    return TransactionCommand.description;
   }
 }

@@ -57,6 +57,6 @@ Questo bot può essere utilizzato solo nel gruppo autorizzato.`;
   }
 
   override getDescription(): string {
-    return 'Mostra la lista di tutti i comandi disponibili e le istruzioni per utilizzare il bot';
+    return HelpCommand.description;
   }
 }

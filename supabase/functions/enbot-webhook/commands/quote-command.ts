@@ -354,6 +354,6 @@ export class QuoteCommand extends BaseCommand {
   }
 
   override getDescription(): string {
-    return 'Gestisce il flusso di registrazione quote mensili con selezione famiglia, importo, periodo';
+    return QuoteCommand.description;
   }
 }
