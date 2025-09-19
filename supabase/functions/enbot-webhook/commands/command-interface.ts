@@ -194,7 +194,19 @@ export abstract class BaseCommand {
       }
 
       // Convert JSONB payload to Google Sheets format
-      const googleSheetsRow = transaction.payload;
+      const payload = transaction.payload;
+      const googleSheetsRow = {
+        id: transaction.id,
+        family: payload.family || '',
+        category: payload.category || '',
+        amount: parseFloat(payload.amount) || 0,
+        year: payload.year || '',
+        month: payload.month || '',
+        description: payload.description || '',
+        recordedBy: payload.recorded_by || '',
+        recordedAt: payload.recorded_at || transaction.created_at,
+        chatId: transaction.chat_id,
+      };
 
       // Push to Google Sheets
       await this.context.googleSheetsClient.pushTransaction(googleSheetsRow);
