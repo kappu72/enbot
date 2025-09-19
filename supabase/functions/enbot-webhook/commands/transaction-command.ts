@@ -16,7 +16,7 @@ import { createGoogleSheetsClient } from '../google-sheets-client.ts';
 
 export class TransactionCommand extends BaseCommand {
   static commandName = 'transazione';
-  static description = '📊 Gestisci transazioni generali';
+  static description = '📊 Registra una nuova transazione';
 
   constructor(context: CommandContext) {
     super(context, TransactionCommand.commandName);

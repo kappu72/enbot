@@ -8,7 +8,7 @@ import type { TelegramMessage } from '../types.ts';
 
 export class HelpCommand extends BaseCommand {
   static commandName = 'help';
-  static description = '❓ Mostra aiuto e lista comandi';
+  static description = '❓ Mostra la guida dei comandi';
   constructor(context: CommandContext) {
     super(context, HelpCommand.commandName);
   }
