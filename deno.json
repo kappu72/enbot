@@ -34,6 +34,7 @@
   "include": [
     "supabase/functions/**/*.ts",
     "local-dev.ts",
+    "setup-bot-commands.ts",
     "test-webhook.ts",
     "types/**/*.d.ts"
   ],
