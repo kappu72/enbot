@@ -14,7 +14,7 @@ export class TelegramClient {
     chatId: number | string,
     text: string,
     options?: any,
-  ): Promise<void> {
+  ): Promise<any> {
     // Add development mode indicator
     let messageText = text;
     if (this.isDevelopment) {
@@ -38,28 +38,31 @@ export class TelegramClient {
       const error = await response.text();
       throw new Error(`Telegram API error: ${error}`);
     }
+    return (await response.json()).result;
   }
 
   async answerCallbackQuery(
     callbackQueryId: string,
     text: string,
-    chatId: number | string,
-    messageId: number,
+    chatId?: number | string,
+    messageId?: number | string,
   ): Promise<void> {
-    // Update message and remove keyboard
-    await fetch(
-      `https://api.telegram.org/bot${this.botToken}/editMessageText`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          text,
-          parse_mode: 'Markdown',
-        }),
-      },
-    );
+    if (chatId && messageId) {
+      // Update message and remove keyboard
+      await fetch(
+        `https://api.telegram.org/bot${this.botToken}/editMessageText`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text,
+            parse_mode: 'Markdown',
+          }),
+        },
+      );
+    }
 
     const url =
       `https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`;

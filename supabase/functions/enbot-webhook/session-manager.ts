@@ -9,6 +9,17 @@ export class SessionManager {
     this.supabase = supabase;
   }
 
+  async saveMessageId(
+    userId: number,
+    chatId: number,
+    messageId: number,
+  ): Promise<void> {
+    await this.supabase
+      .from('user_sessions')
+      .update({ message_id: messageId })
+      .eq('user_id', userId)
+      .eq('chat_id', chatId);
+  }
   /**
    * Save a user session to the database
    */
@@ -27,8 +38,8 @@ export class SessionManager {
           },
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id,command_type',
-        });
+          onConflict: 'user_id,command_type,chat_id',
+        }).eq('user_id', session.userId).eq('chat_id', session.chatId);
 
       if (error) {
         console.error('❌ Error saving session:', error);
@@ -49,6 +60,7 @@ export class SessionManager {
    */
   async loadSession(
     userId: number,
+    chatId: number,
     commandType?: string,
   ): Promise<PersistedUserSession | null> {
     try {
@@ -56,6 +68,7 @@ export class SessionManager {
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
+        .eq('chat_id', chatId)
         .gt('expires_at', new Date().toISOString());
 
       if (commandType) {
@@ -70,7 +83,7 @@ export class SessionManager {
           // No session found
           const commandInfo = commandType ? ` for command ${commandType}` : '';
           console.log(
-            `📭 No active session found for user ${userId}${commandInfo}`,
+            `📭 No active session found for user ${userId} in chat ${chatId}${commandInfo}`,
           );
           return null;
         }
@@ -89,15 +102,20 @@ export class SessionManager {
   }
 
   /**
-   * Load all active sessions for a user (across all commands)
+   * Load all active sessions for a user by chatId
    */
-  async loadAllUserSessions(userId: number): Promise<PersistedUserSession[]> {
+  async loadUserSession(
+    userId: number,
+    chatId: number,
+  ): Promise<PersistedUserSession | null> {
     try {
       const { data, error } = await this.supabase
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
-        .gt('expires_at', new Date().toISOString());
+        .eq('chat_id', chatId)
+        .gt('expires_at', new Date().toISOString())
+        .single();
 
       if (error) {
         console.error('❌ Error loading all sessions:', error);
@@ -107,10 +125,10 @@ export class SessionManager {
       console.log(
         `📂 Loaded ${data?.length || 0} active sessions for user ${userId}`,
       );
-      return (data || []) as PersistedUserSession[];
+      return data as PersistedUserSession;
     } catch (error) {
       console.error('❌ Failed to load all sessions:', error);
-      return [];
+      return null;
     }
   }
 
@@ -123,18 +141,24 @@ export class SessionManager {
       userId: persisted.user_id,
       step: persisted.step,
       transactionData: persisted.transaction_data || {},
+      messageId: persisted.message_id || null,
     };
   }
 
   /**
    * Delete a user session from the database
    */
-  async deleteSession(userId: number, commandType?: string): Promise<void> {
+  async deleteSession(
+    userId: number,
+    chatId: number,
+    commandType?: string,
+  ): Promise<void> {
     try {
       let query = this.supabase
         .from('user_sessions')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('chat_id', chatId);
 
       if (commandType) {
         // Delete session for specific command only
@@ -159,34 +183,14 @@ export class SessionManager {
   }
 
   /**
-   * Clean up expired sessions
-   */
-  async cleanupExpiredSessions(): Promise<void> {
-    try {
-      const { error } = await this.supabase
-        .from('user_sessions')
-        .delete()
-        .lt('expires_at', new Date().toISOString());
-
-      if (error) {
-        console.error('❌ Error cleaning up expired sessions:', error);
-        throw error;
-      }
-
-      console.log('🧹 Expired sessions cleaned up');
-    } catch (error) {
-      console.error('❌ Failed to cleanup expired sessions:', error);
-    }
-  }
-
-  /**
    * Check if user has an active session for a specific command
    */
   async hasActiveSession(
     userId: number,
+    chatId: number,
     commandType?: string,
   ): Promise<boolean> {
-    const session = await this.loadSession(userId, commandType);
+    const session = await this.loadSession(userId, chatId, commandType);
     return session !== null;
   }
 
@@ -221,8 +225,8 @@ export class SessionManager {
     try {
       const { count, error } = await this.supabase
         .from('user_sessions')
-        .delete({ count: 'exact' });
-
+        .delete({ count: 'exact' })
+        .not('id', 'is', 'null');
       if (error) {
         console.error('❌ Error cleaning all sessions:', error);
         throw error;

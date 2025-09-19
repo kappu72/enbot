@@ -9,13 +9,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Bot configuration
 const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-const allowedGroupId = Deno.env.get('ALLOWED_GROUP_ID')!;
+const allowedGroupIds =
+  Deno.env.get('ALLOWED_GROUP_ID')?.split(',').map((id) => id.trim()) || [];
 const adminUserIds =
   Deno.env.get('ADMIN_USER_IDS')?.split(',').map((id) => parseInt(id.trim())) ||
   [];
 
 // Initialize bot (production mode)
-const bot = new EnBot(botToken, allowedGroupId, adminUserIds, supabase, false);
+const bot = new EnBot(botToken, allowedGroupIds, adminUserIds, supabase, false);
 
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);

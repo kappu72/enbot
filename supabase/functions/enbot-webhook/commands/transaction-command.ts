@@ -11,7 +11,7 @@ import type {
   TelegramMessage,
   TransactionPayload,
 } from '../types.ts';
-import { CATEGORY_OPTIONS, FAMILY_OPTIONS } from '../types.ts';
+import { CATEGORY_OPTIONS, FAMILY_OPTIONS, hasCallbackData } from '../types.ts';
 import { createGoogleSheetsClient } from '../google-sheets-client.ts';
 
 export class TransactionCommand extends BaseCommand {
@@ -19,13 +19,18 @@ export class TransactionCommand extends BaseCommand {
     super(context, 'transaction');
   }
 
-  canHandle(
+  async canHandle(
     message: TelegramMessage | TelegramCallbackQuery,
   ): Promise<boolean> {
+    const session = await this.loadSession();
+    console.log('session', session);
+    return false;
     if ('text' in message) {
       // Handle /start command or text input during transaction flow
-      return Promise.resolve(message.text === '/start');
-    } else if ('data' in message) {
+      return message.text === '/start' || !!session?.step;
+    } else if (
+      'data' in message && hasCallbackData(message) && !!session?.step
+    ) {
       // Handle callback queries for family/category selection
       return Promise.resolve(
         message.data?.startsWith('family_') ||

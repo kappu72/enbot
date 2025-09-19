@@ -3,7 +3,6 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type {
   TelegramCallbackQuery,
   TelegramMessage,
-  TransactionPayload,
   UserSession,
 } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
@@ -52,7 +51,7 @@ export abstract class BaseCommand {
    * Get the session key for this command
    */
   protected getSessionKey(): string {
-    return `${this.commandName}_${this.context.userId}`;
+    return `${this.commandName}_${this.context.userId}_${this.context.chatId}`;
   }
 
   /**
@@ -72,6 +71,7 @@ export abstract class BaseCommand {
   protected async loadSession(): Promise<CommandSession | null> {
     const persistedSession = await this.context.sessionManager.loadSession(
       this.context.userId,
+      this.context.chatId,
       this.commandName, // Load session specific to this command
     );
     if (!persistedSession) return null;
@@ -94,16 +94,27 @@ export abstract class BaseCommand {
   protected async deleteSession(): Promise<void> {
     await this.context.sessionManager.deleteSession(
       this.context.userId,
+      this.context.chatId,
       this.commandName,
     );
   }
 
+  /**
+   * Delete user session
+   */
+  protected async deleteUserSession(): Promise<void> {
+    await this.context.sessionManager.deleteSession(
+      this.context.userId,
+      this.context.chatId,
+    );
+  }
   /**
    * Check if user has an active session for this command
    */
   protected async hasActiveSession(): Promise<boolean> {
     return await this.context.sessionManager.hasActiveSession(
       this.context.userId,
+      this.context.chatId,
       this.commandName,
     );
   }
@@ -115,7 +126,17 @@ export abstract class BaseCommand {
     text: string,
     options?: Record<string, unknown>,
   ): Promise<void> {
-    await this.context.telegram.sendMessage(this.context.chatId, text, options);
+    const result = await this.context.telegram.sendMessage(
+      this.context.chatId,
+      text,
+      options,
+    );
+    await this.context.sessionManager.saveMessageId(
+      this.context.userId,
+      this.context.chatId,
+      result.message_id,
+    );
+    return result;
   }
 
   /**
@@ -123,9 +144,9 @@ export abstract class BaseCommand {
    */
   protected async answerCallbackQuery(
     callbackQueryId: string,
-    text: string,
-    chatId: number | string,
-    messageId: number,
+    text?: string,
+    chatId?: number | string,
+    messageId?: number,
   ): Promise<void> {
     await this.context.telegram.answerCallbackQuery(
       callbackQueryId,
@@ -135,19 +156,28 @@ export abstract class BaseCommand {
     );
   }
 
-  /**
-   * Abstract methods that must be implemented by each command
-   */
-  abstract canHandle(
-    message: TelegramMessage | TelegramCallbackQuery,
-  ): Promise<boolean>;
+  canHandleCommand(
+    message: TelegramMessage,
+  ): Promise<boolean> | boolean {
+    return message.text === `/${this.commandName}`;
+  }
+  canHandleCallback(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<boolean> | boolean {
+    return false;
+  }
   abstract execute(): Promise<CommandResult>;
   abstract getHelpText(): string;
   abstract getDescription(): string;
 }
 
 export interface Command {
-  canHandle(message: TelegramMessage | TelegramCallbackQuery): boolean;
+  canHandleCommand(
+    message: TelegramMessage,
+  ): Promise<boolean> | boolean;
+  canHandleCallback(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<boolean> | boolean;
   execute(): Promise<CommandResult>;
   getHelpText(): string;
   getDescription(): string;

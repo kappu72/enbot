@@ -39,6 +39,7 @@ export interface LegacyTransaction {
 export interface UserSession {
   chatId: number;
   userId: number;
+  messageId: number | null;
   step:
     | 'idle'
     | 'family'
@@ -66,18 +67,20 @@ export interface PersistedUserSession {
     | 'category'
     | 'amount'
     | 'period'
-    | 'month'
+    | 'billing_month'
+    | 'billing_year'
     | 'year'
     | 'contact';
   transaction_data: Partial<TransactionPayload>;
   created_at: string;
   updated_at: string;
   expires_at: string;
+  message_id: number | null;
 }
 
 export interface BotConfig {
   botToken: string;
-  allowedGroupId: string;
+  allowedGroupId: number[];
   adminUserIds: number[];
   isDevelopment: boolean;
 }
