@@ -15,8 +15,11 @@ import { CATEGORY_OPTIONS, FAMILY_OPTIONS, hasCallbackData } from '../types.ts';
 import { createGoogleSheetsClient } from '../google-sheets-client.ts';
 
 export class TransactionCommand extends BaseCommand {
+  static commandName = 'transazione';
+  static description = '📊 Gestisci transazioni generali';
+
   constructor(context: CommandContext) {
-    super(context, 'transaction');
+    super(context, TransactionCommand.commandName);
   }
 
   async canHandle(
@@ -569,11 +572,11 @@ export class TransactionCommand extends BaseCommand {
     }
   }
 
-  getHelpText(): string {
-    return '/start o /transaction - Inizia una nuova transazione';
+  override getHelpText(): string {
+    return '/transazione - Avvia una nuova registrazione di transazione';
   }
 
-  getDescription(): string {
-    return 'Gestisce il flusso completo di registrazione transazioni con selezione famiglia, categoria, importo, periodo e contatto';
+  override getDescription(): string {
+    return 'Gestisce il flusso di registrazione delle transazioni, guidando l-utente attraverso la selezione di categoria, inserimento importo, data e descrizione.';
   }
 }

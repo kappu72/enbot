@@ -1,14 +1,19 @@
 // Help command implementation
-import type { CommandContext, CommandResult } from './command-interface.ts';
-import { BaseCommand } from './command-interface.ts';
+import {
+  BaseCommand,
+  type CommandContext,
+  type CommandResult,
+} from './command-interface.ts';
 import type { TelegramMessage } from '../types.ts';
 
 export class HelpCommand extends BaseCommand {
+  static commandName = 'help';
+  static description = '❓ Mostra aiuto e lista comandi';
   constructor(context: CommandContext) {
-    super(context, 'help');
+    super(context, HelpCommand.commandName);
   }
 
-  canHandle(message: TelegramMessage): boolean {
+  override canHandleCommand(message: TelegramMessage): boolean {
     return message.text === '/help';
   }
 
@@ -47,11 +52,11 @@ Questo bot può essere utilizzato solo nel gruppo autorizzato.`;
     return { success: true, message: 'Help displayed' };
   }
 
-  getHelpText(): string {
+  override getHelpText(): string {
     return '/help - Mostra questo messaggio di aiuto';
   }
 
-  getDescription(): string {
+  override getDescription(): string {
     return 'Mostra la lista di tutti i comandi disponibili e le istruzioni per utilizzare il bot';
   }
 }

@@ -15,9 +15,11 @@ enum STEPS {
 }
 
 export class QuoteCommand extends BaseCommand {
+  static commandName = 'quota';
+  static description = '💰 Registra una quota mensile familiare';
   private readonly messagePrefix = '__quota:';
   constructor(context: CommandContext) {
-    super(context, 'quota');
+    super(context, QuoteCommand.commandName);
   }
 
   override canHandleCallback(
@@ -347,11 +349,11 @@ export class QuoteCommand extends BaseCommand {
     console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }
 
-  getHelpText(): string {
+  override getHelpText(): string {
     return '/quote - Registra una quota mensile';
   }
 
-  getDescription(): string {
+  override getDescription(): string {
     return 'Gestisce il flusso di registrazione quote mensili con selezione famiglia, importo, periodo';
   }
 }
