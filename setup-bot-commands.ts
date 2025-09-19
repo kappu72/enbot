@@ -1,14 +1,13 @@
 #!/usr/bin/env -S deno run --allow-env --allow-net --allow-read
-
 /**
  * Script to setup bot commands in Telegram groups
  *
  * Usage:
  * - Global commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
- * - Group commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts --group=-1001234567890
+ * - Group commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
  */
 
-import 'https://deno.land/std@0.208.0/dotenv/load.ts';
+import { load } from 'https://deno.land/std@0.208.0/dotenv/mod.ts';
 
 interface SetupCommandsResponse {
   status: string;
@@ -54,8 +53,9 @@ async function setupBotCommandsForGroup(
 
 async function main(): Promise<void> {
   // Load environment variables
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const env = await load({ envPath: './.local.env' });
+  const supabaseUrl = env.SUPABASE_URL;
+  const supabaseAnonKey = env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('❌ Missing required environment variables:');
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
 
   // Determine which groups to set up
   let groupIds: string[] = [];
-  const groupIdsFromEnv = Deno.env.get('ALLOWED_GROUP_ID');
+  const groupIdsFromEnv = env.ALLOWED_GROUP_ID;
   const groupIdFromFlag = Deno.args.find((arg) => arg.startsWith('--group='))
     ?.split('=')[1];
 
