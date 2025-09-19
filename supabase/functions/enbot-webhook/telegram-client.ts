@@ -53,6 +53,7 @@ export class TelegramClient {
     commands: BotCommand[],
     scope?: BotCommandScope,
   ): Promise<void> {
+    console.log('setBotCommands', commands, scope);
     const url = `https://api.telegram.org/bot${this.botToken}/setMyCommands`;
     const payload = {
       commands,

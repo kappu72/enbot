@@ -41,47 +41,20 @@ async function main(): Promise<void> {
     env.ADMIN_USER_IDS?.split(',').map((id) => parseInt(id.trim())) || [];
 
   // Determine which groups to set up
-  let groupIds: string[] = [];
   const groupIdsFromEnv = env.ALLOWED_GROUP_ID;
-  const groupIdFromFlag = Deno.args.find((arg) => arg.startsWith('--group='))
-    ?.split('=')[1];
-
-  if (groupIdFromFlag) {
-    console.log('🔧 Found --group flag, setting up for a single group.');
-    groupIds.push(groupIdFromFlag);
-  } else if (groupIdsFromEnv) {
-    console.log(
-      '🔧 Found ALLOWED_GROUP_ID env var, setting up for multiple groups.',
-    );
-    groupIds = groupIdsFromEnv.split(',').map((id) => id.trim());
-  }
+  const groupIds: number[] = groupIdsFromEnv.split(',').map((id) =>
+    Number(id.trim())
+  );
 
   // Instantiate EnBot
   const enBot = new EnBot(
     botToken,
-    groupIds.map(Number),
+    groupIds,
     adminUserIds,
     supabase,
     false, // isDevelopment = true for setup script
   );
-
-  if (groupIds.length === 0) {
-    console.warn(
-      '⚠️ No group IDs specified via --group flag or ALLOWED_GROUP_ID env var.',
-    );
-  } else {
-    for (const id of groupIds) {
-      try {
-        await enBot.setupGroupCommands(id);
-        console.log(`✅ Commands successfully set for group ${id}`);
-      } catch (error) {
-        console.error(
-          `❌ Failed to set commands for group ${id}:`,
-          error.message,
-        );
-      }
-    }
-  }
+  await enBot.setupBotCommands();
 }
 
 // Run the setup immediately

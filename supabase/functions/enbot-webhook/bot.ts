@@ -1,6 +1,11 @@
 // Refactored EnBot class using command-based architecture
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import type { BotConfig, TelegramUpdate } from './types.ts';
+import type {
+  BotCommand,
+  BotConfig,
+  TelegramBotCommandScope,
+  TelegramUpdate,
+} from './types.ts';
 import { TelegramClient } from './telegram-client.ts';
 import { MessageHandler } from './message-handler.ts';
 import { AuthManager } from './auth-manager.ts';
@@ -78,9 +83,9 @@ export class EnBot {
    * Configure bot commands menu for Telegram
    */
   async setupBotCommands(
-    scope?: import('./types.ts').BotCommandScope,
+    scope?: TelegramBotCommandScope,
   ): Promise<void> {
-    const commands: import('./types.ts').BotCommand[] = this.commandRegistry
+    const commands: BotCommand[] = this.commandRegistry
       .getAllCommands()
       .map((command) => ({
         command: command.getCommandName(),
@@ -94,32 +99,6 @@ export class EnBot {
       console.error('❌ Failed to configure bot commands:', error);
       throw error;
     }
-  }
-
-  /**
-   * Setup commands for a specific group
-   */
-  async setupGroupCommands(chatId: number | string): Promise<void> {
-    const groupScope: import('./types.ts').BotCommandScope = {
-      type: 'chat',
-      chat_id: chatId,
-    };
-
-    // Setup slash commands menu
-    await this.setupBotCommands(groupScope);
-
-    // Try to setup menu button for group (may not always be visible)
-    try {
-      const menuButton: import('./types.ts').MenuButton = {
-        type: 'commands',
-      };
-      await this.telegram.setChatMenuButton(chatId, menuButton);
-      console.log(`✅ Menu button configured for group ${chatId}`);
-    } catch (error) {
-      console.warn(`⚠️ Could not set menu button for group ${chatId}:`, error);
-    }
-
-    console.log(`✅ Commands configured for group ${chatId}`);
   }
 
   async processUpdate(update: TelegramUpdate): Promise<void> {
