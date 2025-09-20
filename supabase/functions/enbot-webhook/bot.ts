@@ -11,7 +11,7 @@ import { MessageHandler } from './message-handler.ts';
 import { AuthManager } from './auth-manager.ts';
 import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
-import { QuoteCommand } from './commands/quote-command.ts'; // Now handles /quota command
+import { MonthlySubscriptionCommand } from './commands/monthly-subscription-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
 import {
   createGoogleSheetsClient,
@@ -72,7 +72,7 @@ export class EnBot {
 
   private initializeCommands(): void {
     // Register command classes (not instances) this order matters
-    this.commandRegistry.registerCommand(QuoteCommand);
+    this.commandRegistry.registerCommand(MonthlySubscriptionCommand);
     this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(HelpCommand);
     console.log('🎯 Command system initialized');
