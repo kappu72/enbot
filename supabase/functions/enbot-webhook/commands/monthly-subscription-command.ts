@@ -1,4 +1,4 @@
-// Quote command implementation - skips category selection
+// Monthly subscription command implementation - handles school enrollment fees
 import type {
   CommandContext,
   CommandResult,
@@ -16,12 +16,12 @@ enum STEPS {
   'Complete' = 'complete',
 }
 
-export class QuoteCommand extends BaseCommand {
+export class MonthlySubscriptionCommand extends BaseCommand {
   static commandName = 'quota';
   static description = '💰 Registra una quota mensile';
   private readonly messagePrefix = '__quota:';
   constructor(context: CommandContext) {
-    super(context, QuoteCommand.commandName);
+    super(context, MonthlySubscriptionCommand.commandName);
   }
 
   override canHandleCallback(
@@ -130,7 +130,10 @@ export class QuoteCommand extends BaseCommand {
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    console.log('🔍 QuoteCommand: Processing amount input:', text);
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Processing amount input:',
+      text,
+    );
 
     // Create StepContext from current command context
     const stepContext: StepContext = {
@@ -150,9 +153,12 @@ export class QuoteCommand extends BaseCommand {
       await this.sendPeriodPrompt();
       return { success: true, message: 'Amount entered for quote' };
     } else {
-      console.log('❌ QuoteCommand: Amount validation failed:', result.error);
-      // Send error message from AmountStep validation
-      await this.sendMessage(
+      console.log(
+        '❌ MonthlySubscriptionCommand: Amount validation failed:',
+        result.error,
+      );
+      // Update last message with error from AmountStep validation
+      await this.editLastMessage(
         result.error || "Errore nella validazione dell'importo",
       );
       return { success: false, message: result.error || 'Invalid amount' };
@@ -288,7 +294,10 @@ export class QuoteCommand extends BaseCommand {
       throw new Error('No session found for amount prompt');
     }
 
-    console.log('🔍 QuoteCommand: Current session before AmountStep:', session);
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Current session before AmountStep:',
+      session,
+    );
 
     const stepContext: StepContext = {
       ...this.context,
@@ -297,7 +306,7 @@ export class QuoteCommand extends BaseCommand {
 
     const content = amountStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 QuoteCommand: AmountStep presented');
+    console.log('🔍 MonthlySubscriptionCommand: AmountStep presented');
   }
 
   // UI Helper methods
@@ -360,10 +369,10 @@ export class QuoteCommand extends BaseCommand {
   }
 
   override getHelpText(): string {
-    return '/quote - Registra una quota mensile';
+    return '/quota - Registra una quota mensile';
   }
 
   override getDescription(): string {
-    return QuoteCommand.description;
+    return MonthlySubscriptionCommand.description;
   }
 }
