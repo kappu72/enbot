@@ -1,8 +1,8 @@
 // Amount step implementation using composition approach
 import {
+  type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
-  type ErrorPresenter,
   Step,
   type StepContent,
   type StepContext,
@@ -81,6 +81,14 @@ export const presentAmountError: ErrorPresenter = (
   // Get username for mention
   const username = context.message?.from?.username;
   const mention = username ? `@${username} ` : '';
+  const options = {
+    reply_markup: {
+      force_reply: true,
+      input_field_placeholder: '25.50 (solo numeri e punto/virgola)',
+      selective: true,
+    },
+    parse_mode: 'Markdown',
+  };
 
   const text = `${mention}${error}\n\n` +
     `💰 Riprova inserendo l'importo in EUR:\n` +
@@ -89,9 +97,7 @@ export const presentAmountError: ErrorPresenter = (
 
   return {
     text,
-    options: {
-      parse_mode: 'Markdown',
-    },
+    options,
   };
 };
 
