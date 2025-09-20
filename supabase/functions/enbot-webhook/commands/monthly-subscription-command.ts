@@ -15,7 +15,6 @@ enum STEPS {
   'Family' = 'family',
   'Amount' = 'amount',
   'Period' = 'period',
-  'Complete' = 'complete',
 }
 
 export class MonthlySubscriptionCommand extends BaseCommand {
@@ -39,7 +38,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     } else if (this.context.callbackQuery) {
       return await this.handleCallbackQuery(this.context.callbackQuery);
     }
-
     return {
       success: false,
       message: `${this.commandName} command execution failed`,
@@ -213,9 +211,11 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     if (result.success) {
       // Save the validated period in session
       session.transactionData.period = result.processedValue;
-      session.step = STEPS.Complete;
 
+      // Update session with final data before completion
       await this.saveSession(session);
+
+      // Complete the transaction (no more steps needed)
       return await this.completeQuote(session);
     } else {
       console.log(
@@ -232,6 +232,10 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
+  /**
+   * Completion handler - finalizes the transaction after all steps are completed
+   * This is NOT a step, but the business logic that runs after input collection
+   */
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
     // split the period into month and year
     const transactionPayload = this.getTransactionPayload(session);
