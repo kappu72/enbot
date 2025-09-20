@@ -9,6 +9,7 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { familyStep } from '../steps/family-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
+import { monthStep } from '../steps/month-step.ts'; // 🧪 TESTING: MonthStep
 import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
@@ -25,12 +26,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     super(context, MonthlySubscriptionCommand.commandName);
   }
 
-  override canHandleCallback(
-    callbackQuery: TelegramCallbackQuery,
-  ) {
-    return callbackQuery.data === 'quota_recover_session' ||
-      callbackQuery.data === 'quota_cancel_session';
-  }
 
   async execute(): Promise<CommandResult> {
     if (this.context.message) {
@@ -54,13 +49,32 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  private handleCallbackQuery(
+  private async handleCallbackQuery(
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
-    return Promise.resolve({
+    const session = await this.loadCommandSession();
+    if (!session) {
+      return { success: false, message: 'Nessuna sessione trovata' };
+    }
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Handling callback query:',
+      callbackQuery,
+      session,
+    );
+    // 🧪 TESTING: Handle MonthStep callbacks
+    if (
+      session.step === STEPS.Period && callbackQuery.data?.startsWith('month:')
+    ) {
+      return await this.handleMonthSelectionWithStep(
+        callbackQuery.data,
+        session,
+      );
+    }
+
+    return {
       success: false,
       message: `Unknown callback data ${callbackQuery.data}`,
-    });
+    };
   }
 
   private async startQuota(): Promise<CommandResult> {
@@ -99,7 +113,12 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       case STEPS.Amount:
         return await this.handleAmountInputWithStep(text, session);
       case STEPS.Period:
-        return await this.handlePeriodInputWithStep(text, session);
+        // 🧪 TESTING: MonthStep uses callbacks, not text input
+        return {
+          success: false,
+          message: 'Usa la tastiera per selezionare il mese',
+        };
+        // return await this.handlePeriodInputWithStep(text, session); // 📝 Original period step
       default:
         return {
           success: false,
@@ -173,7 +192,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Period;
 
       await this.saveSession(session);
-      await this.sendPeriodPromptWithStep();
+      await this.sendMonthPromptWithStep(); // 🧪 TESTING: MonthStep instead of Period
       return { success: true, message: 'Amount entered for quote' };
     } else {
       console.log(
@@ -229,6 +248,57 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       );
       await this.sendMessage(errorContent.text, errorContent.options);
       return { success: false, message: result.error || 'Invalid period' };
+    }
+  }
+
+  // 🧪 TESTING: MonthStep callback handler
+  private async handleMonthSelectionWithStep(
+    callbackData: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Processing month selection:',
+      callbackData,
+    );
+
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    // Process callback using MonthStep
+    // Note: We need the full callbackQuery object, not just the data
+    const callbackQuery = this.context.callbackQuery!;
+    const result = monthStep.processCallback(callbackQuery, stepContext);
+
+    if (result.success) {
+      // Save the selected month in session (using period field for compatibility)
+      session.transactionData.period = `${result.processedValue}-${
+        new Date().getFullYear()
+      }`;
+
+      // For testing, we complete the quote here
+      // In real implementation, this would go to next step
+      await this.saveSession(session);
+
+      // Complete the transaction (no more steps needed)
+      return await this.completeQuote(session);
+    } else {
+      console.log(
+        '❌ MonthlySubscriptionCommand: Month selection failed:',
+        result.error,
+      );
+      // For callback errors, we typically send a new message
+      const errorContent = monthStep.presentError(
+        stepContext,
+        result.error || 'Errore nella selezione del mese',
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return {
+        success: false,
+        message: result.error || 'Invalid month selection',
+      };
     }
   }
 
@@ -320,7 +390,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           await this.sendAmountPromptWithStep();
           break;
         case 'period':
-          await this.sendPeriodPromptWithStep();
+          await this.sendMonthPromptWithStep(); // 🧪 TESTING: MonthStep
           break;
         case 'contact':
           await this.sendContactPrompt();
@@ -383,6 +453,29 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     console.log('🔍 MonthlySubscriptionCommand: FamilyStep presented');
   }
 
+  // 🧪 TESTING: MonthStep presentation
+  private async sendMonthPromptWithStep(): Promise<void> {
+    const session = await this.loadCommandSession();
+    if (!session) {
+      throw new Error('No session found for month prompt');
+    }
+
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Current session before MonthStep:',
+      session,
+    );
+
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    const content = monthStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 MonthlySubscriptionCommand: MonthStep presented');
+  }
+
+  // 📝 ORIGINAL: PeriodStep method (kept for reference)
   private async sendPeriodPromptWithStep(): Promise<void> {
     const session = await this.loadCommandSession();
     if (!session) {

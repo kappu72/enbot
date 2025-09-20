@@ -92,7 +92,6 @@ export interface CommandSession extends UserSession {
  *    - `execute()`: Main command logic
  *    - `getHelpText()`: Help text for users
  *    - `canHandleCommand()`: Command matching logic (optional override)
- *    - `canHandleCallback()`: Callback query handling (optional override)
  *
  * 3. **Use Step System**: For multi-step workflows, use the composable step system:
  *    ```typescript
@@ -499,21 +498,6 @@ export abstract class BaseCommand {
   }
 
   /**
-   * Determine if this command can handle the given callback query
-   *
-   * Default implementation returns false (no callback handling).
-   * Override this method to handle inline button callbacks.
-   *
-   * @param _callbackQuery - The incoming callback query
-   * @returns true if this command should handle the callback
-   */
-  canHandleCallback(
-    _callbackQuery: TelegramCallbackQuery,
-  ): Promise<boolean> | boolean {
-    return false;
-  }
-
-  /**
    * Execute the main command logic
    *
    * This is the entry point for command execution. Implement your command's
@@ -572,10 +556,6 @@ export interface Command {
   /** Check if this command can handle the given message */
   canHandleCommand(
     message: TelegramMessage,
-  ): Promise<boolean> | boolean;
-  /** Check if this command can handle the given callback query */
-  canHandleCallback(
-    _callbackQuery: TelegramCallbackQuery,
   ): Promise<boolean> | boolean;
   /** Execute the command's main logic */
   execute(): Promise<CommandResult>;

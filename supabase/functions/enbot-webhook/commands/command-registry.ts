@@ -173,7 +173,8 @@ export class CommandRegistry {
         userSession.command_type,
         context,
       );
-      if (command && command.canHandleCallback(callbackQuery)) {
+      if (command) {
+        // Let the command decide if it can handle the callback
         return await command.execute();
       }
     }
