@@ -36,7 +36,6 @@ export const validateAmount: InputValidator<number> = (input: string) => {
       error: "❌ L'importo è troppo elevato (massimo €10.000)",
     };
   }
-
   return {
     valid: true,
     value: amount,

@@ -98,6 +98,38 @@ export class TelegramClient {
     }
   }
 
+  /**
+   * Edit an existing message
+   */
+  async editMessage(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    const url = `https://api.telegram.org/bot${this.botToken}/editMessageText`;
+    const payload = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'Markdown',
+      ...options,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Telegram API error editing message: ${JSON.stringify(errorData)}`,
+      );
+    }
+  }
+
   async answerCallbackQuery(
     callbackQueryId: string,
     text: string,
@@ -105,20 +137,8 @@ export class TelegramClient {
     messageId?: number | string,
   ): Promise<void> {
     if (chatId && messageId) {
-      // Update message and remove keyboard
-      await fetch(
-        `https://api.telegram.org/bot${this.botToken}/editMessageText`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId,
-            text,
-            parse_mode: 'Markdown',
-          }),
-        },
-      );
+      // Update message and remove keyboard using the dedicated method
+      await this.editMessage(chatId, messageId as number, text);
     }
 
     const url =
