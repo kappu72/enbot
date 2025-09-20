@@ -9,7 +9,7 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { familyStep } from '../steps/family-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
-import { monthStep } from '../steps/month-step.ts'; // 🧪 TESTING: MonthStep
+import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
@@ -25,7 +25,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
   constructor(context: CommandContext) {
     super(context, MonthlySubscriptionCommand.commandName);
   }
-
 
   async execute(): Promise<CommandResult> {
     if (this.context.message) {
@@ -61,11 +60,14 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       callbackQuery,
       session,
     );
-    // 🧪 TESTING: Handle MonthStep callbacks
+    // Handle PeriodStep callbacks (month:, year:, confirm:)
     if (
-      session.step === STEPS.Period && callbackQuery.data?.startsWith('month:')
+      session.step === STEPS.Period &&
+      (callbackQuery.data?.startsWith('month:') ||
+        callbackQuery.data?.startsWith('year:') ||
+        callbackQuery.data?.startsWith('confirm:'))
     ) {
-      return await this.handleMonthSelectionWithStep(
+      return await this.handlePeriodSelectionWithStep(
         callbackQuery.data,
         session,
       );
@@ -192,7 +194,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Period;
 
       await this.saveSession(session);
-      await this.sendMonthPromptWithStep(); // 🧪 TESTING: MonthStep instead of Period
+      await this.sendPeriodPromptWithStep();
       return { success: true, message: 'Amount entered for quote' };
     } else {
       console.log(
@@ -251,13 +253,13 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  // 🧪 TESTING: MonthStep callback handler
-  private async handleMonthSelectionWithStep(
+  // PeriodStep callback handler (month + year + confirm)
+  private async handlePeriodSelectionWithStep(
     callbackData: string,
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 MonthlySubscriptionCommand: Processing month selection:',
+      '🔍 MonthlySubscriptionCommand: Processing period selection:',
       callbackData,
     );
 
@@ -267,37 +269,54 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session,
     };
 
-    // Process callback using MonthStep
-    // Note: We need the full callbackQuery object, not just the data
+    // Process callback using PeriodStep
     const callbackQuery = this.context.callbackQuery!;
-    const result = monthStep.processCallback(callbackQuery, stepContext);
+    const result = periodStep.processCallback(callbackQuery, stepContext);
 
     if (result.success) {
-      // Save the selected month in session (using period field for compatibility)
-      session.transactionData.period = `${result.processedValue}-${
-        new Date().getFullYear()
-      }`;
+      // Check if this is a final confirm or just a keyboard update
+      if (result.processedValue === 'update_keyboard') {
+        // Month or year selection - update keyboard without completing step
+        console.log(
+          '🔄 MonthlySubscriptionCommand: Updating period keyboard:',
+          callbackData,
+        );
 
-      // For testing, we complete the quote here
-      // In real implementation, this would go to next step
-      await this.saveSession(session);
+        // Update the message with new keyboard state
+        const updateContent = presentPeriodUpdate(stepContext, callbackData);
+        await this.editLastMessage(updateContent.text, updateContent.options);
 
-      // Complete the transaction (no more steps needed)
-      return await this.completeQuote(session);
+        return {
+          success: true,
+          message: 'Period keyboard updated',
+        };
+      } else {
+        // Final confirmation - complete the step
+        session.transactionData.period = result.processedValue as string;
+        console.log(
+          '✅ MonthlySubscriptionCommand: Period completed:',
+          result.processedValue,
+        );
+
+        await this.saveSession(session);
+
+        // Complete the transaction (no more steps needed)
+        return await this.completeQuote(session);
+      }
     } else {
       console.log(
-        '❌ MonthlySubscriptionCommand: Month selection failed:',
+        '❌ MonthlySubscriptionCommand: Period selection failed:',
         result.error,
       );
       // For callback errors, we typically send a new message
-      const errorContent = monthStep.presentError(
+      const errorContent = periodStep.presentError(
         stepContext,
-        result.error || 'Errore nella selezione del mese',
+        result.error || 'Errore nella selezione del periodo',
       );
       await this.sendMessage(errorContent.text, errorContent.options);
       return {
         success: false,
-        message: result.error || 'Invalid month selection',
+        message: result.error || 'Invalid period selection',
       };
     }
   }
@@ -390,7 +409,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           await this.sendAmountPromptWithStep();
           break;
         case 'period':
-          await this.sendMonthPromptWithStep(); // 🧪 TESTING: MonthStep
+          await this.sendPeriodPromptWithStep();
           break;
         case 'contact':
           await this.sendContactPrompt();
@@ -451,28 +470,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     const content = familyStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
     console.log('🔍 MonthlySubscriptionCommand: FamilyStep presented');
-  }
-
-  // 🧪 TESTING: MonthStep presentation
-  private async sendMonthPromptWithStep(): Promise<void> {
-    const session = await this.loadCommandSession();
-    if (!session) {
-      throw new Error('No session found for month prompt');
-    }
-
-    console.log(
-      '🔍 MonthlySubscriptionCommand: Current session before MonthStep:',
-      session,
-    );
-
-    const stepContext: StepContext = {
-      ...this.context,
-      session,
-    };
-
-    const content = monthStep.present(stepContext);
-    await this.sendMessage(content.text, content.options);
-    console.log('🔍 MonthlySubscriptionCommand: MonthStep presented');
   }
 
   // 📝 ORIGINAL: PeriodStep method (kept for reference)
