@@ -58,7 +58,7 @@ export class TransactionCommand extends BaseCommand {
 
   private async startTransaction(): Promise<CommandResult> {
     // Check if user has an existing session
-    const existingSession = await this.loadSession();
+    const existingSession = await this.loadCommandSession();
 
     if (existingSession) {
       console.log(
@@ -85,7 +85,7 @@ export class TransactionCommand extends BaseCommand {
   }
 
   private async handleTextInput(text: string): Promise<CommandResult> {
-    const session = await this.loadSession();
+    const session = await this.loadCommandSession();
     if (!session) {
       return { success: false, message: 'No active session found' };
     }
@@ -109,7 +109,7 @@ export class TransactionCommand extends BaseCommand {
   private async handleFamilySelection(
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
-    const session = await this.loadSession();
+    const session = await this.loadCommandSession();
     if (!session) return { success: false, message: 'No active session' };
 
     const family = callbackQuery.data!.replace('family_', '');
@@ -133,7 +133,7 @@ export class TransactionCommand extends BaseCommand {
   private async handleCategorySelection(
     callbackQuery: TelegramCallbackQuery,
   ): Promise<CommandResult> {
-    const session = await this.loadSession();
+    const session = await this.loadCommandSession();
     if (!session) return { success: false, message: 'No active session' };
 
     const category = callbackQuery.data!.replace('category_', '');
@@ -331,7 +331,7 @@ export class TransactionCommand extends BaseCommand {
 
   private async recoverSession(): Promise<CommandResult> {
     try {
-      const existingSession = await this.loadSession();
+      const existingSession = await this.loadCommandSession();
       if (!existingSession) {
         await this.sendMessage(
           '❌ Sessione non trovata. Iniziando una nuova sessione.',

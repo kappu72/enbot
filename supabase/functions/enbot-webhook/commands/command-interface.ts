@@ -68,9 +68,9 @@ export abstract class BaseCommand {
   }
 
   /**
-   * Load command session from database
+   * Load command-specific session from database
    */
-  protected async loadSession(): Promise<CommandSession | null> {
+  protected async loadCommandSession(): Promise<CommandSession | null> {
     const persistedSession = await this.context.sessionManager.loadSession(
       this.context.userId,
       this.context.chatId,
@@ -145,6 +145,57 @@ export abstract class BaseCommand {
     }
     return result;
   }
+
+  /**
+   * Edit the last message sent by this command
+   */
+  protected async editLastMessage(
+    text: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      // Get the command-specific session
+      const session = await this.loadCommandSession();
+
+      if (!session?.messageId) {
+        console.warn('❌ No message ID found in session for editing');
+        return;
+      }
+
+      await this.context.telegram.editMessage(
+        this.context.chatId,
+        session.messageId,
+        text,
+        options,
+      );
+    } catch (error) {
+      console.warn('❌ Error editing last message:', error);
+      // Fallback: send new message if edit fails
+      await this.sendMessage(text, options);
+    }
+  }
+
+  /**
+   * Edit a specific message by ID
+   */
+  protected async editMessage(
+    messageId: number,
+    text: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this.context.telegram.editMessage(
+        this.context.chatId,
+        messageId,
+        text,
+        options,
+      );
+    } catch (error) {
+      console.warn(`❌ Error editing message ${messageId}:`, error);
+      throw error;
+    }
+  }
+
   /**
    * Answer callback query
    */

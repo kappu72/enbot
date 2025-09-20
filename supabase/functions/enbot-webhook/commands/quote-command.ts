@@ -90,7 +90,7 @@ export class QuoteCommand extends BaseCommand {
   }
 
   private async handleTextInput(text: string): Promise<CommandResult> {
-    const session = await this.loadSession();
+    const session = await this.loadCommandSession();
     if (!session) {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
@@ -139,24 +139,15 @@ export class QuoteCommand extends BaseCommand {
     };
 
     // Process input using AmountStep
-    console.log('🔍 QuoteCommand: Calling amountStep.processInput...');
     const result = amountStep.processInput(text, stepContext);
-    console.log('🔍 QuoteCommand: AmountStep result:', result);
 
     if (result.success) {
-      console.log(
-        '✅ QuoteCommand: Amount validation successful:',
-        result.processedValue,
-      );
       // Save the validated amount in session
       session.transactionData.amount = result.processedValue;
       session.step = STEPS.Period;
 
       await this.saveSession(session);
-      console.log('✅ QuoteCommand: Session saved, sending period prompt...');
       await this.sendPeriodPrompt();
-      console.log('✅ QuoteCommand: Period prompt sent');
-
       return { success: true, message: 'Amount entered for quote' };
     } else {
       console.log('❌ QuoteCommand: Amount validation failed:', result.error);
@@ -250,7 +241,7 @@ export class QuoteCommand extends BaseCommand {
 
   private async recoverSession(): Promise<CommandResult> {
     try {
-      const existingSession = await this.loadSession();
+      const existingSession = await this.loadCommandSession();
       if (!existingSession) {
         await this.sendMessage(
           '❌ Sessione quota non trovata. Iniziando una nuova quota.',
@@ -292,7 +283,7 @@ export class QuoteCommand extends BaseCommand {
 
   private async sendAmountPromptWithStep(): Promise<void> {
     // Create StepContext for presenting the amount step
-    const session = await this.loadSession();
+    const session = await this.loadCommandSession();
     if (!session) {
       throw new Error('No session found for amount prompt');
     }
