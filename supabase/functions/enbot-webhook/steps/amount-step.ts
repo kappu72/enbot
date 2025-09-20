@@ -2,6 +2,7 @@
 import {
   type InputPresenter,
   type InputValidator,
+  type ErrorPresenter,
   Step,
   type StepContent,
   type StepContext,
@@ -71,6 +72,30 @@ export const presentAmountInput: InputPresenter = (
 };
 
 /**
+ * Pure function to present amount input error
+ */
+export const presentAmountError: ErrorPresenter = (
+  context: StepContext,
+  error: string,
+): StepContent => {
+  // Get username for mention
+  const username = context.message?.from?.username;
+  const mention = username ? `@${username} ` : '';
+
+  const text = `${mention}${error}\n\n` +
+    `💰 Riprova inserendo l'importo in EUR:\n` +
+    `🔢 Esempio: 25.50 o 25,50\n` +
+    `📱 Usa il tastierino numerico del telefone`;
+
+  return {
+    text,
+    options: {
+      parse_mode: 'Markdown',
+    },
+  };
+};
+
+/**
  * Create the AmountStep instance using composition
  */
 export const createAmountStep = (): Step<number> => {
@@ -79,6 +104,7 @@ export const createAmountStep = (): Step<number> => {
     presentAmountInput,
     validateAmount,
     undefined, // Does not handle callbacks
+    presentAmountError, // Error presenter
     "💰 Inserisci l'importo della transazione in EUR",
   );
 };
