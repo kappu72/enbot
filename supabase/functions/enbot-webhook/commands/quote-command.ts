@@ -6,6 +6,8 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
+import { amountStep } from '../steps/amount-step.ts';
+import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
   'Family' = 'family',
@@ -96,7 +98,7 @@ export class QuoteCommand extends BaseCommand {
       case STEPS.Family:
         return await this.handleFamilySelection(text, session);
       case STEPS.Amount:
-        return await this.handleAmountInput(text, session);
+        return await this.handleAmountInputWithStep(text, session);
       case STEPS.Period:
         return await this.handlePeriodInput(text, session);
       default:
@@ -119,33 +121,51 @@ export class QuoteCommand extends BaseCommand {
     await this.saveSession(session);
     // clean keyboard and show prompt
 
-    const result = await this.sendAmountPrompt();
-    console.log('result', result);
+    await this.sendAmountPromptWithStep();
 
     return { success: true, message: 'Family selected for quote' };
   }
 
-  private async handleAmountInput(
+  private async handleAmountInputWithStep(
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    const amount = parseFloat(text);
+    console.log('🔍 QuoteCommand: Processing amount input:', text);
 
-    if (isNaN(amount) || amount <= 0) {
-      await this.sendMessage(
-        '❌ Inserisci un importo valido in EUR (es. 25.50):',
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    // Process input using AmountStep
+    console.log('🔍 QuoteCommand: Calling amountStep.processInput...');
+    const result = amountStep.processInput(text, stepContext);
+    console.log('🔍 QuoteCommand: AmountStep result:', result);
+
+    if (result.success) {
+      console.log(
+        '✅ QuoteCommand: Amount validation successful:',
+        result.processedValue,
       );
-      return { success: false, message: 'Importo non valido' };
+      // Save the validated amount in session
+      session.transactionData.amount = result.processedValue;
+      session.step = STEPS.Period;
+
+      await this.saveSession(session);
+      console.log('✅ QuoteCommand: Session saved, sending period prompt...');
+      await this.sendPeriodPrompt();
+      console.log('✅ QuoteCommand: Period prompt sent');
+
+      return { success: true, message: 'Amount entered for quote' };
+    } else {
+      console.log('❌ QuoteCommand: Amount validation failed:', result.error);
+      // Send error message from AmountStep validation
+      await this.sendMessage(
+        result.error || "Errore nella validazione dell'importo",
+      );
+      return { success: false, message: result.error || 'Invalid amount' };
     }
-
-    session.transactionData.amount = amount;
-    session.step = STEPS.Period;
-
-    await this.saveSession(session);
-    const result = await this.sendPeriodPrompt();
-    console.log('result', result);
-
-    return { success: true, message: 'Amount entered for quote' };
   }
 
   private async handlePeriodInput(
@@ -248,7 +268,7 @@ export class QuoteCommand extends BaseCommand {
           await this.sendFamilyPrompt();
           break;
         case 'amount':
-          await this.sendAmountPrompt();
+          await this.sendAmountPromptWithStep();
           break;
         case 'period':
           await this.sendPeriodPrompt();
@@ -270,6 +290,25 @@ export class QuoteCommand extends BaseCommand {
     }
   }
 
+  private async sendAmountPromptWithStep(): Promise<void> {
+    // Create StepContext for presenting the amount step
+    const session = await this.loadSession();
+    if (!session) {
+      throw new Error('No session found for amount prompt');
+    }
+
+    console.log('🔍 QuoteCommand: Current session before AmountStep:', session);
+
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    const content = amountStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 QuoteCommand: AmountStep presented');
+  }
+
   // UI Helper methods
   private async sendFamilyPrompt(): Promise<void> {
     const keyboard = {
@@ -284,24 +323,6 @@ export class QuoteCommand extends BaseCommand {
     const username = this.context.message?.from?.username;
     const mention = username ? `@${username}` : '';
     const message = `${mention} 👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:`;
-
-    await this.sendMessage(message, keyboard);
-  }
-
-  private async sendAmountPrompt(): Promise<void> {
-    const keyboard = {
-      reply_markup: {
-        force_reply: true,
-        input_field_placeholder: '25.50 (solo numeri e punto)',
-        selective: true,
-      },
-    };
-
-    // Get username for mention
-    const username = this.context.message?.from?.username;
-    const mention = username ? `@${username}` : '';
-    const message =
-      `${mention} 💰 Inserisci l'importo della quota in EUR:\n🔢 Esempio: 25.50\n📱 Usa il tastierino numerico del telefono`;
 
     await this.sendMessage(message, keyboard);
   }

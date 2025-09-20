@@ -119,16 +119,28 @@ export class CommandRegistry {
       userId,
       chatId,
     );
+
+    console.log('🔍 CommandRegistry: User session:', userSession);
+    console.log(
+      '🔍 CommandRegistry: Reply to message_id:',
+      message.reply_to_message?.message_id,
+    );
+
     // The bot should only answer to the last sent message saved in the session row the other messages has to pass
     if (
       userSession &&
       message.reply_to_message?.message_id === userSession.message_id
     ) {
+      console.log('✅ CommandRegistry: Message ID matches, executing command');
       const command = this.createCommandInstance(
         userSession.command_type,
         context,
       );
       if (command) return await command.execute();
+    } else if (userSession) {
+      console.log('❌ CommandRegistry: Message ID mismatch!');
+      console.log('   Expected:', userSession.message_id);
+      console.log('   Received:', message.reply_to_message?.message_id);
     }
 
     console.log(`❌ No command found to handle message: ${message.text}`);
@@ -150,7 +162,7 @@ export class CommandRegistry {
       callbackQuery,
     );
 
-    // The callback should always be handled by a command
+    // The callback should always have am active session
     const userSession = await this.sessionManager.loadUserSession(
       userId,
       chatId,
