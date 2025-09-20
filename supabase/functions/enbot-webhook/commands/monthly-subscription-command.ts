@@ -6,6 +6,7 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
+import { familyStep } from '../steps/family-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
@@ -84,8 +85,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     };
 
     await this.saveSession(session);
-    const result = await this.sendFamilyPrompt();
-    console.log('result', result);
+    await this.sendFamilyPromptWithStep();
 
     return { success: true, message: 'Quota started' };
   }
@@ -97,7 +97,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
     switch (session.step) {
       case STEPS.Family:
-        return await this.handleFamilySelection(text, session);
+        return await this.handleFamilySelectionWithStep(text, session);
       case STEPS.Amount:
         return await this.handleAmountInputWithStep(text, session);
       case STEPS.Period:
@@ -110,21 +110,45 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  private async handleFamilySelection(
+  private async handleFamilySelectionWithStep(
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    // TODO:: we should clean the message text
-    const family = text!.trim();
-    session.transactionData.family = family;
-    session.step = STEPS.Amount; // Skip category, go directly to amount
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Processing family input:',
+      text,
+    );
 
-    await this.saveSession(session);
-    // clean keyboard and show prompt
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
 
-    await this.sendAmountPromptWithStep();
+    // Process input using FamilyStep
+    const result = familyStep.processInput(text, stepContext);
 
-    return { success: true, message: 'Family selected for quote' };
+    if (result.success) {
+      // Save the validated family in session
+      session.transactionData.family = result.processedValue;
+      session.step = STEPS.Amount; // Skip category, go directly to amount
+
+      await this.saveSession(session);
+      await this.sendAmountPromptWithStep();
+      return { success: true, message: 'Family selected for quote' };
+    } else {
+      console.log(
+        '❌ MonthlySubscriptionCommand: Family validation failed:',
+        result.error,
+      );
+      // Present error using FamilyStep's error presenter
+      const errorContent = familyStep.presentError(
+        stepContext,
+        result.error || 'Errore nella validazione della famiglia',
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return { success: false, message: result.error || 'Invalid family' };
+    }
   }
 
   private async handleAmountInputWithStep(
@@ -286,7 +310,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       // Continue from the current step
       switch (existingSession.step) {
         case 'family':
-          await this.sendFamilyPrompt();
+          await this.sendFamilyPromptWithStep();
           break;
         case 'amount':
           await this.sendAmountPromptWithStep();
@@ -298,7 +322,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           await this.sendContactPrompt();
           break;
         default:
-          await this.sendFamilyPrompt();
+          await this.sendFamilyPromptWithStep();
       }
 
       return { success: true, message: 'Quote session recovered' };
@@ -334,21 +358,25 @@ export class MonthlySubscriptionCommand extends BaseCommand {
   }
 
   // UI Helper methods
-  private async sendFamilyPrompt(): Promise<void> {
-    const keyboard = {
-      reply_markup: {
-        force_reply: true,
-        input_field_placeholder: 'Inserisci la famiglia',
-        selective: true,
-      },
+  private async sendFamilyPromptWithStep(): Promise<void> {
+    const session = await this.loadCommandSession();
+    if (!session) {
+      throw new Error('No session found for family prompt');
+    }
+
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Current session before FamilyStep:',
+      session,
+    );
+
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
     };
 
-    // Get username for mention
-    const username = this.context.message?.from?.username;
-    const mention = username ? `@${username}` : '';
-    const message = `${mention} 👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:`;
-
-    await this.sendMessage(message, keyboard);
+    const content = familyStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 MonthlySubscriptionCommand: FamilyStep presented');
   }
 
   private async sendPeriodPromptWithStep(): Promise<void> {
