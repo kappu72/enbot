@@ -9,41 +9,160 @@ import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
 import type { GoogleSheetsClient } from '../google-sheets-client.ts';
 
+/**
+ * Context object containing all the dependencies and current state for command execution
+ * This context is passed to commands and contains everything needed to interact with
+ * external services and manage user sessions.
+ */
 export interface CommandContext {
+  /** Supabase client for database operations */
   supabase: SupabaseClient;
+  /** Telegram client for sending messages and handling bot operations */
   telegram: TelegramClient;
+  /** Session manager for persisting user interaction state */
   sessionManager: SessionManager;
+  /** Google Sheets client for syncing transactions (optional) */
   googleSheetsClient?: GoogleSheetsClient;
+  /** Telegram user ID of the current user */
   userId: number;
+  /** Telegram chat ID where the interaction is happening */
   chatId: number;
+  /** Current message being processed (for text commands) */
   message?: TelegramMessage;
+  /** Current callback query being processed (for inline buttons) */
   callbackQuery?: TelegramCallbackQuery;
 }
 
+/**
+ * Result object returned by command execution
+ * Indicates whether the command succeeded and provides feedback information
+ */
 export interface CommandResult {
+  /** Whether the command execution was successful */
   success: boolean;
+  /** Optional success or status message */
   message?: string;
+  /** Optional error message if command failed */
   error?: string;
+  /** Whether the command flow should continue (for multi-step commands) */
   shouldContinue?: boolean;
+  /** Next step identifier for multi-step commands */
   nextStep?: string;
 }
 
+/**
+ * Command-specific session data extending the base UserSession
+ * Used to maintain state across multiple user interactions in a command flow
+ */
 export interface CommandSession extends UserSession {
+  /** Type/name of the command this session belongs to */
   commandType: string;
+  /** Command-specific data collected during the interaction flow */
   commandData: Record<string, unknown>;
 }
 
+/**
+ * Abstract base class for all Telegram bot commands
+ *
+ * This class provides a foundation for implementing bot commands with session management,
+ * message handling, and integration with external services. Commands are designed to handle
+ * both simple one-shot interactions and complex multi-step workflows.
+ *
+ * ## Architecture Overview
+ *
+ * Commands follow a modular step-based architecture:
+ * - **Steps**: Handle user input validation and presentation (e.g., AmountStep, PeriodStep)
+ * - **Commands**: Orchestrate the flow between steps and handle completion logic
+ * - **Sessions**: Maintain state across multiple user interactions
+ * - **Context**: Provides access to all external dependencies and services
+ *
+ * ## Implementation Guide
+ *
+ * To create a new command:
+ *
+ * 1. **Extend BaseCommand**:
+ *    ```typescript
+ *    export class MyCommand extends BaseCommand {
+ *      static commandName = 'mycommand';
+ *      static description = '🎯 My command description';
+ *    }
+ *    ```
+ *
+ * 2. **Implement Required Methods**:
+ *    - `execute()`: Main command logic
+ *    - `getHelpText()`: Help text for users
+ *    - `canHandleCommand()`: Command matching logic (optional override)
+ *    - `canHandleCallback()`: Callback query handling (optional override)
+ *
+ * 3. **Use Step System**: For multi-step workflows, use the composable step system:
+ *    ```typescript
+ *    const result = myStep.processInput(text, stepContext);
+ *    if (result.success) {
+ *      // Continue to next step or completion
+ *    } else {
+ *      // Handle validation error
+ *      const errorContent = myStep.presentError(stepContext, result.error);
+ *      await this.sendMessage(errorContent.text, errorContent.options);
+ *    }
+ *    ```
+ *
+ * 4. **Session Management**: Use sessions to maintain state:
+ *    ```typescript
+ *    const session = await this.loadCommandSession();
+ *    session.transactionData.someField = validatedValue;
+ *    await this.saveSession(session);
+ *    ```
+ *
+ * ## Key Patterns
+ *
+ * - **Separation of Concerns**: Steps handle validation, commands handle orchestration
+ * - **Error Handling**: Steps provide error presenters for consistent UX
+ * - **Message Management**: Commands track message IDs for editing capabilities
+ * - **State Persistence**: Sessions automatically save/restore user progress
+ * - **External Integration**: Built-in support for database and Google Sheets sync
+ *
+ * @example
+ * ```typescript
+ * export class MyCommand extends BaseCommand {
+ *   static commandName = 'mycommand';
+ *   static description = '🎯 My command description';
+ *
+ *   override async execute(): Promise<CommandResult> {
+ *     // Check for existing session
+ *     const existingSession = await this.loadCommandSession();
+ *     if (existingSession) {
+ *       return await this.recoverSession(existingSession);
+ *     }
+ *
+ *     // Start new workflow
+ *     return await this.startWorkflow();
+ *   }
+ *
+ *   override getHelpText(): string {
+ *     return 'This command helps you do amazing things!';
+ *   }
+ * }
+ * ```
+ */
 export abstract class BaseCommand {
+  /** Command execution context containing all dependencies and current state */
   protected context: CommandContext;
+  /** Name of this command (e.g., 'transaction', 'quota') */
   protected commandName: string;
 
+  /**
+   * Creates a new command instance
+   * @param context - Execution context with dependencies and current state
+   * @param commandName - Unique identifier for this command
+   */
   constructor(context: CommandContext, commandName: string) {
     this.context = context;
     this.commandName = commandName;
   }
 
   /**
-   * Get the command name (e.g., 'transaction', 'quote')
+   * Get the command name (e.g., 'transaction', 'quota')
+   * @returns The unique identifier for this command
    */
   getCommandName(): string {
     return this.commandName;
@@ -51,6 +170,8 @@ export abstract class BaseCommand {
 
   /**
    * Get the session key for this command
+   * @returns A unique key combining command name, user ID, and chat ID
+   * @protected
    */
   protected getSessionKey(): string {
     return `${this.commandName}_${this.context.userId}_${this.context.chatId}`;
@@ -58,6 +179,12 @@ export abstract class BaseCommand {
 
   /**
    * Save command session to database
+   *
+   * This method persists the current command state to the database, allowing
+   * the command to resume from where it left off if the user returns later.
+   *
+   * @param session - The session data to save
+   * @protected
    */
   protected async saveSession(session: CommandSession): Promise<void> {
     await this.context.sessionManager.saveSession({
@@ -69,6 +196,13 @@ export abstract class BaseCommand {
 
   /**
    * Load command-specific session from database
+   *
+   * Retrieves any existing session for this command and user. Returns null
+   * if no active session exists. This is typically used at the start of
+   * command execution to check if there's an ongoing workflow.
+   *
+   * @returns The active session for this command, or null if none exists
+   * @protected
    */
   protected async loadCommandSession(): Promise<CommandSession | null> {
     const persistedSession = await this.context.sessionManager.loadSession(
@@ -123,6 +257,15 @@ export abstract class BaseCommand {
 
   /**
    * Send message with command context
+   *
+   * Sends a message to the current chat and automatically tracks the message ID
+   * in the command session. This enables the command to later edit this message
+   * if needed (e.g., for error corrections or updates).
+   *
+   * @param text - The message text to send
+   * @param options - Additional Telegram API options (keyboards, parse_mode, etc.)
+   * @returns Promise that resolves when message is sent and ID is saved
+   * @protected
    */
   protected async sendMessage(
     text: string,
@@ -148,6 +291,16 @@ export abstract class BaseCommand {
 
   /**
    * Edit the last message sent by this command
+   *
+   * Updates the most recent message sent by this command. This is useful for
+   * correcting validation errors or updating status messages without sending
+   * new messages. Falls back to sending a new message if editing fails.
+   *
+   * Note: Some message types (e.g., messages with force_reply) cannot be edited.
+   *
+   * @param text - The new message text
+   * @param options - Additional Telegram API options
+   * @protected
    */
   protected async editLastMessage(
     text: string,
@@ -215,6 +368,14 @@ export abstract class BaseCommand {
 
   /**
    * Synchronize transaction with Google Sheets and mark as synced
+   *
+   * This method provides built-in integration with Google Sheets for transaction
+   * data. It fetches the transaction from the database, converts it to the appropriate
+   * format, pushes it to Google Sheets, and marks it as synced.
+   *
+   * @param transactionId - Database ID of the transaction to sync
+   * @returns Promise resolving to sync result with success status and optional error
+   * @protected
    */
   protected async syncTransactionToGoogleSheets(
     transactionId: number,
@@ -292,6 +453,17 @@ export abstract class BaseCommand {
       return { success: false, error: errorMessage };
     }
   }
+  /**
+   * Convert command session data to transaction payload format
+   *
+   * This helper method transforms the collected session data into a standardized
+   * format suitable for database storage and Google Sheets sync. Override this
+   * method in subclasses if you need custom payload formatting.
+   *
+   * @param session - The command session containing collected data
+   * @returns Formatted transaction payload ready for database storage
+   * @protected
+   */
   protected getTransactionPayload(
     session: CommandSession,
   ): Record<string, unknown> {
@@ -310,38 +482,107 @@ export abstract class BaseCommand {
       }`,
     };
   }
+
+  /**
+   * Determine if this command can handle the given message
+   *
+   * Default implementation matches messages that start with /{commandName}.
+   * Override this method for custom command matching logic.
+   *
+   * @param message - The incoming Telegram message
+   * @returns true if this command should handle the message
+   */
   canHandleCommand(
     message: TelegramMessage,
   ): Promise<boolean> | boolean {
     return message.text === `/${this.commandName}`;
   }
+
+  /**
+   * Determine if this command can handle the given callback query
+   *
+   * Default implementation returns false (no callback handling).
+   * Override this method to handle inline button callbacks.
+   *
+   * @param _callbackQuery - The incoming callback query
+   * @returns true if this command should handle the callback
+   */
   canHandleCallback(
     _callbackQuery: TelegramCallbackQuery,
   ): Promise<boolean> | boolean {
     return false;
   }
+
+  /**
+   * Execute the main command logic
+   *
+   * This is the entry point for command execution. Implement your command's
+   * main workflow here, including session management, step orchestration,
+   * and completion handling.
+   *
+   * @returns Promise resolving to the command execution result
+   */
   abstract execute(): Promise<CommandResult>;
+
+  /**
+   * Get help text for this command
+   *
+   * Provide user-friendly help text that explains what this command does
+   * and how to use it. This is shown in help menus and error situations.
+   *
+   * @returns Help text string for users
+   */
   abstract getHelpText(): string;
+
+  /**
+   * Get the description for this command
+   *
+   * Returns a brief description used in command menus. Override in subclasses
+   * to provide meaningful descriptions. Should include an emoji and be concise.
+   *
+   * @returns Command description string
+   */
   getDescription(): string {
     return 'Nessuna descrizione fornita per questo comando.';
   }
 }
 
+/**
+ * Static interface for command class constructors
+ *
+ * This interface defines the static properties that command classes must have.
+ * It's used by the command registry to instantiate commands dynamically.
+ */
 export interface CommandStatic {
+  /** Constructor that creates a command instance */
   new (context: CommandContext): Command;
+  /** Static command name identifier */
   commandName: string;
+  /** Static command description for menus */
   description: string;
 }
 
+/**
+ * Runtime interface for command instances
+ *
+ * This interface defines the methods that all command instances must implement.
+ * It's the contract that the command registry uses to interact with commands.
+ */
 export interface Command {
+  /** Check if this command can handle the given message */
   canHandleCommand(
     message: TelegramMessage,
   ): Promise<boolean> | boolean;
+  /** Check if this command can handle the given callback query */
   canHandleCallback(
     _callbackQuery: TelegramCallbackQuery,
   ): Promise<boolean> | boolean;
+  /** Execute the command's main logic */
   execute(): Promise<CommandResult>;
+  /** Get user-friendly help text */
   getHelpText(): string;
+  /** Get command description for menus */
   getDescription(): string;
+  /** Get the command name identifier */
   getCommandName(): string;
 }
