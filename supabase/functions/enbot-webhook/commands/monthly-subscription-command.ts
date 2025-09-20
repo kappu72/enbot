@@ -157,10 +157,12 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         '❌ MonthlySubscriptionCommand: Amount validation failed:',
         result.error,
       );
-      // Update last message with error from AmountStep validation
-      await this.editLastMessage(
+      // Present error using AmountStep's error presenter
+      const errorContent = amountStep.presentError(
+        stepContext,
         result.error || "Errore nella validazione dell'importo",
       );
+      await this.sendMessage(errorContent.text, errorContent.options);
       return { success: false, message: result.error || 'Invalid amount' };
     }
   }

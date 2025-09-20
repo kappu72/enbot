@@ -38,6 +38,11 @@ export type CallbackHandler<T = unknown> = (
   error?: string;
 };
 
+export type ErrorPresenter = (
+  context: StepContext,
+  error: string,
+) => StepContent;
+
 // Main Step class using composition
 export class Step<T = unknown> {
   constructor(
@@ -45,6 +50,7 @@ export class Step<T = unknown> {
     private presenter: InputPresenter,
     private validator?: InputValidator<T>,
     private callbackHandler?: CallbackHandler<T>,
+    private errorPresenter?: ErrorPresenter,
     private helpText: string = 'Nessun aiuto disponibile',
   ) {}
 
@@ -58,6 +64,17 @@ export class Step<T = unknown> {
 
   present(context: StepContext): StepContent {
     return this.presenter(context);
+  }
+
+  presentError(context: StepContext, error: string): StepContent {
+    if (!this.errorPresenter) {
+      // Fallback generico per errori
+      return {
+        text: `❌ ${error}`,
+        options: { parse_mode: 'Markdown' },
+      };
+    }
+    return this.errorPresenter(context, error);
   }
 
   processInput(input: string, _context: StepContext): StepResult<T> {
