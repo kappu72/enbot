@@ -9,7 +9,10 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { familyStep } from '../steps/family-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
-import { presentPeriodUpdate } from '../steps/period-step.ts';
+import {
+  presentPeriodConfirmation,
+  presentPeriodUpdate,
+} from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
@@ -299,6 +302,16 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         );
 
         await this.saveSession(session);
+
+        // Show confirmation with keyboard removed
+        const confirmationContent = presentPeriodConfirmation(
+          stepContext,
+          result.processedValue!,
+        );
+        await this.editLastMessage(
+          confirmationContent.text,
+          confirmationContent.options,
+        );
 
         // Complete the transaction (no more steps needed)
         return await this.completeQuote(session);
