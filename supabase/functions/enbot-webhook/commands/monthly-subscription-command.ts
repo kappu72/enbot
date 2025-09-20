@@ -7,6 +7,7 @@ import type {
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { amountStep } from '../steps/amount-step.ts';
+import { periodStep } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
@@ -100,7 +101,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       case STEPS.Amount:
         return await this.handleAmountInputWithStep(text, session);
       case STEPS.Period:
-        return await this.handlePeriodInput(text, session);
+        return await this.handlePeriodInputWithStep(text, session);
       default:
         return {
           success: false,
@@ -150,7 +151,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Period;
 
       await this.saveSession(session);
-      await this.sendPeriodPrompt();
+      await this.sendPeriodPromptWithStep();
       return { success: true, message: 'Amount entered for quote' };
     } else {
       console.log(
@@ -167,23 +168,44 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  private async handlePeriodInput(
+  private async handlePeriodInputWithStep(
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
-    const dateRegex = /^\d{2}-\d{4}$/;
-    if (!dateRegex.test(text.trim())) {
-      await this.sendMessage(
-        '❌ Inserisci una data valida nel formato MM-YYYY (es. 01-2024):',
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Processing period input:',
+      text,
+    );
+
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    // Process input using PeriodStep
+    const result = periodStep.processInput(text, stepContext);
+
+    if (result.success) {
+      // Save the validated period in session
+      session.transactionData.period = result.processedValue;
+      session.step = STEPS.Complete;
+
+      await this.saveSession(session);
+      return await this.completeQuote(session);
+    } else {
+      console.log(
+        '❌ MonthlySubscriptionCommand: Period validation failed:',
+        result.error,
       );
-      return { success: false, message: 'Invalid date format' };
+      // Present error using PeriodStep's error presenter
+      const errorContent = periodStep.presentError(
+        stepContext,
+        result.error || 'Errore nella validazione del periodo',
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return { success: false, message: result.error || 'Invalid period' };
     }
-
-    session.transactionData.period = text.trim();
-    session.step = STEPS.Complete;
-
-    await this.saveSession(session);
-    return await this.completeQuote(session);
   }
 
   private async completeQuote(session: CommandSession): Promise<CommandResult> {
@@ -270,7 +292,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           await this.sendAmountPromptWithStep();
           break;
         case 'period':
-          await this.sendPeriodPrompt();
+          await this.sendPeriodPromptWithStep();
           break;
         case 'contact':
           await this.sendContactPrompt();
@@ -329,21 +351,25 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     await this.sendMessage(message, keyboard);
   }
 
-  private async sendPeriodPrompt(): Promise<void> {
-    const keyboard = {
-      reply_markup: {
-        force_reply: true,
-        input_field_placeholder: 'MM-YYYY (es. 01-2024)',
-        selective: true,
-      },
+  private async sendPeriodPromptWithStep(): Promise<void> {
+    const session = await this.loadCommandSession();
+    if (!session) {
+      throw new Error('No session found for period prompt');
+    }
+
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Current session before PeriodStep:',
+      session,
+    );
+
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
     };
 
-    // Get username for mention
-    const username = this.context.message?.from?.username;
-    const mention = username ? `@${username}` : '';
-    const message = `${mention} 📅 Inserisci il mese ed anno di riferimento:`;
-
-    await this.sendMessage(message, keyboard);
+    const content = periodStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 MonthlySubscriptionCommand: PeriodStep presented');
   }
 
   private async sendContactPrompt(): Promise<void> {
