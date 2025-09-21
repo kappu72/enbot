@@ -15,11 +15,11 @@ import {
   formatPeriodMarkdownV2,
 } from '../utils/markdown-utils.ts';
 import {
+  getCurrentMonthName,
+  getCurrentYear,
   getMonthByNumber,
   getMonthsArrangement,
   getYearsArrangement,
-  getCurrentMonthName,
-  getCurrentYear,
 } from '../utils/date-utils.ts';
 
 /**
@@ -29,8 +29,6 @@ type ConfirmationPresenter = (
   context: StepContext,
   selectedValue: unknown,
 ) => StepContent;
-
-
 
 /**
  * Parse state from callback data or return empty state

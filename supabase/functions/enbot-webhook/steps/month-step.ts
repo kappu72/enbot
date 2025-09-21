@@ -10,9 +10,9 @@ import {
 } from './step-types.ts';
 import type { TelegramCallbackQuery } from '../types.ts';
 import {
-  MONTHS,
-  getMonthByNumber,
   getCurrentMonthName,
+  getMonthByNumber,
+  MONTHS,
 } from '../utils/date-utils.ts';
 
 /**
@@ -22,7 +22,6 @@ type ConfirmationPresenter = (
   context: StepContext,
   selectedValue: unknown,
 ) => StepContent;
-
 
 /**
  * Arrange months with current month first, organized in rows

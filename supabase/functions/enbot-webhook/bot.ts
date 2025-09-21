@@ -66,7 +66,7 @@ export class EnBot {
   private initializeCommands(): void {
     // Register command classes (not instances) this order matters
     this.commandRegistry.registerCommand(MonthlySubscriptionCommand);
-    this.commandRegistry.registerCommand(TransactionCommand);
+    // this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(HelpCommand);
     console.log('🎯 Command system initialized');
   }

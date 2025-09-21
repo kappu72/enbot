@@ -598,31 +598,24 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     transactionPayload: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
-    console.log(
-      '🔍 MonthlySubscriptionCommand: Transaction payload:',
-      transactionPayload,
-    );
     const notificationMessage =
-      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\n` +
-      `${boldMarkdownV2(transactionPayload.family as string)} ha versato ${
+      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\\nn` +
+      `Versati ${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
       }` +
-      `per il periodo ${
+      `come  quota di ${
         boldMarkdownV2(
           getMonthByNumber(transactionPayload.month as string)?.full || '',
         )
       } ${boldMarkdownV2(transactionPayload.year as string)}` +
+      `per ${boldMarkdownV2(transactionPayload.family as string)} ` +
       ` registrato da: ${
         boldMarkdownV2(transactionPayload.recorded_by as string)
       }` +
-      '\n Grazie da EnB';
-    console.log(
-      '🔍 MonthlySubscriptionCommand: Notification message:',
-      notificationMessage,
-    );
+      '\n Grazie!';
 
     // Send confirmation message to the chat where the command was issued
-    await this.sendMessage(notificationMessage, { parse_mode: 'Markdown' });
+    await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
 
     console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }
