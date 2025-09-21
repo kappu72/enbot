@@ -612,7 +612,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       ` registrato da: ${
         boldMarkdownV2(transactionPayload.recorded_by as string)
       }` +
-      '\n Grazie!';
+      '\n Grazie da EnB';
 
     // Send confirmation message to the chat where the command was issued
     await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
