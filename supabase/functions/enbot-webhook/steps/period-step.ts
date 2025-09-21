@@ -81,7 +81,7 @@ function getYearsArrangement(): string[] {
 function parseStateFromCallback(
   callbackData: string,
 ): { selectedMonth?: string; selectedYear?: string } {
-  // Parse patterns like: month:01:2025, year:2025:01, confirm:01-2025
+  // Parse patterns like: month:01:2025, year:2025:01
   if (callbackData.startsWith('month:')) {
     const parts = callbackData.split(':');
     return {
@@ -93,13 +93,6 @@ function parseStateFromCallback(
     return {
       selectedYear: parts[1],
       selectedMonth: parts[2] || undefined,
-    };
-  } else if (callbackData.startsWith('confirm:')) {
-    const period = callbackData.split(':')[1]; // "01-2025"
-    const [month, year] = period.split('-');
-    return {
-      selectedMonth: month,
-      selectedYear: year,
     };
   }
   return {};
@@ -145,19 +138,6 @@ function createPeriodKeyboard(selectedMonth?: string, selectedYear?: string) {
   });
   keyboard.push(yearRow);
 
-  // Confirm row
-  const canConfirm = selectedMonth && selectedYear;
-  const confirmIcon = canConfirm ? '✅' : '⚪';
-  const confirmText = `${confirmIcon} CONFERMA`;
-  const confirmCallback = canConfirm
-    ? `confirm:${selectedMonth}-${selectedYear}`
-    : 'confirm:disabled';
-
-  keyboard.push([{
-    text: confirmText,
-    callback_data: confirmCallback,
-  }]);
-
   return keyboard;
 }
 
@@ -168,11 +148,9 @@ export const validatePeriod: InputValidator<string> = (
   callbackData: string,
 ) => {
   // For inline keyboards, we control the buttons, so validation is minimal
-  if (
-    callbackData.startsWith('confirm:') && callbackData !== 'confirm:disabled'
-  ) {
-    const period = callbackData.split(':')[1]; // Extract "01-2025"
-    return { valid: true, value: period };
+  // Check if it's a valid period format (MM-YYYY) - this means both month and year were selected
+  if (callbackData.includes('-') && callbackData.match(/^\d{2}-\d{4}$/)) {
+    return { valid: true, value: callbackData };
   }
 
   // For month/year selections, return success but no final value yet
@@ -208,7 +186,7 @@ export const presentPeriodInput: InputPresenter = (
     `🗓️ **Mese corrente**: ${currentMonthName}\n` +
     `⏮️ **Mese precedente**: ${previousMonthName}\n` +
     `📊 **Anno corrente**: ${currentYear}\n\n` +
-    `👆 Seleziona prima il mese, poi l'anno, infine conferma:`;
+    `👆 Seleziona il mese e l'anno:`;
 
   return {
     text,
@@ -217,18 +195,34 @@ export const presentPeriodInput: InputPresenter = (
 };
 
 /**
- * Handle period selection callbacks with state management
+ * Handle period selection callbacks with auto-completion
  */
 export const handlePeriodCallback: CallbackHandler<string> = (
   callbackQuery: TelegramCallbackQuery,
 ) => {
   const callbackData = callbackQuery.data!;
 
-  // If it's a confirm callback with a valid period, return the final value
-  if (
-    callbackData.startsWith('confirm:') && callbackData !== 'confirm:disabled'
-  ) {
-    const period = callbackData.split(':')[1]; // "01-2025"
+  // Parse current state from callback
+  const state = parseStateFromCallback(callbackData);
+
+  // If it's a month selection, update the selected month
+  if (callbackData.startsWith('month:')) {
+    const parts = callbackData.split(':');
+    state.selectedMonth = parts[1];
+    if (parts[2]) state.selectedYear = parts[2]; // Keep existing year if present
+  }
+
+  // If it's a year selection, update the selected year
+  if (callbackData.startsWith('year:')) {
+    const parts = callbackData.split(':');
+    state.selectedYear = parts[1];
+    if (parts[2]) state.selectedMonth = parts[2]; // Keep existing month if present
+  }
+
+  // Check if both month and year are now selected
+  if (state.selectedMonth && state.selectedYear) {
+    // Auto-complete: return the final period value
+    const period = `${state.selectedMonth}-${state.selectedYear}`;
     return {
       valid: true,
       value: period,
@@ -236,7 +230,7 @@ export const handlePeriodCallback: CallbackHandler<string> = (
     };
   }
 
-  // For month/year selections, we need to update the keyboard
+  // For incomplete selections, we need to update the keyboard
   // This will be handled by the command which will call presentPeriodUpdate
   return {
     valid: true,
@@ -303,9 +297,9 @@ export const presentPeriodUpdate = (
 
   if (state.selectedMonth && state.selectedYear) {
     statusText +=
-      `\n🎯 **Pronto per confermare**: ${state.selectedMonth}-${state.selectedYear}`;
+      `\n🎯 **Completato**: ${state.selectedMonth}-${state.selectedYear}`;
   } else {
-    statusText += `\n👆 Continua le selezioni per abilitare la conferma`;
+    statusText += `\n👆 Continua le selezioni`;
   }
 
   return {

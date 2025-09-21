@@ -80,12 +80,11 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       );
     }
 
-    // Handle PeriodStep callbacks (month:, year:, confirm:)
+    // Handle PeriodStep callbacks (month:, year:)
     if (
       session.step === STEPS.Period &&
       (callbackQuery.data?.startsWith('month:') ||
-        callbackQuery.data?.startsWith('year:') ||
-        callbackQuery.data?.startsWith('confirm:'))
+        callbackQuery.data?.startsWith('year:'))
     ) {
       return await this.handlePeriodSelectionWithStep(
         callbackQuery.data,
