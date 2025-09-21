@@ -20,6 +20,11 @@ import {
   presentPeriodUpdate,
 } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
+import {
+  boldMarkdownV2,
+  formatCurrencyMarkdownV2,
+} from '../utils/markdown-utils.ts';
+import { getMonthByNumber } from '../utils/date-utils.ts';
 
 enum STEPS {
   'PersonName' = 'person-name',
@@ -593,15 +598,31 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     transactionPayload: Record<string, unknown>,
     transactionId: number,
   ): Promise<void> {
-    const notificationMessage = `🔔 **Quota Mensile Registrata**
-📋 **Dettagli:**
-• **Famiglia:** ${transactionPayload.family}
-• **Importo:** €${transactionPayload.amount}
-• **Periodo:** ${transactionPayload.month}-${transactionPayload.year}
-• **Registrato da:** ${transactionPayload.recorded_by}`;
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Transaction payload:',
+      transactionPayload,
+    );
+    const notificationMessage =
+      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\n` +
+      `${boldMarkdownV2(transactionPayload.family as string)} ha versato ${
+        formatCurrencyMarkdownV2(transactionPayload.amount as number)
+      }` +
+      `per il periodo ${
+        boldMarkdownV2(
+          getMonthByNumber(transactionPayload.month as string)?.full || '',
+        )
+      } ${boldMarkdownV2(transactionPayload.year as string)}` +
+      ` registrato da: ${
+        boldMarkdownV2(transactionPayload.recorded_by as string)
+      }` +
+      '\n Grazie da EnB';
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Notification message:',
+      notificationMessage,
+    );
 
     // Send confirmation message to the chat where the command was issued
-    await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
+    await this.sendMessage(notificationMessage, { parse_mode: 'Markdown' });
 
     console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }

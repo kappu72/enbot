@@ -9,6 +9,11 @@ import {
   type StepContext,
 } from './step-types.ts';
 import type { TelegramCallbackQuery } from '../types.ts';
+import {
+  MONTHS,
+  getMonthByNumber,
+  getCurrentMonthName,
+} from '../utils/date-utils.ts';
 
 /**
  * Type for confirmation presenter functions
@@ -18,35 +23,12 @@ type ConfirmationPresenter = (
   selectedValue: unknown,
 ) => StepContent;
 
-/**
- * Month data with abbreviations and full names
- */
-const MONTHS = [
-  { abbr: 'GEN', full: 'Gennaio', number: '01' },
-  { abbr: 'FEB', full: 'Febbraio', number: '02' },
-  { abbr: 'MAR', full: 'Marzo', number: '03' },
-  { abbr: 'APR', full: 'Aprile', number: '04' },
-  { abbr: 'MAG', full: 'Maggio', number: '05' },
-  { abbr: 'GIU', full: 'Giugno', number: '06' },
-  { abbr: 'LUG', full: 'Luglio', number: '07' },
-  { abbr: 'AGO', full: 'Agosto', number: '08' },
-  { abbr: 'SET', full: 'Settembre', number: '09' },
-  { abbr: 'OTT', full: 'Ottobre', number: '10' },
-  { abbr: 'NOV', full: 'Novembre', number: '11' },
-  { abbr: 'DIC', full: 'Dicembre', number: '12' },
-];
-
-/**
- * Get month data by number (01-12)
- */
-function getMonthByNumber(monthNumber: string) {
-  return MONTHS.find((m) => m.number === monthNumber);
-}
 
 /**
  * Arrange months with current month first, organized in rows
+ * (Specific arrangement for MonthStep UI)
  */
-function getMonthsArrangement(): typeof MONTHS {
+function getMonthsArrangementForMonthStep(): typeof MONTHS {
   const currentMonth = new Date().getMonth(); // 0-based (0 = January)
 
   // Reorder months starting from current month
@@ -76,7 +58,7 @@ export const validateMonth: InputValidator<string> = (callbackData: string) => {
 export const presentMonthInput: InputPresenter = (
   context: StepContext,
 ): StepContent => {
-  const arrangedMonths = getMonthsArrangement();
+  const arrangedMonths = getMonthsArrangementForMonthStep();
 
   // Create inline keyboard with months arranged in 3 rows of 4
   const keyboard = [];
@@ -99,7 +81,7 @@ export const presentMonthInput: InputPresenter = (
   const username = context.message?.from?.username;
   const mention = username ? `@${username} ` : '';
 
-  const currentMonthName = MONTHS[new Date().getMonth()].full;
+  const currentMonthName = getCurrentMonthName();
 
   const text = `${mention}📅 Seleziona il mese di riferimento:\n\n` +
     `🕐 **Mese corrente**: ${currentMonthName}\n` +

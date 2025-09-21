@@ -14,6 +14,13 @@ import {
   escapeMarkdownV2,
   formatPeriodMarkdownV2,
 } from '../utils/markdown-utils.ts';
+import {
+  getMonthByNumber,
+  getMonthsArrangement,
+  getYearsArrangement,
+  getCurrentMonthName,
+  getCurrentYear,
+} from '../utils/date-utils.ts';
 
 /**
  * Type for confirmation presenter functions
@@ -23,62 +30,7 @@ type ConfirmationPresenter = (
   selectedValue: unknown,
 ) => StepContent;
 
-/**
- * Month data with abbreviations and full names
- */
-const MONTHS = [
-  { number: '01', abbr: 'GEN', full: 'Gennaio' },
-  { number: '02', abbr: 'FEB', full: 'Febbraio' },
-  { number: '03', abbr: 'MAR', full: 'Marzo' },
-  { number: '04', abbr: 'APR', full: 'Aprile' },
-  { number: '05', abbr: 'MAG', full: 'Maggio' },
-  { number: '06', abbr: 'GIU', full: 'Giugno' },
-  { number: '07', abbr: 'LUG', full: 'Luglio' },
-  { number: '08', abbr: 'AGO', full: 'Agosto' },
-  { number: '09', abbr: 'SET', full: 'Settembre' },
-  { number: '10', abbr: 'OTT', full: 'Ottobre' },
-  { number: '11', abbr: 'NOV', full: 'Novembre' },
-  { number: '12', abbr: 'DIC', full: 'Dicembre' },
-];
 
-/**
- * Helper to get month data by its number (e.g., "01" for January)
- */
-function getMonthByNumber(monthNumber: string) {
-  return MONTHS.find((m) => m.number === monthNumber);
-}
-
-/**
- * Arrange months with previous month first, current month second, then others
- */
-function getMonthsArrangement(): typeof MONTHS {
-  const currentMonth = new Date().getMonth(); // 0-based (0 = January)
-  const previousMonth = (currentMonth - 1 + 12) % 12; // Handle wrap-around for January
-
-  // Start with previous month, then current, then the rest
-  const reorderedMonths = [
-    MONTHS[previousMonth], // Previous month first
-    MONTHS[currentMonth], // Current month second
-    // Then all other months, excluding previous and current
-    ...MONTHS.filter((_, index) =>
-      index !== previousMonth && index !== currentMonth
-    ),
-  ];
-
-  return reorderedMonths;
-}
-
-/**
- * Get three years: previous, current, next
- */
-function getYearsArrangement(): string[] {
-  const currentYear = new Date().getFullYear();
-  return [
-    (currentYear - 1).toString(), // Previous year
-    currentYear.toString(), // Current year
-    (currentYear + 1).toString(), // Next year
-  ];
-}
 
 /**
  * Parse state from callback data or return empty state
@@ -181,10 +133,8 @@ export const presentPeriodInput: InputPresenter = (
   // Get username for mention from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-based
-  const currentMonthName = MONTHS[currentMonth].full;
-  const _previousMonthName = MONTHS[(currentMonth - 1 + 12) % 12].full;
+  const currentYear = getCurrentYear();
+  const currentMonthName = getCurrentMonthName();
 
   const text =
     `${escapeMarkdownV2(mention)}   📅 ${
@@ -194,7 +144,7 @@ export const presentPeriodInput: InputPresenter = (
       escapeMarkdownV2(currentMonthName)
     }\n` +
     `📊 ${boldMarkdownV2('Anno corrente')}: ${
-      escapeMarkdownV2(currentYear.toString())
+      escapeMarkdownV2(currentYear)
     }\n\n` +
     `👆 Seleziona il mese e l'anno`;
 
