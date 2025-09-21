@@ -186,9 +186,16 @@ export const presentPeriodInput: InputPresenter = (
   const currentMonthName = MONTHS[currentMonth].full;
   const _previousMonthName = MONTHS[(currentMonth - 1 + 12) % 12].full;
 
-  const text = `${escapeMarkdownV2(mention)}   📅 ${boldMarkdownV2('Periodo di riferimento:')}\n\n` +
-    `🗓️ ${boldMarkdownV2('Mese corrente')}: ${escapeMarkdownV2(currentMonthName)}\n` +
-    `📊 ${boldMarkdownV2('Anno corrente')}: ${escapeMarkdownV2(currentYear.toString())}\n\n` +
+  const text =
+    `${escapeMarkdownV2(mention)}   📅 ${
+      boldMarkdownV2('Periodo di riferimento:')
+    }\n\n` +
+    `🗓️ ${boldMarkdownV2('Mese corrente')}: ${
+      escapeMarkdownV2(currentMonthName)
+    }\n` +
+    `📊 ${boldMarkdownV2('Anno corrente')}: ${
+      escapeMarkdownV2(currentYear.toString())
+    }\n\n` +
     `👆 Seleziona il mese e l'anno`;
 
   return {
@@ -282,24 +289,31 @@ export const presentPeriodUpdate = (
   // Build status text from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  let statusText = `${escapeMarkdownV2(mention)}   📅 ${boldMarkdownV2('Periodo di riferimento:')}\n\n`;
+  let statusText = `${escapeMarkdownV2(mention)}   📅 ${
+    boldMarkdownV2('Periodo di riferimento:')
+  }\n\n`;
 
   if (state.selectedMonth) {
     const monthData = getMonthByNumber(state.selectedMonth);
-    statusText += `✅ ${boldMarkdownV2('Mese')}: ${escapeMarkdownV2(monthData?.full || '')} ${escapeMarkdownV2(`(${state.selectedMonth})`)}\n`;
+    statusText += `✅ ${boldMarkdownV2('Mese')}: ${
+      escapeMarkdownV2(monthData?.full || '')
+    } ${escapeMarkdownV2(`(${state.selectedMonth})`)}\n`;
   } else {
     statusText += `⚪ ${boldMarkdownV2('Mese')}: non selezionato\n`;
   }
 
   if (state.selectedYear) {
-    statusText += `✅ ${boldMarkdownV2('Anno')}: ${escapeMarkdownV2(state.selectedYear)}\n`;
+    statusText += `✅ ${boldMarkdownV2('Anno')}: ${
+      escapeMarkdownV2(state.selectedYear)
+    }\n`;
   } else {
     statusText += `⚪ ${boldMarkdownV2('Anno')}: non selezionato\n`;
   }
 
   if (state.selectedMonth && state.selectedYear) {
-    statusText +=
-      `\n🎯 ${boldMarkdownV2('Completato')}: ${formatPeriodMarkdownV2(`${state.selectedMonth}-${state.selectedYear}`)}`;
+    statusText += `\n🎯 ${boldMarkdownV2('Completato')}: ${
+      formatPeriodMarkdownV2(`${state.selectedMonth}-${state.selectedYear}`)
+    }`;
   } else {
     statusText += `\n👆 Continua le selezioni`;
   }
@@ -319,7 +333,9 @@ export const presentPeriodError: ErrorPresenter = (
 ): StepContent => {
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${escapeMarkdownV2(mention)}${escapeMarkdownV2(error)}\n\n📅 Riprova selezionando periodo.`;
+  const text = `${escapeMarkdownV2(mention)}${
+    escapeMarkdownV2(error)
+  }\n\n📅 ${escapeMarkdownV2('Riprova selezionando periodo.')}`;
 
   return {
     text,
@@ -341,8 +357,10 @@ export const presentPeriodConfirmation: ConfirmationPresenter = (
   const mention = context.username ? `@${context.username} ` : '';
 
   const text =
-    `${escapeMarkdownV2(mention)}📅 ${boldMarkdownV2('Periodo selezionato')}: ${escapeMarkdownV2(monthData?.full || '')} ${escapeMarkdownV2(year)} ${escapeMarkdownV2(`(${period})`)}\n\n` +
-    `✅ Continuando con il prossimo step...`;
+    `${escapeMarkdownV2(mention)}📅 ${boldMarkdownV2('Periodo selezionato')}: ${
+      escapeMarkdownV2(monthData?.full || '')
+    } ${escapeMarkdownV2(year)} ${escapeMarkdownV2(`(${period})`)}\n\n` +
+    `✅ ${escapeMarkdownV2('Continuando con il prossimo step...')}`;
 
   return {
     text,
