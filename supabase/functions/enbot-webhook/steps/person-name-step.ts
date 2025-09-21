@@ -227,7 +227,7 @@ export const presentPersonNameInput: InputPresenter = async (
       parse_mode: 'Markdown',
     };
 
-  const mention = context.username ? `@${context.username} ` : '';
+    const mention = context.username ? `@${context.username} ` : '';
 
     const text = `${mention}👤 **Inserisci il nome per la transazione:**\n` +
       `📝 Inserisci il nome completo\n` +
@@ -313,7 +313,7 @@ export const updateContactsKeyboard = async (
       parse_mode: 'Markdown',
     };
 
-  const mention = context.username ? `@${context.username} ` : '';
+    const mention = context.username ? `@${context.username} ` : '';
 
     const text =
       `${mention}👤 **Seleziona il contatto per la transazione:**\n\n` +

@@ -77,7 +77,7 @@ export class CommandRegistry {
   ): CommandContext {
     // Extract username from message or callback query
     const username = message?.from?.username || callbackQuery?.from?.username;
-    
+
     return {
       supabase: this.supabase,
       telegram: this.telegram,
