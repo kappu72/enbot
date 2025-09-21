@@ -9,6 +9,7 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import {
   personNameStep,
   presentNewContactInput,
+  presentPersonNameConfirmation,
   saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
@@ -292,6 +293,18 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         );
 
         await this.saveSession(session);
+
+        // Show confirmation with keyboard removed
+        const confirmationContent = presentPersonNameConfirmation(
+          stepContext,
+          contactName,
+        );
+        await this.editLastMessage(
+          confirmationContent.text,
+          confirmationContent.options,
+        );
+
+        // Continue to next step
         await this.sendAmountPromptWithStep();
 
         return {

@@ -102,7 +102,7 @@ function createContactsKeyboard(
 
   // Previous button (always present, disabled if no previous page)
   navRow.push({
-    text: hasPrevious ? '<' : '·',
+    text: hasPrevious ? '◀️' : '⚪',
     callback_data: hasPrevious
       ? `contact:page:${currentPage - 1}`
       : 'contact:noop',
@@ -116,7 +116,7 @@ function createContactsKeyboard(
 
   // Next button (always present, disabled if no next page)
   navRow.push({
-    text: hasNext ? '>' : '·',
+    text: hasNext ? '▶️' : '⚪',
     callback_data: hasNext ? `contact:page:${currentPage + 1}` : 'contact:noop',
   });
 
@@ -354,6 +354,29 @@ export const presentNewContactInput = (
   const text = `${mention}➕ **Aggiungi nuovo contatto:**\n\n` +
     `📝 Inserisci il nome completo\n` +
     `📋 Esempi: Mario Rossi, Anna & Marco, Giuseppe`;
+
+  return {
+    text,
+    options,
+  };
+};
+
+/**
+ * Present contact selection confirmation (keyboard removed)
+ */
+export const presentPersonNameConfirmation = (
+  context: StepContext,
+  selectedContactName: string,
+): StepContent => {
+  const username = context.message?.from?.username;
+  const mention = username ? `@${username} ` : '';
+
+  const text = `${mention}✅ **Contatto selezionato:** ${selectedContactName}`;
+
+  const options = {
+    parse_mode: 'Markdown',
+    // No reply_markup - keyboard is removed
+  };
 
   return {
     text,
