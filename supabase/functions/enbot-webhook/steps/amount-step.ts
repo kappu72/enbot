@@ -109,7 +109,8 @@ export const presentAmountConfirmation = (
   // Get username for mention from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${mention}✅ **Importo confermato**: €${selectedAmount.toFixed(2)}\n\n` +
+  const text =
+    `${mention}✅ **Importo confermato**: €${selectedAmount.toFixed(2)}\n\n` +
     `Continuando con il prossimo step...`;
 
   return {
