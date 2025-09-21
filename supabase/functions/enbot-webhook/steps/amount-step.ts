@@ -115,9 +115,9 @@ export const presentAmountConfirmation = (
 
   return {
     text,
-    options: { 
+    options: {
       parse_mode: 'Markdown',
-      reply_markup: { remove_keyboard: true } // Explicitly remove keyboard
+      reply_markup: { remove_keyboard: true }, // Explicitly remove keyboard
     },
   };
 };
