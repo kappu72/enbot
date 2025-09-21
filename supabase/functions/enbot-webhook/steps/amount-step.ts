@@ -57,9 +57,8 @@ export const presentAmountInput: InputPresenter = (
     },
   };
 
-  // Get username for mention (from either message or callback query)
-  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
-  const mention = username ? `@${username} ` : '';
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
 
   const text = `${mention}💰 Importo in EUR:\n` +
     `🔢 Esempio: 25.50 o 25,50\n` +
@@ -78,9 +77,8 @@ export const presentAmountError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
-  // Get username for mention (from either message or callback query)
-  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
-  const mention = username ? `@${username} ` : '';
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
   const options = {
     reply_markup: {
       force_reply: true,

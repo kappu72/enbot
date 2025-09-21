@@ -75,6 +75,9 @@ export class CommandRegistry {
     message?: TelegramMessage,
     callbackQuery?: TelegramCallbackQuery,
   ): CommandContext {
+    // Extract username from message or callback query
+    const username = message?.from?.username || callbackQuery?.from?.username;
+    
     return {
       supabase: this.supabase,
       telegram: this.telegram,
@@ -82,6 +85,7 @@ export class CommandRegistry {
       googleSheetsClient: this.googleSheetsClient,
       userId,
       chatId,
+      username,
       message,
       callbackQuery,
     };

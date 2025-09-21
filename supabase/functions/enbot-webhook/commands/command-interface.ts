@@ -27,6 +27,8 @@ export interface CommandContext {
   userId: number;
   /** Telegram chat ID where the interaction is happening */
   chatId: number;
+  /** Username of the current user (extracted from message or callback query) */
+  username?: string;
   /** Current message being processed (for text commands) */
   message?: TelegramMessage;
   /** Current callback query being processed (for inline buttons) */
