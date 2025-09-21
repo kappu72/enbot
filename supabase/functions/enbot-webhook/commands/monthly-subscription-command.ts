@@ -359,7 +359,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
 
       await this.saveSession(session);
 
-      // Show confirmation with keyboard removed
+      // Show confirmation with explicit keyboard removal
       const confirmationContent = presentAmountConfirmation(
         stepContext,
         result.processedValue as number,
