@@ -160,6 +160,20 @@ export class TelegramClient {
     }
   }
 
+  async deleteMessage(
+    chatId: number | string,
+    messageId: number,
+  ): Promise<void> {
+    const url = `https://api.telegram.org/bot${this.botToken}/deleteMessage`;
+    const payload = { chat_id: chatId, message_id: messageId };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
+
   async setupWebhook(webhookUrl: string): Promise<void> {
     try {
       console.log(`🔗 Setting up webhook: ${webhookUrl}`);

@@ -101,7 +101,6 @@ export class EnBot {
   }
 
   async processUpdate(update: TelegramUpdate): Promise<void> {
-    console.log('🔍 Processing update:', update);
     try {
       // Process callback queries (button presses)
       if (update.callback_query) {

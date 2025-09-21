@@ -138,13 +138,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         return await this.handlePersonNameSelectionWithStep(text, session);
       case STEPS.Amount:
         return await this.handleAmountInputWithStep(text, session);
-      case STEPS.Period:
-        // 🧪 TESTING: MonthStep uses callbacks, not text input
-        return {
-          success: false,
-          message: 'Usa la tastiera per selezionare il mese',
-        };
-        // return await this.handlePeriodInputWithStep(text, session); // 📝 Original period step
       default:
         return {
           success: false,
@@ -364,7 +357,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         stepContext,
         result.processedValue as number,
       );
-      await this.editLastMessage(
+      await this.sendMessage(
         confirmationContent.text,
         confirmationContent.options,
       );
@@ -384,48 +377,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       );
       await this.sendMessage(errorContent.text, errorContent.options);
       return { success: false, message: result.error || 'Invalid amount' };
-    }
-  }
-
-  private async handlePeriodInputWithStep(
-    text: string,
-    session: CommandSession,
-  ): Promise<CommandResult> {
-    console.log(
-      '🔍 MonthlySubscriptionCommand: Processing period input:',
-      text,
-    );
-
-    // Create StepContext from current command context
-    const stepContext: StepContext = {
-      ...this.context,
-      session,
-    };
-
-    // Process input using PeriodStep
-    const result = periodStep.processInput(text, stepContext);
-
-    if (result.success) {
-      // Save the validated period in session
-      session.transactionData.period = result.processedValue;
-
-      // Update session with final data before completion
-      await this.saveSession(session);
-
-      // Complete the transaction (no more steps needed)
-      return await this.completeQuote(session);
-    } else {
-      console.log(
-        '❌ MonthlySubscriptionCommand: Period validation failed:',
-        result.error,
-      );
-      // Present error using PeriodStep's error presenter
-      const errorContent = periodStep.presentError(
-        stepContext,
-        result.error || 'Errore nella validazione del periodo',
-      );
-      await this.sendMessage(errorContent.text, errorContent.options);
-      return { success: false, message: result.error || 'Invalid period' };
     }
   }
 
@@ -636,12 +587,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     const content = await periodStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
     console.log('🔍 MonthlySubscriptionCommand: PeriodStep presented');
-  }
-
-  private async sendContactPrompt(): Promise<void> {
-    await this.sendMessage(
-      '👤 Inserisci il username del contatto (es. @username):',
-    );
   }
 
   private async sendNotification(

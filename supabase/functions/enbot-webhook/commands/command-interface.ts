@@ -317,12 +317,13 @@ export abstract class BaseCommand {
         return;
       }
 
-      await this.context.telegram.editMessage(
+      const result = await this.context.telegram.editMessage(
         this.context.chatId,
         session.messageId,
         text,
         options,
       );
+      console.log('🔍 Message edited:', result);
     } catch (error) {
       console.warn('❌ Error editing last message:', error);
       // Fallback: send new message if edit fails
@@ -339,15 +340,37 @@ export abstract class BaseCommand {
     options?: Record<string, unknown>,
   ): Promise<void> {
     try {
-      await this.context.telegram.editMessage(
+      const result = await this.context.telegram.editMessage(
         this.context.chatId,
         messageId,
         text,
         options,
       );
+      console.log('🔍 Message edited:', result);
     } catch (error) {
       console.warn(`❌ Error editing message ${messageId}:`, error);
       throw error;
+    }
+  }
+  /**
+   * Delete the last message sent by this command (based on session.messageId)
+   * Falls back silently if no messageId is found.
+   */
+  protected async deleteLastMessage(): Promise<void> {
+    try {
+      const session = await this.loadCommandSession();
+      if (!session?.messageId) {
+        console.warn('❌ No message ID found in session for deletion');
+        return;
+      }
+      await this.context.telegram.deleteMessage(
+        this.context.chatId,
+        session.messageId,
+      );
+      console.log('🗑️ Message deleted:', session.messageId);
+    } catch (error) {
+      console.warn('❌ Error deleting last message:', error);
+      // Do not throw, deletion is best-effort
     }
   }
 
