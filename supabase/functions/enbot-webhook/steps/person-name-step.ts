@@ -206,7 +206,7 @@ export const presentPersonNameInput: InputPresenter = async (
     const mention = context.username ? `@${context.username} ` : '';
 
     const text =
-      `${mention}👤 **Seleziona il contatto per la transazione:**\n\n` +
+      `👤 ${mention} **Seleziona il contatto per la transazione:**\n\n` +
       `📋 Scegli dalla lista o aggiungi un nuovo contatto\n` +
       `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
 
