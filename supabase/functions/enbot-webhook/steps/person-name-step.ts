@@ -405,7 +405,7 @@ export const presentPersonNameError: ErrorPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  const text = `${mention}${error}\n\n` +
+  const text = `${mention} ${error}\n\n` +
     `👤 **Riprova inserendo il nome:**\n` +
     `📝 Inserisci il nome completo\n` +
     `📋 Esempi: Mario Rossi, Anna De Sanctis, John D'Angelo`;

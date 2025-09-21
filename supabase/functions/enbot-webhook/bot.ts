@@ -7,7 +7,6 @@ import type {
   TelegramUpdate,
 } from './types.ts';
 import { TelegramClient } from './telegram-client.ts';
-import { MessageHandler } from './message-handler.ts';
 import { AuthManager } from './auth-manager.ts';
 import { CommandRegistry } from './commands/command-registry.ts';
 import { TransactionCommand } from './commands/transaction-command.ts';
@@ -21,7 +20,6 @@ import {
 export class EnBot {
   private telegram: TelegramClient;
   private authManager: AuthManager;
-  private messageHandler: MessageHandler;
   private commandRegistry: CommandRegistry;
   private config: BotConfig;
 
@@ -42,11 +40,6 @@ export class EnBot {
 
     this.telegram = new TelegramClient(this.config);
     this.authManager = new AuthManager(this.config);
-    this.messageHandler = new MessageHandler(
-      supabase,
-      this.telegram,
-      this.config,
-    );
 
     // Initialize Google Sheets client (optional)
     const googleSheetsClient = createGoogleSheetsClient(googleSheetsConfig) ||
