@@ -202,8 +202,8 @@ export const presentPersonNameInput: InputPresenter = async (
       parse_mode: 'Markdown',
     };
 
-    // Get username for mention
-    const username = context.message?.from?.username;
+    // Get username for mention (from either message or callback query)
+    const username = context.message?.from?.username || context.callbackQuery?.from?.username;
     const mention = username ? `@${username} ` : '';
 
     const text =
@@ -348,7 +348,7 @@ export const presentNewContactInput = (
     parse_mode: 'Markdown',
   };
 
-  const username = context.message?.from?.username;
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const text = `${mention}➕ **Aggiungi nuovo contatto:**\n\n` +
@@ -368,7 +368,7 @@ export const presentPersonNameConfirmation = (
   context: StepContext,
   selectedContactName: string,
 ): StepContent => {
-  const username = context.message?.from?.username;
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const text = `${mention}✅ **Contatto selezionato:** ${selectedContactName}`;
@@ -417,7 +417,7 @@ export const presentPersonNameError: ErrorPresenter = (
   error: string,
 ): StepContent => {
   // Get username for mention
-  const username = context.message?.from?.username;
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const options = {

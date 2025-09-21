@@ -173,8 +173,8 @@ export const presentPeriodInput: InputPresenter = (
     parse_mode: 'Markdown',
   };
 
-  // Get username for mention
-  const username = context.message?.from?.username;
+  // Get username for mention (from either message or callback query)
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const currentYear = new Date().getFullYear();
@@ -276,8 +276,8 @@ export const presentPeriodUpdate = (
     parse_mode: 'Markdown',
   };
 
-  // Build status text
-  const username = context.message?.from?.username;
+  // Build status text (from either message or callback query)
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   let statusText = `${mention}📅 **Seleziona periodo di riferimento:**\n\n`;
@@ -315,7 +315,7 @@ export const presentPeriodError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
-  const username = context.message?.from?.username;
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const text = `${mention}${error}\n\n📅 Riprova selezionando periodo.`;
@@ -337,7 +337,7 @@ export const presentPeriodConfirmation: ConfirmationPresenter = (
   const [monthNumber, year] = period.split('-');
   const monthData = getMonthByNumber(monthNumber);
 
-  const username = context.message?.from?.username;
+  const username = context.message?.from?.username || context.callbackQuery?.from?.username;
   const mention = username ? `@${username} ` : '';
 
   const text =
