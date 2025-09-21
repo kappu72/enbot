@@ -333,9 +333,9 @@ export const presentPeriodError: ErrorPresenter = (
 ): StepContent => {
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${escapeMarkdownV2(mention)}${
-    escapeMarkdownV2(error)
-  }\n\n📅 ${escapeMarkdownV2('Riprova selezionando periodo.')}`;
+  const text = `${escapeMarkdownV2(mention)}${escapeMarkdownV2(error)}\n\n📅 ${
+    escapeMarkdownV2('Riprova selezionando periodo.')
+  }`;
 
   return {
     text,
@@ -356,11 +356,11 @@ export const presentPeriodConfirmation: ConfirmationPresenter = (
 
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text =
-    `${escapeMarkdownV2(mention)}📅 ${boldMarkdownV2('Periodo selezionato')}: ${
-      escapeMarkdownV2(monthData?.full || '')
-    } ${escapeMarkdownV2(year)} ${escapeMarkdownV2(`(${period})`)}\n\n` +
-    `✅ ${escapeMarkdownV2('Continuando con il prossimo step...')}`;
+  const text = `${escapeMarkdownV2(mention)}  📅 ${
+    boldMarkdownV2('Periodo selezionato')
+  }: ${escapeMarkdownV2(monthData?.full || '')} ${escapeMarkdownV2(year)} ${
+    escapeMarkdownV2(`(${period})`)
+  }\n\n`;
 
   return {
     text,
