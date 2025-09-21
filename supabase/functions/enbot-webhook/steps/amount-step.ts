@@ -7,7 +7,11 @@ import {
   type StepContent,
   type StepContext,
 } from './step-types.ts';
-import { formatCurrencyMarkdownV2, boldMarkdownV2, escapeMarkdownV2 } from '../utils/markdown-utils.ts';
+import {
+  boldMarkdownV2,
+  escapeMarkdownV2,
+  formatCurrencyMarkdownV2,
+} from '../utils/markdown-utils.ts';
 
 /**
  * Pure function to validate amount input
@@ -61,8 +65,13 @@ export const presentAmountInput: InputPresenter = (
   // Get username for mention from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${escapeMarkdownV2(mention)}   💰 ${boldMarkdownV2('Importo in EUR:')}\n\n` +
-    `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${escapeMarkdownV2('25,50')}\n` +
+  const text =
+    `${escapeMarkdownV2(mention)}   💰 ${
+      boldMarkdownV2('Importo in EUR:')
+    }\n\n` +
+    `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${
+      escapeMarkdownV2('25,50')
+    }\n` +
     `📱 Usa il tastierino numerico del telefono`;
 
   return {
@@ -89,7 +98,10 @@ export const presentAmountError: ErrorPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  const text = `${escapeMarkdownV2(mention)}   💰 ${boldMarkdownV2('Importo in EUR:')}\n\n` +
+  const text =
+    `${escapeMarkdownV2(mention)}   💰 ${
+      boldMarkdownV2('Importo in EUR:')
+    }\n\n` +
     `${escapeMarkdownV2(error)}\n\n` +
     `💰 Riprova inserendo l'importo in EUR:\n` +
     `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${escapeMarkdownV2('25,50')}\n`;
@@ -107,7 +119,9 @@ export const presentAmountConfirmation = (
   _context: StepContext,
   selectedAmount: number,
 ): StepContent => {
-  const text = `✅ ${boldMarkdownV2('Importo confermato')}: ${formatCurrencyMarkdownV2(selectedAmount)}\n\n`;
+  const text = `✅ ${boldMarkdownV2('Importo confermato')}: ${
+    formatCurrencyMarkdownV2(selectedAmount)
+  }\n\n`;
 
   return {
     text,
