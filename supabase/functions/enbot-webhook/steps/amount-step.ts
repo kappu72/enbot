@@ -100,6 +100,25 @@ export const presentAmountError: ErrorPresenter = (
 };
 
 /**
+ * Present amount confirmation after successful input
+ */
+export const presentAmountConfirmation = (
+  context: StepContext,
+  selectedAmount: number,
+): StepContent => {
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
+
+  const text = `${mention}✅ **Importo confermato**: €${selectedAmount.toFixed(2)}\n\n` +
+    `Continuando con il prossimo step...`;
+
+  return {
+    text,
+    options: { parse_mode: 'Markdown' }, // No reply_markup = keyboard removed
+  };
+};
+
+/**
  * Create the AmountStep instance using composition
  */
 export const createAmountStep = (): Step<number> => {

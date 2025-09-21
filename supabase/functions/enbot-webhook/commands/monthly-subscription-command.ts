@@ -13,7 +13,7 @@ import {
   saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
-import { amountStep } from '../steps/amount-step.ts';
+import { amountStep, presentAmountConfirmation } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
 import {
   presentPeriodConfirmation,
@@ -358,6 +358,18 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Period;
 
       await this.saveSession(session);
+
+      // Show confirmation with keyboard removed
+      const confirmationContent = presentAmountConfirmation(
+        stepContext,
+        result.processedValue as number,
+      );
+      await this.editLastMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
+
+      // Continue to next step
       await this.sendPeriodPromptWithStep();
       return { success: true, message: 'Amount entered for quote' };
     } else {
