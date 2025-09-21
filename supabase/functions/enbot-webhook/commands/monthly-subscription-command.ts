@@ -50,7 +50,12 @@ export class MonthlySubscriptionCommand extends BaseCommand {
   private async handleMessage(
     message: TelegramMessage,
   ): Promise<CommandResult> {
-    if (message.text === `/${this.commandName}`) {
+    // Check if this is a command initiation (both /quota and /quota@botname)
+    const commandPrefix = `/${this.commandName}`;
+    const isCommandStart = message.text === commandPrefix || 
+                          (message.text?.startsWith(commandPrefix + '@') ?? false);
+    
+    if (isCommandStart) {
       return await this.startQuota();
     } else {
       return await this.handleTextInput(message.text!);
@@ -106,7 +111,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     const session: CommandSession = {
       chatId: this.context.chatId,
       userId: this.context.userId,
-      messageId: this.context.message?.message_id || 0, // Save original command message_id
+      messageId: null,
       step: STEPS.PersonName,
       transactionData: {
         category: 'quota mensile', // Fixed category for quotes

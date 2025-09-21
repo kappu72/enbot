@@ -13,7 +13,6 @@ export class HelpCommand extends BaseCommand {
     super(context, HelpCommand.commandName);
   }
 
-
   async execute(): Promise<CommandResult> {
     const helpMessage = `
 🤖 **EnBot - Gestione Transazioni**

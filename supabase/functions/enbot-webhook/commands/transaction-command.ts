@@ -22,16 +22,26 @@ export class TransactionCommand extends BaseCommand {
     super(context, TransactionCommand.commandName);
   }
   async execute(): Promise<CommandResult> {
-    await this.sendMessage(
-      'Digita / e seleziona una delle opzioni disponibili',
-    );
-    return { success: false, message: 'No message or callback query provided' };
+    if (this.context.message) {
+      return await this.handleMessage(this.context.message);
+    } else if (this.context.callbackQuery) {
+      return await this.handleCallbackQuery(this.context.callbackQuery);
+    }
+    return {
+      success: false,
+      message: `${this.commandName} command execution failed`,
+    };
   }
 
   private async handleMessage(
     message: TelegramMessage,
   ): Promise<CommandResult> {
-    if (message.text === '/start' || message.text === '/transaction') {
+    // Check if this is a command initiation (both /transaction and /transaction@botname)
+    const isCommandStart = message.text === '/start' || 
+                          message.text === '/transaction' ||
+                          (message.text?.startsWith('/transaction@') ?? false);
+    
+    if (isCommandStart) {
       return await this.startTransaction();
     } else {
       return await this.handleTextInput(message.text!);

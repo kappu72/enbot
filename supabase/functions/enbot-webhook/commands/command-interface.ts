@@ -496,19 +496,19 @@ export abstract class BaseCommand {
     message: TelegramMessage,
   ): Promise<boolean> | boolean {
     if (!message.text) return false;
-    
+
     const commandPrefix = `/${this.commandName}`;
-    
+
     // Match exact command: /quota
     if (message.text === commandPrefix) {
       return true;
     }
-    
+
     // Match command with bot mention: /quota@botname
     if (message.text.startsWith(commandPrefix + '@')) {
       return true;
     }
-    
+
     return false;
   }
 
