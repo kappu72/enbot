@@ -275,6 +275,7 @@ export abstract class BaseCommand {
       text,
       options,
     );
+    console.log('🔍 Message sent:', result);
     try {
       await this.context.sessionManager.saveMessageId(
         this.context.userId,

@@ -52,9 +52,9 @@ export class MonthlySubscriptionCommand extends BaseCommand {
   ): Promise<CommandResult> {
     // Check if this is a command initiation (both /quota and /quota@botname)
     const commandPrefix = `/${this.commandName}`;
-    const isCommandStart = message.text === commandPrefix || 
-                          (message.text?.startsWith(commandPrefix + '@') ?? false);
-    
+    const isCommandStart = message.text === commandPrefix ||
+      (message.text?.startsWith(commandPrefix + '@') ?? false);
+
     if (isCommandStart) {
       return await this.startQuota();
     } else {
@@ -560,48 +560,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  private async recoverSession(): Promise<CommandResult> {
-    try {
-      const existingSession = await this.loadCommandSession();
-      if (!existingSession) {
-        await this.sendMessage(
-          '❌ Sessione quota non trovata. Iniziando una nuova quota.',
-        );
-        return await this.startQuota();
-      }
-
-      await this.sendMessage(
-        '✅ Sessione quota ripristinata! Continuando da dove avevi lasciato...',
-      );
-
-      // Continue from the current step
-      switch (existingSession.step) {
-        case 'person-name':
-          await this.sendPersonNamePromptWithStep();
-          break;
-        case 'amount':
-          await this.sendAmountPromptWithStep();
-          break;
-        case 'period':
-          await this.sendPeriodPromptWithStep();
-          break;
-        case 'contact':
-          await this.sendContactPrompt();
-          break;
-        default:
-          await this.sendPersonNamePromptWithStep();
-      }
-
-      return { success: true, message: 'Quote session recovered' };
-    } catch (error) {
-      console.error('❌ Error recovering quote session:', error);
-      await this.sendMessage(
-        '❌ Errore nel ripristino della sessione quota. Iniziando una nuova quota.',
-      );
-      return await this.startQuota();
-    }
-  }
-
   private async sendAmountPromptWithStep(): Promise<void> {
     // Create StepContext for presenting the amount step
     const session = await this.loadCommandSession();
@@ -681,7 +639,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     const notificationMessage = `🔔 **Quota Mensile Registrata**
 📋 **Dettagli:**
 • **Famiglia:** ${transactionPayload.family}
-• **Categoria:** ${transactionPayload.category}
 • **Importo:** €${transactionPayload.amount}
 • **Periodo:** ${transactionPayload.month}-${transactionPayload.year}
 • **Registrato da:** ${transactionPayload.recorded_by}`;

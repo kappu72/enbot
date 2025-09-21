@@ -37,10 +37,10 @@ export class TransactionCommand extends BaseCommand {
     message: TelegramMessage,
   ): Promise<CommandResult> {
     // Check if this is a command initiation (both /transaction and /transaction@botname)
-    const isCommandStart = message.text === '/start' || 
-                          message.text === '/transaction' ||
-                          (message.text?.startsWith('/transaction@') ?? false);
-    
+    const isCommandStart = message.text === '/start' ||
+      message.text === '/transaction' ||
+      (message.text?.startsWith('/transaction@') ?? false);
+
     if (isCommandStart) {
       return await this.startTransaction();
     } else {
