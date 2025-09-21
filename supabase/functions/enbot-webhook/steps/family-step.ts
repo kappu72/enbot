@@ -1,4 +1,4 @@
-// Family step implementation using composition approach
+// Person name step implementation using composition approach
 import {
   type ErrorPresenter,
   type InputPresenter,
@@ -9,9 +9,9 @@ import {
 } from './step-types.ts';
 
 /**
- * Pure function to validate family name input
+ * Pure function to validate person name input
  */
-export const validateFamily: InputValidator<string> = (input: string) => {
+export const validatePersonName: InputValidator<string> = (input: string) => {
   // Remove whitespace
   const cleanInput = input.trim();
 
@@ -19,7 +19,7 @@ export const validateFamily: InputValidator<string> = (input: string) => {
   if (cleanInput.length === 0) {
     return {
       valid: false,
-      error: '❌ Il nome della famiglia non può essere vuoto',
+      error: '❌ Person name cannot be empty',
     };
   }
 
@@ -27,7 +27,7 @@ export const validateFamily: InputValidator<string> = (input: string) => {
   if (cleanInput.length < 2) {
     return {
       valid: false,
-      error: '❌ Il nome della famiglia deve essere almeno di 2 caratteri',
+      error: '❌ Person name must be at least 2 characters long',
     };
   }
 
@@ -35,7 +35,7 @@ export const validateFamily: InputValidator<string> = (input: string) => {
   if (cleanInput.length > 50) {
     return {
       valid: false,
-      error: '❌ Il nome della famiglia non può superare i 50 caratteri',
+      error: '❌ Person name cannot exceed 50 characters',
     };
   }
 
@@ -45,7 +45,7 @@ export const validateFamily: InputValidator<string> = (input: string) => {
     return {
       valid: false,
       error:
-        '❌ Il nome della famiglia può contenere solo lettere, spazi, apostrofi e trattini',
+        '❌ Person name can only contain letters, spaces, apostrophes and hyphens',
     };
   }
 
@@ -54,7 +54,7 @@ export const validateFamily: InputValidator<string> = (input: string) => {
   if (!hasLetters) {
     return {
       valid: false,
-      error: '❌ Il nome della famiglia deve contenere almeno una lettera',
+      error: '❌ Person name must contain at least one letter',
     };
   }
 
@@ -65,15 +65,15 @@ export const validateFamily: InputValidator<string> = (input: string) => {
 };
 
 /**
- * Pure function to present family input interface
+ * Pure function to present person name input interface
  */
-export const presentFamilyInput: InputPresenter = (
+export const presentPersonNameInput: InputPresenter = (
   context: StepContext,
 ): StepContent => {
   const keyboard = {
     reply_markup: {
       force_reply: true,
-      input_field_placeholder: 'Inserisci la famiglia',
+      input_field_placeholder: 'Enter person name',
       selective: true,
     },
   };
@@ -82,9 +82,9 @@ export const presentFamilyInput: InputPresenter = (
   const username = context.message?.from?.username;
   const mention = username ? `@${username} ` : '';
 
-  const text = `${mention}👨‍👩‍👧‍👦 Seleziona la famiglia per la quota mensile:\n` +
-    `📝 Inserisci il nome della famiglia\n` +
-    `📋 Esempio: Rossi, De Sanctis, D'Angelo`;
+  const text = `${mention}👤 **Enter person name for cash transaction:**\n` +
+    `📝 Enter the full name\n` +
+    `📋 Examples: Mario Rossi, Anna De Sanctis, John D'Angelo`;
 
   return {
     text,
@@ -93,9 +93,9 @@ export const presentFamilyInput: InputPresenter = (
 };
 
 /**
- * Pure function to present family input error
+ * Pure function to present person name input error
  */
-export const presentFamilyError: ErrorPresenter = (
+export const presentPersonNameError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
@@ -106,16 +106,16 @@ export const presentFamilyError: ErrorPresenter = (
   const options = {
     reply_markup: {
       force_reply: true,
-      input_field_placeholder: 'Inserisci la famiglia',
+      input_field_placeholder: 'Enter person name',
       selective: true,
     },
     parse_mode: 'Markdown',
   };
 
   const text = `${mention}${error}\n\n` +
-    `👨‍👩‍👧‍👦 Riprova inserendo la famiglia:\n` +
-    `📝 Inserisci il nome della famiglia\n` +
-    `📋 Esempio: Rossi, De Sanctis, D'Angelo`;
+    `👤 **Please try again with person name:**\n` +
+    `📝 Enter the full name\n` +
+    `📋 Examples: Mario Rossi, Anna De Sanctis, John D'Angelo`;
 
   return {
     text,
@@ -124,18 +124,18 @@ export const presentFamilyError: ErrorPresenter = (
 };
 
 /**
- * Create the FamilyStep instance using composition
+ * Create the PersonNameStep instance using composition
  */
-export const createFamilyStep = (): Step<string> => {
+export const createPersonNameStep = (): Step<string> => {
   return new Step(
-    'family',
-    presentFamilyInput,
-    validateFamily,
+    'person-name',
+    presentPersonNameInput,
+    validatePersonName,
     undefined, // Does not handle callbacks
-    presentFamilyError, // Error presenter
-    '👨‍👩‍👧‍👦 Inserisci il nome della famiglia per la quota mensile',
+    presentPersonNameError, // Error presenter
+    '👤 Enter person name for cash transaction',
   );
 };
 
 // Export a default instance
-export const familyStep = createFamilyStep();
+export const personNameStep = createPersonNameStep();

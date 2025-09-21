@@ -28,15 +28,23 @@ export type InputValidator<T> = (input: string) => {
   error?: string;
 };
 
-export type InputPresenter = (context: StepContext) => StepContent;
+export type InputPresenter = (
+  context: StepContext,
+) => StepContent | Promise<StepContent>;
 
 export type CallbackHandler<T = unknown> = (
   callbackQuery: TelegramCallbackQuery,
-) => {
-  valid: boolean;
-  value?: T;
-  error?: string;
-};
+) =>
+  | {
+    valid: boolean;
+    value?: T;
+    error?: string;
+  }
+  | Promise<{
+    valid: boolean;
+    value?: T;
+    error?: string;
+  }>;
 
 export type ErrorPresenter = (
   context: StepContext,
@@ -62,8 +70,8 @@ export class Step<T = unknown> {
     return this.helpText;
   }
 
-  present(context: StepContext): StepContent {
-    return this.presenter(context);
+  async present(context: StepContext): Promise<StepContent> {
+    return await this.presenter(context);
   }
 
   presentError(context: StepContext, error: string): StepContent {
@@ -91,15 +99,15 @@ export class Step<T = unknown> {
     return { success: false, error: result.error };
   }
 
-  processCallback(
+  async processCallback(
     callbackQuery: TelegramCallbackQuery,
     _context: StepContext,
-  ): StepResult<T> {
+  ): Promise<StepResult<T>> {
     if (!this.callbackHandler) {
       return { success: false, error: 'Step does not accept callbacks' };
     }
 
-    const result = this.callbackHandler(callbackQuery);
+    const result = await this.callbackHandler(callbackQuery);
     if (result.valid) {
       // Return the processed value, let the command handle session saving
       return { success: true, processedValue: result.value };

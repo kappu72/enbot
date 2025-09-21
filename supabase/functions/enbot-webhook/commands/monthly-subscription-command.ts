@@ -6,7 +6,12 @@ import type {
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
-import { familyStep } from '../steps/family-step.ts';
+import {
+  personNameStep,
+  presentNewContactInput,
+  saveNewContact,
+  updateContactsKeyboard,
+} from '../steps/person-name-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
 import {
@@ -16,7 +21,7 @@ import {
 import type { StepContext } from '../steps/step-types.ts';
 
 enum STEPS {
-  'Family' = 'family',
+  'PersonName' = 'person-name',
   'Amount' = 'amount',
   'Period' = 'period',
 }
@@ -63,6 +68,17 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       callbackQuery,
       session,
     );
+    // Handle PersonNameStep callbacks (contact:)
+    if (
+      session.step === STEPS.PersonName &&
+      callbackQuery.data?.startsWith('contact:')
+    ) {
+      return await this.handlePersonNameCallbackWithStep(
+        callbackQuery.data,
+        session,
+      );
+    }
+
     // Handle PeriodStep callbacks (month:, year:, confirm:)
     if (
       session.step === STEPS.Period &&
@@ -91,7 +107,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       chatId: this.context.chatId,
       userId: this.context.userId,
       messageId: this.context.message?.message_id || 0, // Save original command message_id
-      step: STEPS.Family,
+      step: STEPS.PersonName,
       transactionData: {
         category: 'quota mensile', // Fixed category for quotes
       },
@@ -102,7 +118,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     };
 
     await this.saveSession(session);
-    await this.sendFamilyPromptWithStep();
+    await this.sendPersonNamePromptWithStep();
 
     return { success: true, message: 'Quota started' };
   }
@@ -113,8 +129,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
     switch (session.step) {
-      case STEPS.Family:
-        return await this.handleFamilySelectionWithStep(text, session);
+      case STEPS.PersonName:
+        return await this.handlePersonNameSelectionWithStep(text, session);
       case STEPS.Amount:
         return await this.handleAmountInputWithStep(text, session);
       case STEPS.Period:
@@ -132,12 +148,12 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     }
   }
 
-  private async handleFamilySelectionWithStep(
+  private async handlePersonNameSelectionWithStep(
     text: string,
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 MonthlySubscriptionCommand: Processing family input:',
+      '🔍 MonthlySubscriptionCommand: Processing person name input:',
       text,
     );
 
@@ -147,29 +163,155 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session,
     };
 
-    // Process input using FamilyStep
-    const result = familyStep.processInput(text, stepContext);
+    // Check if we're in new contact mode
+    const isNewContactMode = session.commandData?.isNewContactMode === true;
+
+    // Process input using PersonNameStep
+    const result = personNameStep.processInput(text, stepContext);
 
     if (result.success) {
-      // Save the validated family in session
-      session.transactionData.family = result.processedValue;
-      session.step = STEPS.Amount; // Skip category, go directly to amount
+      const contactName = result.processedValue as string;
+
+      // If we're in new contact mode, save to database first
+      if (isNewContactMode) {
+        console.log(
+          '➕ MonthlySubscriptionCommand: Saving new contact:',
+          contactName,
+        );
+
+        const saved = await saveNewContact(stepContext, contactName);
+        if (!saved) {
+          const errorContent = personNameStep.presentError(
+            stepContext,
+            '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+          );
+          await this.sendMessage(errorContent.text, errorContent.options);
+          return { success: false, message: 'Failed to save new contact' };
+        }
+
+        // Clear the new contact mode flag
+        session.commandData.isNewContactMode = false;
+        console.log('✅ New contact saved successfully:', contactName);
+      }
+
+      // Save the validated person name in session
+      session.transactionData.family = contactName;
+      session.step = STEPS.Amount;
 
       await this.saveSession(session);
       await this.sendAmountPromptWithStep();
-      return { success: true, message: 'Family selected for quote' };
+      return { success: true, message: 'Person name selected for quote' };
     } else {
       console.log(
-        '❌ MonthlySubscriptionCommand: Family validation failed:',
+        '❌ MonthlySubscriptionCommand: Person name validation failed:',
         result.error,
       );
-      // Present error using FamilyStep's error presenter
-      const errorContent = familyStep.presentError(
+      // Present error using PersonNameStep's error presenter
+      const errorContent = personNameStep.presentError(
         stepContext,
-        result.error || 'Errore nella validazione della famiglia',
+        result.error || 'Error in person name validation',
       );
       await this.sendMessage(errorContent.text, errorContent.options);
-      return { success: false, message: result.error || 'Invalid family' };
+      return { success: false, message: result.error || 'Invalid person name' };
+    }
+  }
+
+  private async handlePersonNameCallbackWithStep(
+    callbackData: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
+    console.log(
+      '🔍 MonthlySubscriptionCommand: Processing person name selection:',
+      callbackData,
+    );
+
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    // Process callback using PersonNameStep
+    const callbackQuery = this.context.callbackQuery!;
+    const result = await personNameStep.processCallback(
+      callbackQuery,
+      stepContext,
+    );
+
+    if (result.success) {
+      if (result.processedValue === 'UPDATE_KEYBOARD') {
+        // Page navigation - update keyboard without completing step
+        console.log(
+          '🔄 MonthlySubscriptionCommand: Updating contacts keyboard:',
+          callbackData,
+        );
+
+        // Update the message with new keyboard state
+        const updateContent = await updateContactsKeyboard(
+          stepContext,
+          callbackData,
+        );
+        await this.editLastMessage(updateContent.text, updateContent.options);
+
+        return {
+          success: true,
+          message: 'Contacts keyboard updated',
+        };
+      } else if (result.processedValue === 'NEW_CONTACT_MODE') {
+        // Switch to text input mode for new contact
+        console.log(
+          '➕ MonthlySubscriptionCommand: Switching to new contact input mode',
+        );
+
+        // Present new contact input interface
+        const newContactContent = presentNewContactInput(stepContext);
+        await this.editLastMessage(
+          newContactContent.text,
+          newContactContent.options,
+        );
+
+        // Keep the same step but mark that we're in text input mode
+        session.commandData.isNewContactMode = true;
+        await this.saveSession(session);
+
+        return {
+          success: true,
+          message: 'Switched to new contact input mode',
+        };
+      } else if (result.processedValue && typeof result.processedValue === 'string') {
+        // Final contact selection - complete the step
+        const contactName = result.processedValue as string;
+        session.transactionData.family = contactName;
+        session.step = STEPS.Amount;
+
+        console.log(
+          '✅ MonthlySubscriptionCommand: Person name completed:',
+          contactName,
+        );
+
+        await this.saveSession(session);
+        await this.sendAmountPromptWithStep();
+
+        return {
+          success: true,
+          message: 'Person name selected for quote',
+        };
+      } else {
+        // Handle other valid callbacks (like noop)
+        return {
+          success: true,
+          message: 'Callback processed',
+        };
+      }
+    } else {
+      console.log(
+        '❌ MonthlySubscriptionCommand: Person name callback failed:',
+        result.error,
+      );
+      return {
+        success: false,
+        message: result.error || 'Invalid person name selection',
+      };
     }
   }
 
@@ -274,7 +416,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
 
     // Process callback using PeriodStep
     const callbackQuery = this.context.callbackQuery!;
-    const result = periodStep.processCallback(callbackQuery, stepContext);
+    const result = await periodStep.processCallback(callbackQuery, stepContext);
 
     if (result.success) {
       // Check if this is a final confirm or just a keyboard update
@@ -415,8 +557,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
 
       // Continue from the current step
       switch (existingSession.step) {
-        case 'family':
-          await this.sendFamilyPromptWithStep();
+        case 'person-name':
+          await this.sendPersonNamePromptWithStep();
           break;
         case 'amount':
           await this.sendAmountPromptWithStep();
@@ -428,7 +570,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           await this.sendContactPrompt();
           break;
         default:
-          await this.sendFamilyPromptWithStep();
+          await this.sendPersonNamePromptWithStep();
       }
 
       return { success: true, message: 'Quote session recovered' };
@@ -458,20 +600,20 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session,
     };
 
-    const content = amountStep.present(stepContext);
+    const content = await amountStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
     console.log('🔍 MonthlySubscriptionCommand: AmountStep presented');
   }
 
   // UI Helper methods
-  private async sendFamilyPromptWithStep(): Promise<void> {
+  private async sendPersonNamePromptWithStep(): Promise<void> {
     const session = await this.loadCommandSession();
     if (!session) {
-      throw new Error('No session found for family prompt');
+      throw new Error('No session found for person name prompt');
     }
 
     console.log(
-      '🔍 MonthlySubscriptionCommand: Current session before FamilyStep:',
+      '🔍 MonthlySubscriptionCommand: Current session before PersonNameStep:',
       session,
     );
 
@@ -480,9 +622,9 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session,
     };
 
-    const content = familyStep.present(stepContext);
+    const content = await personNameStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 MonthlySubscriptionCommand: FamilyStep presented');
+    console.log('🔍 MonthlySubscriptionCommand: PersonNameStep presented');
   }
 
   // 📝 ORIGINAL: PeriodStep method (kept for reference)
@@ -502,7 +644,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session,
     };
 
-    const content = periodStep.present(stepContext);
+    const content = await periodStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
     console.log('🔍 MonthlySubscriptionCommand: PeriodStep presented');
   }

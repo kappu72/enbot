@@ -44,6 +44,7 @@ export interface UserSession {
   step:
     | 'idle'
     | 'family'
+    | 'person-name'
     | 'category'
     | 'amount'
     | 'period'
@@ -64,6 +65,7 @@ export interface PersistedUserSession {
   step:
     | 'idle'
     | 'family'
+    | 'person-name'
     | 'billing_month'
     | 'billing_year'
     | 'category'
