@@ -99,19 +99,21 @@ function createContactsKeyboard(
 
   // Add navigation row (4th row) - always show prev/next buttons
   const navRow = [];
-  
+
   // Previous button (always present, disabled if no previous page)
   navRow.push({
     text: hasPrevious ? '<' : '·',
-    callback_data: hasPrevious ? `contact:page:${currentPage - 1}` : 'contact:noop',
+    callback_data: hasPrevious
+      ? `contact:page:${currentPage - 1}`
+      : 'contact:noop',
   });
-  
+
   // New contact button (always present)
   navRow.push({
     text: '➕ Nuovo',
     callback_data: 'contact:new',
   });
-  
+
   // Next button (always present, disabled if no next page)
   navRow.push({
     text: hasNext ? '>' : '·',
@@ -275,7 +277,7 @@ export const handlePersonNameCallback: CallbackHandler<string> = (
       error: undefined,
     };
   }
-  
+
   if (callbackData === 'contact:noop') {
     // No-op callback for disabled buttons - ignore silently
     return {
@@ -284,7 +286,7 @@ export const handlePersonNameCallback: CallbackHandler<string> = (
       error: undefined, // Don't show error for disabled buttons
     };
   }
-  
+
   return {
     valid: false,
     value: undefined,

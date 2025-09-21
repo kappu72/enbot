@@ -278,7 +278,9 @@ export class MonthlySubscriptionCommand extends BaseCommand {
           success: true,
           message: 'Switched to new contact input mode',
         };
-      } else if (result.processedValue && typeof result.processedValue === 'string') {
+      } else if (
+        result.processedValue && typeof result.processedValue === 'string'
+      ) {
         // Final contact selection - complete the step
         const contactName = result.processedValue as string;
         session.transactionData.family = contactName;
