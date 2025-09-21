@@ -13,9 +13,6 @@ export class HelpCommand extends BaseCommand {
     super(context, HelpCommand.commandName);
   }
 
-  override canHandleCommand(message: TelegramMessage): boolean {
-    return message.text === '/help';
-  }
 
   async execute(): Promise<CommandResult> {
     const helpMessage = `

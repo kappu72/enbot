@@ -486,6 +486,7 @@ export abstract class BaseCommand {
    * Determine if this command can handle the given message
    *
    * Default implementation matches messages that start with /{commandName}.
+   * Supports both direct commands (/quota) and group commands with bot mention (/quota@botname).
    * Override this method for custom command matching logic.
    *
    * @param message - The incoming Telegram message
@@ -494,7 +495,21 @@ export abstract class BaseCommand {
   canHandleCommand(
     message: TelegramMessage,
   ): Promise<boolean> | boolean {
-    return message.text === `/${this.commandName}`;
+    if (!message.text) return false;
+    
+    const commandPrefix = `/${this.commandName}`;
+    
+    // Match exact command: /quota
+    if (message.text === commandPrefix) {
+      return true;
+    }
+    
+    // Match command with bot mention: /quota@botname
+    if (message.text.startsWith(commandPrefix + '@')) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
