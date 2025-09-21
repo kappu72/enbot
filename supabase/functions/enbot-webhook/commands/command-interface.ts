@@ -502,9 +502,7 @@ export abstract class BaseCommand {
       description: session.transactionData.description || '',
       family: session.transactionData.family || '',
       recorded_at: new Date().toISOString(),
-      recorded_by: `@${
-        this.context.message?.from?.username || this.context.userId
-      }`,
+      recorded_by: `@${this.context.username || this.context.userId}`,
     };
   }
 

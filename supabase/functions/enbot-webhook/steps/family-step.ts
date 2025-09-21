@@ -109,7 +109,7 @@ export const presentPersonNameError: ErrorPresenter = (
       input_field_placeholder: 'Enter person name',
       selective: true,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   const text = `${mention}${error}\n\n` +

@@ -112,7 +112,7 @@ export class TelegramClient {
       chat_id: chatId,
       message_id: messageId,
       text,
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2',
       ...options,
     };
 

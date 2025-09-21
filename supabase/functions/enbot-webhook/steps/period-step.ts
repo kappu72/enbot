@@ -170,7 +170,7 @@ export const presentPeriodInput: InputPresenter = (
     reply_markup: {
       inline_keyboard: keyboard,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   // Get username for mention from context
@@ -179,13 +179,12 @@ export const presentPeriodInput: InputPresenter = (
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-based
   const currentMonthName = MONTHS[currentMonth].full;
-  const previousMonthName = MONTHS[(currentMonth - 1 + 12) % 12].full;
+  const _previousMonthName = MONTHS[(currentMonth - 1 + 12) % 12].full;
 
-  const text = `${mention}📅 **Seleziona periodo di riferimento:**\n\n` +
+  const text = `${mention}   📅 *Periodo di riferimento:*\n\n` +
     `🗓️ **Mese corrente**: ${currentMonthName}\n` +
-    `⏮️ **Mese precedente**: ${previousMonthName}\n` +
     `📊 **Anno corrente**: ${currentYear}\n\n` +
-    `👆 Seleziona il mese e l'anno:`;
+    `👆 Seleziona il mese e l'anno`;
 
   return {
     text,
@@ -272,13 +271,13 @@ export const presentPeriodUpdate = (
     reply_markup: {
       inline_keyboard: keyboard,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   // Build status text from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  let statusText = `${mention}📅 **Seleziona periodo di riferimento:**\n\n`;
+  let statusText = `${mention}   📅 *Periodo di riferimento:*\n\n`;
 
   if (state.selectedMonth) {
     const monthData = getMonthByNumber(state.selectedMonth);
@@ -319,7 +318,7 @@ export const presentPeriodError: ErrorPresenter = (
 
   return {
     text,
-    options: { parse_mode: 'Markdown' },
+    options: { parse_mode: 'MarkdownV2' },
   };
 };
 
@@ -342,7 +341,7 @@ export const presentPeriodConfirmation: ConfirmationPresenter = (
 
   return {
     text,
-    options: { parse_mode: 'Markdown' }, // No reply_markup = keyboard removed
+    options: { parse_mode: 'MarkdownV2' }, // No reply_markup = keyboard removed
   };
 };
 

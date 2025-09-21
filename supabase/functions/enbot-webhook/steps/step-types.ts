@@ -79,7 +79,7 @@ export class Step<T = unknown> {
       // Fallback generico per errori
       return {
         text: `❌ ${error}`,
-        options: { parse_mode: 'Markdown' },
+        options: { parse_mode: 'MarkdownV2' },
       };
     }
     return this.errorPresenter(context, error);

@@ -601,7 +601,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
 • **Registrato da:** ${transactionPayload.recorded_by}`;
 
     // Send confirmation message to the chat where the command was issued
-    await this.sendMessage(notificationMessage, { parse_mode: 'Markdown' });
+    await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
 
     console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }

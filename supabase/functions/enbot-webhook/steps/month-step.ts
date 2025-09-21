@@ -92,7 +92,7 @@ export const presentMonthInput: InputPresenter = (
     reply_markup: {
       inline_keyboard: keyboard,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   // Get username for mention
@@ -142,7 +142,7 @@ export const presentMonthError: ErrorPresenter = (
 
   return {
     text,
-    options: { parse_mode: 'Markdown' },
+    options: { parse_mode: 'MarkdownV2' },
   };
 };
 
@@ -166,7 +166,7 @@ export const presentMonthConfirmation: ConfirmationPresenter = (
 
   return {
     text,
-    options: { parse_mode: 'Markdown' }, // No reply_markup = keyboard removed
+    options: { parse_mode: 'MarkdownV2' }, // No reply_markup = keyboard removed
   };
 };
 

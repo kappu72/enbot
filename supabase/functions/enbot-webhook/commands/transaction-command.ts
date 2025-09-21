@@ -327,7 +327,7 @@ export class TransactionCommand extends BaseCommand {
     sessionInfo += `\n🤔 Vuoi riprendere questa sessione o iniziare una nuova?`;
 
     await this.sendMessage(sessionInfo, {
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2',
       reply_markup: {
         inline_keyboard: [
           [
@@ -455,7 +455,7 @@ export class TransactionCommand extends BaseCommand {
 
 📤 Una notifica è stata inviata al contatto specificato.`;
 
-    await this.sendMessage(confirmationMessage, { parse_mode: 'Markdown' });
+    await this.sendMessage(confirmationMessage, { parse_mode: 'MarkdownV2' });
   }
 
   private async sendNotification(
@@ -477,7 +477,7 @@ export class TransactionCommand extends BaseCommand {
         payload.contact,
         notificationMessage,
         {
-          parse_mode: 'Markdown',
+          parse_mode: 'MarkdownV2',
         },
       );
     } catch (error) {

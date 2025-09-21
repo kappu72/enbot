@@ -199,16 +199,16 @@ export const presentPersonNameInput: InputPresenter = async (
       reply_markup: {
         inline_keyboard: keyboard,
       },
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2',
     };
 
     // Get username for mention from context
     const mention = context.username ? `@${context.username} ` : '';
 
     const text =
-      `👤 ${mention} **Seleziona il contatto per la transazione:**\n\n` +
-      `📋 Scegli dalla lista o aggiungi un nuovo contatto\n` +
-      `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
+      `${mention}   👤 *Controparte transazione*\n\n📋 Scegli dalla lista o crea un nuovo contatto\n\📄 Pagina ${
+        contactsPage.currentPage + 1
+      } di ${contactsPage.totalPages}`;
 
     return {
       text,
@@ -218,25 +218,7 @@ export const presentPersonNameInput: InputPresenter = async (
     console.error('❌ Error presenting contact selection:', error);
 
     // Fallback to text input
-    const options = {
-      reply_markup: {
-        force_reply: true,
-        input_field_placeholder: 'Inserisci il nome',
-        selective: true,
-      },
-      parse_mode: 'Markdown',
-    };
-
-    const mention = context.username ? `@${context.username} ` : '';
-
-    const text = `${mention}👤 **Inserisci il nome per la transazione:**\n` +
-      `📝 Inserisci il nome completo\n` +
-      `⚠️ (Lista contatti temporaneamente non disponibile)`;
-
-    return {
-      text,
-      options,
-    };
+    return presentNewContactInput(context);
   }
 };
 
@@ -310,7 +292,7 @@ export const updateContactsKeyboard = async (
       reply_markup: {
         inline_keyboard: keyboard,
       },
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2',
     };
 
     const mention = context.username ? `@${context.username} ` : '';
@@ -342,12 +324,12 @@ export const presentNewContactInput = (
       input_field_placeholder: 'Inserisci il nuovo nome',
       selective: true,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${mention}➕ **Aggiungi nuovo contatto:**\n\n` +
+  const text = `${mention}   ➕ *Aggiungi nuovo contatto:*\n\n` +
     `📝 Inserisci il nome completo\n` +
     `📋 Esempi: Mario Rossi, Anna & Marco, Giuseppe`;
 
@@ -364,12 +346,12 @@ export const presentPersonNameConfirmation = (
   context: StepContext,
   selectedContactName: string,
 ): StepContent => {
-  const mention = context.username ? `@${context.username} ` : '';
+  const _mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${mention}✅ **Contatto selezionato:** ${selectedContactName}`;
+  const text = `✅ *Contatto selezionato:* ${selectedContactName}`;
 
   const options = {
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
     // No reply_markup - keyboard is removed
   };
 
@@ -420,7 +402,7 @@ export const presentPersonNameError: ErrorPresenter = (
       input_field_placeholder: 'Inserisci il nome',
       selective: true,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
   const text = `${mention}${error}\n\n` +

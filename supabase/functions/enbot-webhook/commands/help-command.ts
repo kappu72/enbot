@@ -43,7 +43,7 @@ export class HelpCommand extends BaseCommand {
 🔒 **Sicurezza:**
 Questo bot può essere utilizzato solo nel gruppo autorizzato.`;
 
-    await this.sendMessage(helpMessage, { parse_mode: 'Markdown' });
+    await this.sendMessage(helpMessage, { parse_mode: 'MarkdownV2' });
 
     return { success: true, message: 'Help displayed' };
   }

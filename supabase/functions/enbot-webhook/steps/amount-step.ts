@@ -60,7 +60,7 @@ export const presentAmountInput: InputPresenter = (
   // Get username for mention from context
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${mention}💰 Importo in EUR:\n` +
+  const text = `${mention}   💰 *Importo in EUR:*\n\n` +
     `🔢 Esempio: 25.50 o 25,50\n` +
     `📱 Usa il tastierino numerico del telefono`;
 
@@ -85,13 +85,13 @@ export const presentAmountError: ErrorPresenter = (
       input_field_placeholder: '25.50 (solo numeri e punto/virgola)',
       selective: true,
     },
-    parse_mode: 'Markdown',
+    parse_mode: 'MarkdownV2',
   };
 
-  const text = `${mention}${error}\n\n` +
+  const text = `${mention}   💰 *Importo in EUR:*\n\n` +
+    `${error}\n\n` +
     `💰 Riprova inserendo l'importo in EUR:\n` +
-    `🔢 Esempio: 25.50 o 25,50\n` +
-    `📱 Usa il tastierino numerico del telefone`;
+    `🔢 Esempio: 25.50 o 25,50\n`;
 
   return {
     text,
@@ -103,18 +103,14 @@ export const presentAmountError: ErrorPresenter = (
  * Present amount confirmation after successful input
  */
 export const presentAmountConfirmation = (
-  context: StepContext,
+  _context: StepContext,
   selectedAmount: number,
 ): StepContent => {
-  // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
-
-  const text =
-    `${mention}✅ **Importo confermato**: €${selectedAmount.toFixed(2)}\n\n` +
-    `Continuando con il prossimo step...`;
+  const text = `✅ *Importo confermato*: €${selectedAmount.toFixed(2)}\n\n`;
 
   return {
     text,
+    options: { parse_mode: 'MarkdownV2' },
   };
 };
 
