@@ -31,4 +31,4 @@ CREATE INDEX idx_transactions_created_at ON public.transactions(created_at);
 CREATE INDEX idx_transactions_payload_gin ON public.transactions USING GIN(payload);
 
 -- Enable RLS
-ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;

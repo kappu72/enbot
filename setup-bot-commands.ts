@@ -22,19 +22,19 @@ async function main(): Promise<void> {
   // Load environment variables
   const env = await load({ envPath: `./${envFile}`, export: true });
   const supabaseUrl = env.SUPABASE_URL;
-  const supabaseAnonKey = env.SUPABASE_ANON_KEY;
+  const supabaseApiKey = env.SUPABASE_API_KEY;
   const botToken = env.TELEGRAM_BOT_TOKEN;
 
-  if (!supabaseUrl || !supabaseAnonKey || !botToken) {
+  if (!supabaseUrl || !supabaseApiKey || !botToken) {
     console.error('❌ Missing required environment variables:');
     console.error('   - SUPABASE_URL');
-    console.error('   - SUPABASE_ANON_KEY');
+    console.error('   - SUPABASE_API_KEY');
     console.error('   - TELEGRAM_BOT_TOKEN');
     Deno.exit(1);
   }
 
   // Supabase client
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = createClient(supabaseUrl, supabaseApiKey);
 
   // Bot configuration
   const adminUserIds =

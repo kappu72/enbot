@@ -5,7 +5,7 @@ import type { GoogleSheetsEnvConfig } from './google-sheets-client.ts';
 
 // Initialize Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+const supabaseKey = Deno.env.get('SUPABASE_API_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Bot configuration

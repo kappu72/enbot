@@ -62,7 +62,7 @@ Configure these environment variables in your Supabase project:
 - `ALLOWED_GROUP_ID`: Your Telegram group ID
 - `ADMIN_USER_IDS`: Comma-separated list of admin user IDs (optional)
 - `SUPABASE_URL`: Your Supabase project URL (auto-configured)
-- `SUPABASE_ANON_KEY`: Your Supabase anon key (auto-configured)
+- `SUPABASE_API_KEY`: Your Supabase api key (auto-configured)
 
 ## Deployment on Supabase Edge Functions
 

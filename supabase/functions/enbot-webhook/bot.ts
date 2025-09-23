@@ -9,7 +9,6 @@ import type {
 import { TelegramClient } from './telegram-client.ts';
 import { AuthManager } from './auth-manager.ts';
 import { CommandRegistry } from './commands/command-registry.ts';
-import { TransactionCommand } from './commands/transaction-command.ts';
 import { MonthlySubscriptionCommand } from './commands/monthly-subscription-command.ts'; // Now handles /quota command
 import { HelpCommand } from './commands/help-command.ts';
 import {

@@ -13,7 +13,7 @@ const env = await load({ envPath: './.local.env' });
 
 // Initialize Supabase client
 const supabaseUrl = env.SUPABASE_URL;
-const supabaseKey = env.SUPABASE_ANON_KEY;
+const supabaseKey = env.SUPABASE_API_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Bot configuration
@@ -34,7 +34,7 @@ if (!allowedGroupIds) {
 }
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ SUPABASE_URL and SUPABASE_ANON_KEY are required');
+  console.error('❌ SUPABASE_URL and SUPABASE_API_KEY are required');
   Deno.exit(1);
 }
 
