@@ -22,13 +22,13 @@ async function main(): Promise<void> {
   // Load environment variables
   const env = await load({ envPath: `./${envFile}`, export: true });
   const supabaseUrl = env.SUPABASE_URL;
-  const supabaseApiKey = env.SUPABASE_API_KEY;
+  const supabaseApiKey = env.API_KEY;
   const botToken = env.TELEGRAM_BOT_TOKEN;
 
   if (!supabaseUrl || !supabaseApiKey || !botToken) {
     console.error('❌ Missing required environment variables:');
     console.error('   - SUPABASE_URL');
-    console.error('   - SUPABASE_API_KEY');
+    console.error('   - API_KEY');
     console.error('   - TELEGRAM_BOT_TOKEN');
     Deno.exit(1);
   }
