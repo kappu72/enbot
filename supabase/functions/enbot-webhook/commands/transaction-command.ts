@@ -267,8 +267,9 @@ export class TransactionCommand extends BaseCommand {
         return { success: false, message: 'Database error' };
       }
 
-      // Delete session after successful completion
-      await this.deleteSession();
+      // Delete session after successful completion with message cleanup
+      // Preserve the last confirmation message
+      await this.deleteSessionWithCleanup(true, true);
 
       const transactionId = data.id;
 
@@ -455,7 +456,11 @@ export class TransactionCommand extends BaseCommand {
 
 📤 Una notifica è stata inviata al contatto specificato.`;
 
-    await this.sendMessage(confirmationMessage, { parse_mode: 'MarkdownV2' });
+    await this.sendMessage(
+      confirmationMessage,
+      { parse_mode: 'MarkdownV2' },
+      true,
+    );
   }
 
   private async sendNotification(

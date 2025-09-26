@@ -140,7 +140,15 @@ export class CommandRegistry {
         userSession.command_type,
         context,
       );
-      if (command) return await command.execute();
+      if (command) {
+        // Track the incoming user message
+        try {
+          await command.trackIncomingMessage(message.message_id);
+        } catch (error) {
+          console.warn('❌ Error tracking incoming message:', error);
+        }
+        return await command.execute();
+      }
     } else if (userSession) {
       console.log('❌ CommandRegistry: Message ID mismatch!');
       console.log('   Expected:', userSession.message_id);

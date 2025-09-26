@@ -29,11 +29,6 @@
   - **Priority**: Medium | **Effort**: Medium
 
 ### Bot Functionality
-- [ ] **Fix /quota message copy with escaped characters**
-  - Review and fix markdown escaping in MonthlySubscriptionCommand
-  - Ensure proper message formatting in notification messages
-  - Test all message outputs for proper display
-  - **Priority**: High | **Effort**: Low
 
 - [ ] **Implement "entrate cassa" command**
   - Create new EntrateCassaCommand class for cash inflows

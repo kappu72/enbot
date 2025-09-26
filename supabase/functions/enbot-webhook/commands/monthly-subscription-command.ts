@@ -105,8 +105,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
   }
 
   private async startQuota(): Promise<CommandResult> {
-    // clean any existing session
-    await this.deleteUserSession();
+    // clean any existing session with message cleanup
+    await this.deleteUserSessionWithCleanup(true, false);
 
     // Initialize new quote session
     const session: CommandSession = {
@@ -499,8 +499,9 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         return { success: false, message: 'Database error' };
       }
 
-      // Delete session after successful completion
-      await this.deleteSession();
+      // Delete session after successful completion with message cleanup
+      // Preserve the last notification message
+      await this.deleteSessionWithCleanup(true, true);
 
       const transactionId = data.id;
 
@@ -625,7 +626,12 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       `Grazie da EnB`;
 
     // Send confirmation message to the chat where the command was issued
-    await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
+    // Mark this as the last message to preserve during cleanup
+    await this.sendMessage(
+      notificationMessage,
+      { parse_mode: 'MarkdownV2' },
+      true,
+    );
 
     console.log(`✅ Quota notification sent for transaction ${transactionId}`);
   }

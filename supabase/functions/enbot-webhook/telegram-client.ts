@@ -1,9 +1,5 @@
 // Telegram API client wrapper
-import type {
-  BotCommand,
-  BotConfig,
-  MenuButton,
-} from './types.ts';
+import type { BotCommand, BotConfig, MenuButton } from './types.ts';
 import { validateMarkdownV2 } from './utils/markdown-utils.ts';
 
 export class TelegramClient {
@@ -36,7 +32,9 @@ export class TelegramClient {
         console.warn('MarkdownV2 validation failed:', validation.errors);
         // In development mode, throw error to catch formatting issues early
         if (this.isDevelopment) {
-          throw new Error(`MarkdownV2 validation failed: ${validation.errors.join(', ')}`);
+          throw new Error(
+            `MarkdownV2 validation failed: ${validation.errors.join(', ')}`,
+          );
         }
       }
     }
@@ -128,10 +126,15 @@ export class TelegramClient {
     if (parseMode === 'MarkdownV2') {
       const validation = validateMarkdownV2(text);
       if (!validation.isValid) {
-        console.warn('MarkdownV2 validation failed for editMessage:', validation.errors);
+        console.warn(
+          'MarkdownV2 validation failed for editMessage:',
+          validation.errors,
+        );
         // In development mode, throw error to catch formatting issues early
         if (this.isDevelopment) {
-          throw new Error(`MarkdownV2 validation failed: ${validation.errors.join(', ')}`);
+          throw new Error(
+            `MarkdownV2 validation failed: ${validation.errors.join(', ')}`,
+          );
         }
       }
     }
@@ -201,6 +204,59 @@ export class TelegramClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Telegram API error: ${error}`);
+    }
+  }
+
+  /**
+   * Delete multiple messages in bulk
+   * @param chatId - The chat ID where messages should be deleted
+   * @param messageIds - Array of message IDs to delete
+   * @returns Object with success/failure counts
+   */
+  async deleteMessages(
+    chatId: number | string,
+    messageIds: number[],
+  ): Promise<{ deleted: number; failed: number; errors: string[] }> {
+    let deleted = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    // Process messages in parallel with a reasonable concurrency limit
+    const batchSize = 10;
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+      const batch = messageIds.slice(i, i + batchSize);
+
+      const promises = batch.map(async (messageId) => {
+        try {
+          await this.deleteMessage(chatId, messageId);
+          deleted++;
+          console.log(`🗑️ Message ${messageId} deleted successfully`);
+        } catch (error) {
+          failed++;
+          const errorMsg =
+            `Failed to delete message ${messageId}: ${error.message}`;
+          errors.push(errorMsg);
+          console.warn(`❌ ${errorMsg}`);
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < messageIds.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(
+      `🧹 Bulk delete completed: ${deleted} deleted, ${failed} failed`,
+    );
+
+    return { deleted, failed, errors };
   }
 
   async setupWebhook(webhookUrl: string): Promise<void> {

@@ -265,12 +265,14 @@ export abstract class BaseCommand {
    *
    * @param text - The message text to send
    * @param options - Additional Telegram API options (keyboards, parse_mode, etc.)
+   * @param isLastMessage - Whether this is the final message to preserve during cleanup
    * @returns Promise that resolves when message is sent and ID is saved
    * @protected
    */
   protected async sendMessage(
     text: string,
     options?: Record<string, unknown>,
+    isLastMessage: boolean = false,
   ): Promise<void> {
     const result = await this.context.telegram.sendMessage(
       this.context.chatId,
@@ -278,13 +280,18 @@ export abstract class BaseCommand {
       options,
     );
     console.log('🔍 Message sent:', result);
+
     try {
+      // Save message ID in session (backward compatibility)
       await this.context.sessionManager.saveMessageId(
         this.context.userId,
         this.context.chatId,
         this.commandName,
         result.message_id,
       );
+
+      // Track message in new message tracking system
+      await this.trackOutgoingMessage(result.message_id, isLastMessage);
     } catch (error) {
       console.warn('❌ Error saving message id:', error);
     }
@@ -567,6 +574,236 @@ export abstract class BaseCommand {
    */
   getDescription(): string {
     return 'Nessuna descrizione fornita per questo comando.';
+  }
+
+  // ===== MESSAGE TRACKING AND CLEANUP METHODS =====
+
+  /**
+   * Track an outgoing message (from bot)
+   * @param messageId - The Telegram message ID
+   * @param isLastMessage - Whether this is the final message to preserve
+   */
+  protected async trackOutgoingMessage(
+    messageId: number,
+    isLastMessage: boolean = false,
+  ): Promise<void> {
+    try {
+      const sessionId = await this.context.sessionManager.getSessionId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+
+      if (sessionId) {
+        await this.context.sessionManager.trackMessage(
+          sessionId,
+          messageId,
+          'outgoing',
+          isLastMessage,
+        );
+      } else {
+        console.warn('❌ No session ID found for message tracking');
+      }
+    } catch (error) {
+      console.warn('❌ Error tracking outgoing message:', error);
+    }
+  }
+
+  /**
+   * Track an incoming message (from user)
+   * @param messageId - The Telegram message ID
+   */
+  protected async trackIncomingMessage(messageId: number): Promise<void> {
+    try {
+      const sessionId = await this.context.sessionManager.getSessionId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+
+      if (sessionId) {
+        await this.context.sessionManager.trackMessage(
+          sessionId,
+          messageId,
+          'incoming',
+          false,
+        );
+      } else {
+        console.warn('❌ No session ID found for message tracking');
+      }
+    } catch (error) {
+      console.warn('❌ Error tracking incoming message:', error);
+    }
+  }
+
+  /**
+   * Mark a message as the last message to preserve during cleanup
+   * @param messageId - The message ID to mark as last
+   */
+  protected async markLastMessage(messageId: number): Promise<void> {
+    try {
+      const sessionId = await this.context.sessionManager.getSessionId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+
+      if (sessionId) {
+        await this.context.sessionManager.markLastMessage(sessionId, messageId);
+      } else {
+        console.warn('❌ No session ID found for marking last message');
+      }
+    } catch (error) {
+      console.warn('❌ Error marking last message:', error);
+    }
+  }
+
+  /**
+   * Clean up session messages (delete all except the last one)
+   * @param preserveLast - Whether to preserve the last message (default: true)
+   * @returns Object with cleanup results
+   */
+  protected async cleanupSessionMessages(
+    preserveLast: boolean = true,
+  ): Promise<
+    {
+      deleted: number;
+      preserved: number;
+      telegramDeleted: number;
+      telegramFailed: number;
+    }
+  > {
+    try {
+      const sessionId = await this.context.sessionManager.getSessionId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+
+      if (!sessionId) {
+        console.warn('❌ No session ID found for message cleanup');
+        return {
+          deleted: 0,
+          preserved: 0,
+          telegramDeleted: 0,
+          telegramFailed: 0,
+        };
+      }
+
+      // Get all messages for the session
+      const messages = await this.context.sessionManager.getSessionMessages(
+        sessionId,
+      );
+
+      if (messages.length === 0) {
+        console.log('📭 No messages to clean up');
+        return {
+          deleted: 0,
+          preserved: 0,
+          telegramDeleted: 0,
+          telegramFailed: 0,
+        };
+      }
+
+      // Determine which messages to delete
+      const messagesToDelete = preserveLast
+        ? messages.filter((msg) => !msg.is_last_message)
+        : messages;
+
+      // Delete messages from Telegram
+      let telegramDeleted = 0;
+      let telegramFailed = 0;
+
+      if (messagesToDelete.length > 0) {
+        const messageIds = messagesToDelete.map((msg) => msg.message_id);
+        const result = await this.context.telegram.deleteMessages(
+          this.context.chatId,
+          messageIds,
+        );
+        telegramDeleted = result.deleted;
+        telegramFailed = result.failed;
+      }
+
+      // Clean up from database
+      const dbResult = await this.context.sessionManager.cleanupSessionMessages(
+        sessionId,
+        preserveLast,
+      );
+
+      console.log(
+        `🧹 Message cleanup completed: ${dbResult.deleted} DB deleted, ${dbResult.preserved} preserved, ${telegramDeleted} Telegram deleted, ${telegramFailed} Telegram failed`,
+      );
+
+      return {
+        deleted: dbResult.deleted,
+        preserved: dbResult.preserved,
+        telegramDeleted,
+        telegramFailed,
+      };
+    } catch (error) {
+      console.error('❌ Error cleaning up session messages:', error);
+      return {
+        deleted: 0,
+        preserved: 0,
+        telegramDeleted: 0,
+        telegramFailed: 0,
+      };
+    }
+  }
+
+  /**
+   * Enhanced delete session with message cleanup
+   * @param cleanupMessages - Whether to clean up messages (default: true)
+   * @param preserveLastMessage - Whether to preserve the last message (default: false)
+   */
+  protected async deleteSessionWithCleanup(
+    cleanupMessages: boolean = true,
+    preserveLastMessage: boolean = false,
+  ): Promise<void> {
+    try {
+      // Clean up messages if requested
+      if (cleanupMessages) {
+        await this.cleanupSessionMessages(preserveLastMessage);
+      }
+
+      // Delete the session
+      await this.deleteSession();
+    } catch (error) {
+      console.error('❌ Error deleting session with cleanup:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enhanced delete user session with message cleanup
+   * @param cleanupMessages - Whether to clean up messages (default: true)
+   * @param preserveLastMessage - Whether to preserve the last message (default: false)
+   */
+  protected async deleteUserSessionWithCleanup(
+    cleanupMessages: boolean = true,
+    preserveLastMessage: boolean = false,
+  ): Promise<void> {
+    try {
+      // Clean up messages if requested
+      if (cleanupMessages) {
+        // Get all sessions for this user and clean up their messages
+        const sessionId = await this.context.sessionManager.getSessionId(
+          this.context.userId,
+          this.context.chatId,
+          this.commandName,
+        );
+
+        if (sessionId) {
+          await this.cleanupSessionMessages(preserveLastMessage);
+        }
+      }
+
+      // Delete the user session
+      await this.deleteUserSession();
+    } catch (error) {
+      console.error('❌ Error deleting user session with cleanup:', error);
+      throw error;
+    }
   }
 }
 
