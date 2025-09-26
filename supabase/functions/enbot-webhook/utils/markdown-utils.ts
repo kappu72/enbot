@@ -61,3 +61,176 @@ export function boldMarkdownV2(text: string): string {
 export function italicMarkdownV2(text: string): string {
   return `_${escapeMarkdownV2(text)}_`;
 }
+
+/**
+ * Handles line breaks properly in MarkdownV2
+ * Ensures that \n characters are preserved and not escaped
+ *
+ * @param text - Text that may contain line breaks
+ * @returns Text with proper line break handling for MarkdownV2
+ */
+export function handleLineBreaksMarkdownV2(text: string): string {
+  // Split by line breaks, escape each line, then rejoin
+  return text
+    .split('\n')
+    .map(line => escapeMarkdownV2(line))
+    .join('\n');
+}
+
+/**
+ * Formats multi-line messages with proper escaping for MarkdownV2
+ * Handles line breaks and escapes special characters in each line
+ *
+ * @param lines - Array of text lines to format
+ * @returns Properly formatted multi-line MarkdownV2 text
+ */
+export function formatMultiLineMarkdownV2(lines: string[]): string {
+  return lines
+    .map(line => escapeMarkdownV2(line))
+    .join('\n');
+}
+
+/**
+ * Validates if text is properly escaped for MarkdownV2
+ * Checks for unescaped special characters that would break MarkdownV2
+ *
+ * @param text - Text to validate
+ * @returns Object with validation result and details
+ */
+export function validateMarkdownV2(text: string): {
+  isValid: boolean;
+  errors: string[];
+  unescapedChars: string[];
+} {
+  const specialChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+  const errors: string[] = [];
+  const unescapedChars: string[] = [];
+  
+  // Check each character in the text
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (specialChars.includes(char)) {
+      const beforeChar = text[i - 1];
+      
+      // If the character is not preceded by a backslash, it's unescaped
+      if (beforeChar !== '\\') {
+        // Check if this is a formatting marker (bold, italic, etc.)
+        const isFormattingMarker = isFormattingChar(text, i, char);
+        
+        if (!isFormattingMarker) {
+          if (!unescapedChars.includes(char)) {
+            unescapedChars.push(char);
+          }
+          errors.push(`Unescaped special character '${char}' at position ${i}`);
+        }
+      }
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    unescapedChars,
+  };
+}
+
+/**
+ * Helper function to determine if a special character is used for formatting
+ */
+function isFormattingChar(text: string, position: number, char: string): boolean {
+  // Check for bold formatting: *text*
+  if (char === '*') {
+    // Look for matching asterisk
+    for (let i = position + 1; i < text.length; i++) {
+      if (text[i] === '*' && text[i - 1] !== '\\') {
+        return true; // Found matching asterisk for bold formatting
+      }
+    }
+  }
+  
+  // Check for italic formatting: _text_
+  if (char === '_') {
+    // Look for matching underscore
+    for (let i = position + 1; i < text.length; i++) {
+      if (text[i] === '_' && text[i - 1] !== '\\') {
+        return true; // Found matching underscore for italic formatting
+      }
+    }
+  }
+  
+  // Check for code formatting: `text`
+  if (char === '`') {
+    // Look for matching backtick
+    for (let i = position + 1; i < text.length; i++) {
+      if (text[i] === '`' && text[i - 1] !== '\\') {
+        return true; // Found matching backtick for code formatting
+      }
+    }
+  }
+  
+  // Check for strikethrough formatting: ~text~
+  if (char === '~') {
+    // Look for matching tilde
+    for (let i = position + 1; i < text.length; i++) {
+      if (text[i] === '~' && text[i - 1] !== '\\') {
+        return true; // Found matching tilde for strikethrough formatting
+      }
+    }
+  }
+  
+  return false; // Not a formatting character
+}
+
+/**
+ * Creates a code block for MarkdownV2
+ *
+ * @param text - Text to format as code
+ * @returns Code block formatted text with escaped content
+ */
+export function codeBlockMarkdownV2(text: string): string {
+  return `\`${escapeMarkdownV2(text)}\``;
+}
+
+/**
+ * Creates a pre-formatted code block for MarkdownV2
+ *
+ * @param text - Text to format as pre-formatted code
+ * @returns Pre-formatted code block with escaped content
+ */
+export function preCodeBlockMarkdownV2(text: string): string {
+  return `\`\`\`\n${escapeMarkdownV2(text)}\n\`\`\``;
+}
+
+/**
+ * Safely formats a URL for MarkdownV2
+ * Note: URLs in MarkdownV2 should not be escaped, but this function
+ * ensures the URL is properly formatted
+ *
+ * @param url - URL to format
+ * @param text - Optional display text (defaults to URL)
+ * @returns Formatted URL link for MarkdownV2
+ */
+export function formatUrlMarkdownV2(url: string, text?: string): string {
+  const displayText = text || url;
+  return `[${escapeMarkdownV2(displayText)}](${url})`;
+}
+
+/**
+ * Safely formats a user mention for MarkdownV2
+ *
+ * @param username - Username to mention (without @)
+ * @returns Formatted user mention for MarkdownV2
+ */
+export function formatUserMentionMarkdownV2(username: string): string {
+  return `@${escapeMarkdownV2(username)}`;
+}
+
+/**
+ * Creates a strikethrough text for MarkdownV2
+ *
+ * @param text - Text to strikethrough
+ * @returns Strikethrough formatted text with escaped content
+ */
+export function strikethroughMarkdownV2(text: string): string {
+  return `~${escapeMarkdownV2(text)}~`;
+}

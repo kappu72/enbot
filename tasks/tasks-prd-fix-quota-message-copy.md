@@ -31,12 +31,12 @@
   - [x] 2.5 Fix any escaped character issues found in /quota command messages
   - [x] 2.6 CRITICAL FIX: Add parse_mode: 'MarkdownV2' to amount-step.ts present method
 
-- [ ] 3.0 Enhance markdown utility functions for better consistency
-  - [ ] 3.1 Add a function to handle line breaks properly in MarkdownV2
-  - [ ] 3.2 Add a function to format multi-line messages with proper escaping
-  - [ ] 3.3 Add validation function to check if text is properly escaped
-  - [ ] 3.4 Update existing utility functions to handle edge cases
-  - [ ] 3.5 Add documentation for all markdown utility functions
+- [x] 3.0 Enhance markdown utility functions for better consistency
+  - [x] 3.1 Add a function to handle line breaks properly in MarkdownV2
+  - [x] 3.2 Add a function to format multi-line messages with proper escaping
+  - [x] 3.3 Add validation function to check if text is properly escaped
+  - [x] 3.4 Update existing utility functions to handle edge cases
+  - [x] 3.5 Add documentation for all markdown utility functions
 
 - [ ] 4.0 Add comprehensive testing for message formatting
   - [ ] 4.1 Create unit tests for markdown-utils.ts functions
