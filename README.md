@@ -15,7 +15,7 @@ A TypeScript-based Telegram bot for managing cash transactions with form-based i
 ## Transaction Fields
 
 - **Family**: Dropdown selection from predefined families
-- **Category**: "quota mensile", "quota iscrizione", "altro"
+- **Category**: Dynamic selection from database (Q. Mese, Q. Esame, Iscrizione, Eventi, Cauzione, Altro)
 - **Amount**: Numeric input in EUR
 - **Period**: Date in YYYY-MM-DD format
 - **Contact**: Telegram username (@username)

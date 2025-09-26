@@ -110,14 +110,10 @@ export const FAMILY_OPTIONS = [
   'Famiglia Blu',
 ] as const;
 
-export const CATEGORY_OPTIONS = [
-  'quota mensile',
-  'quota iscrizione',
-  'altro',
-] as const;
+// Categories are now managed dynamically from the database
+// See: supabase/functions/enbot-webhook/steps/category-step.ts
 
 export type FamilyOption = typeof FAMILY_OPTIONS[number];
-export type CategoryOption = typeof CATEGORY_OPTIONS[number];
 
 // Type guards and utility functions for Grammy types
 export function isTextMessage(

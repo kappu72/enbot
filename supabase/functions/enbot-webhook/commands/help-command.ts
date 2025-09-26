@@ -18,24 +18,23 @@ export class HelpCommand extends BaseCommand {
 🤖 **EnBot - Gestione Transazioni**
 
 **Comandi disponibili:**
-• /start o /transaction - Inizia una nuova transazione completa
-• /quote - Registra una quota mensile (salta selezione categoria)
-• /history - Mostra le ultime 10 transazioni
-• /getid - Mostra ID chat e utente
-• /testmsg @username - Invia messaggio di test a un utente
+• /entrata - Registra una nuova entrata (con selezione categoria)
 • /help - Mostra questo messaggio di aiuto
 • /cancel - Annulla la transazione in corso
 
 **Come utilizzare:**
-1. Usa /start per una transazione completa
-2. Usa /quote per una quota mensile veloce
+1. Usa /entrata per registrare una nuova entrata
+2. Seleziona la categoria appropriata
 3. Segui le istruzioni per inserire i dati richiesti
 4. Usa /cancel se vuoi annullare
 
 **Categorie disponibili:**
-• quota mensile
-• quota iscrizione
-• altro
+• Q. Mese (Quota Mensile)
+• Q. Esame (Quota Esame)  
+• Iscrizione (Quota Iscrizione)
+• Eventi
+• Cauzione (Deposito Cauzionale)
+• Altro
 
 **Comandi di test:**
 • /testmsg @nome - Testa l'invio di messaggi
