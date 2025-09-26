@@ -114,7 +114,7 @@
 ## 📱 User Experience
 
 ### Interface Improvements
-- [ ] **Implement message cleanup after successful command completion**
+- [x] **Implement message cleanup after successful command completion**
   - Remove all messages except the last one after successful command execution
   - Implement message deletion functionality in TelegramClient
   - Add cleanup logic after successful command execution

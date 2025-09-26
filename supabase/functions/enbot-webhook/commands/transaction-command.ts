@@ -89,6 +89,22 @@ export class TransactionCommand extends BaseCommand {
     };
 
     await this.saveSession(session);
+
+    // Track the initial command message now that we have a session
+    if (this.context.message?.message_id) {
+      const sessionId = await this.context.sessionManager.getSessionId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+      if (sessionId) {
+        await this.trackIncomingMessageBySessionId(
+          sessionId,
+          this.context.message.message_id,
+        );
+      }
+    }
+
     await this.sendFamilySelection();
 
     return { success: true, message: 'Transaction started' };

@@ -642,6 +642,27 @@ export abstract class BaseCommand implements Command {
   }
 
   /**
+   * Track an incoming message by session ID (for initial commands)
+   * @param sessionId - The session ID to track the message for
+   * @param messageId - The Telegram message ID
+   */
+  async trackIncomingMessageBySessionId(
+    sessionId: number,
+    messageId: number,
+  ): Promise<void> {
+    try {
+      await this.context.sessionManager.trackMessage(
+        sessionId,
+        messageId,
+        'incoming',
+        false,
+      );
+    } catch (error) {
+      console.warn('❌ Error tracking incoming message by session ID:', error);
+    }
+  }
+
+  /**
    * Mark a message as the last message to preserve during cleanup
    * @param messageId - The message ID to mark as last
    */
