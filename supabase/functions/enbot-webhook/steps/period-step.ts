@@ -1,6 +1,7 @@
 // Combined Period step implementation (month + year + confirm in one keyboard)
 import {
   type CallbackHandler,
+  type ConfirmationPresenter,
   type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
@@ -21,14 +22,6 @@ import {
   getMonthsArrangement,
   getYearsArrangement,
 } from '../utils/date-utils.ts';
-
-/**
- * Type for confirmation presenter functions
- */
-type ConfirmationPresenter = (
-  context: StepContext,
-  selectedValue: unknown,
-) => StepContent;
 
 /**
  * Parse state from callback data or return empty state
@@ -294,11 +287,11 @@ export const presentPeriodError: ErrorPresenter = (
 /**
  * Present period selection confirmation
  */
-export const presentPeriodConfirmation: ConfirmationPresenter = (
+export const presentPeriodConfirmation: ConfirmationPresenter<string> = (
   context: StepContext,
-  selectedValue: unknown,
+  selectedValue: string,
 ): StepContent => {
-  const period = selectedValue as string; // "01-2025"
+  const period = selectedValue; // "01-2025"
   const [monthNumber, year] = period.split('-');
   const monthData = getMonthByNumber(monthNumber);
 
@@ -326,6 +319,7 @@ export const createPeriodStep = (): Step<string> => {
     validatePeriod,
     handlePeriodCallback,
     presentPeriodError,
+    presentPeriodConfirmation,
     '📅 Seleziona il periodo di riferimento (mese + anno)',
   );
 };

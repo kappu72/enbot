@@ -1,6 +1,7 @@
 // Person name step implementation using composition approach
 import {
   type CallbackHandler,
+  type ConfirmationPresenter,
   type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
@@ -342,7 +343,7 @@ export const presentNewContactInput = (
 /**
  * Present contact selection confirmation (keyboard removed)
  */
-export const presentPersonNameConfirmation = (
+export const presentPersonNameConfirmation: ConfirmationPresenter<string> = (
   context: StepContext,
   selectedContactName: string,
 ): StepContent => {
@@ -426,6 +427,7 @@ export const createPersonNameStep = (): Step<string> => {
     validatePersonName,
     handlePersonNameCallback, // Now handles callbacks
     presentPersonNameError,
+    presentPersonNameConfirmation,
     '👤 Seleziona il contatto per la transazione',
   );
 };

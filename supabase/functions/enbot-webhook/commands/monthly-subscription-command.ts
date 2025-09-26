@@ -9,16 +9,12 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import {
   personNameStep,
   presentNewContactInput,
-  presentPersonNameConfirmation,
   saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
-import { amountStep, presentAmountConfirmation } from '../steps/amount-step.ts';
+import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
-import {
-  presentPeriodConfirmation,
-  presentPeriodUpdate,
-} from '../steps/period-step.ts';
+import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 import {
   boldMarkdownV2,
@@ -297,7 +293,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         await this.saveSession(session);
 
         // Show confirmation with keyboard removed
-        const confirmationContent = presentPersonNameConfirmation(
+        const confirmationContent = personNameStep.presentConfirmation(
           stepContext,
           contactName,
         );
@@ -358,7 +354,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       await this.saveSession(session);
 
       // Show confirmation with explicit keyboard removal
-      const confirmationContent = presentAmountConfirmation(
+      const confirmationContent = amountStep.presentConfirmation(
         stepContext,
         result.processedValue as number,
       );
@@ -433,7 +429,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         await this.saveSession(session);
 
         // Show confirmation with keyboard removed
-        const confirmationContent = presentPeriodConfirmation(
+        const confirmationContent = periodStep.presentConfirmation(
           stepContext,
           result.processedValue!,
         );

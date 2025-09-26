@@ -1,5 +1,6 @@
 // Amount step implementation using composition approach
 import {
+  type ConfirmationPresenter,
   type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
@@ -16,7 +17,7 @@ import {
 /**
  * Pure function to validate amount input
  */
-export const validateAmount: InputValidator<number> = (input: string) => {
+const validateAmount: InputValidator<number> = (input: string) => {
   // Remove whitespace and normalize decimal separator
   const cleanInput = input.trim().replace(',', '.');
 
@@ -51,7 +52,7 @@ export const validateAmount: InputValidator<number> = (input: string) => {
 /**
  * Pure function to present amount input interface
  */
-export const presentAmountInput: InputPresenter = (
+const presentAmountInput: InputPresenter = (
   context: StepContext,
 ): StepContent => {
   const keyboard = {
@@ -86,7 +87,7 @@ export const presentAmountInput: InputPresenter = (
 /**
  * Pure function to present amount input error
  */
-export const presentAmountError: ErrorPresenter = (
+const presentAmountError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
@@ -118,7 +119,7 @@ export const presentAmountError: ErrorPresenter = (
 /**
  * Present amount confirmation after successful input
  */
-export const presentAmountConfirmation = (
+const presentAmountConfirmation: ConfirmationPresenter<number> = (
   _context: StepContext,
   selectedAmount: number,
 ): StepContent => {
@@ -142,6 +143,7 @@ export const createAmountStep = (): Step<number> => {
     validateAmount,
     undefined, // Does not handle callbacks
     presentAmountError, // Error presenter
+    presentAmountConfirmation, // Confirmation presenter
     "💰 Inserisci l'importo della transazione in EUR",
   );
 };
