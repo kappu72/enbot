@@ -76,10 +76,6 @@ export class Step<T = unknown> {
     return this.helpText;
   }
 
-  getMessageTitle(_context?: StepContext): string {
-    return this.name;
-  }
-
   async present(context: StepContext): Promise<StepContent> {
     return await this.presenter(context);
   }

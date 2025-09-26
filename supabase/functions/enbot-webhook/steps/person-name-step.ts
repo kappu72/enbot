@@ -10,6 +10,7 @@ import {
   type StepContext,
 } from './step-types.ts';
 import type { TelegramCallbackQuery } from '../types.ts';
+import { boldMarkdownV2, escapeMarkdownV2 } from '../utils/markdown-utils.ts';
 
 // Types for contacts functionality
 interface Contact {
@@ -188,7 +189,7 @@ export const validatePersonName: InputValidator<string> = (input: string) => {
 /**
  * Present person name selection interface with contacts keyboard
  */
-export const presentPersonNameInput: InputPresenter = async (
+const presentPersonNameInput: InputPresenter = async (
   context: StepContext,
 ): Promise<StepContent> => {
   try {
@@ -203,13 +204,9 @@ export const presentPersonNameInput: InputPresenter = async (
       parse_mode: 'MarkdownV2',
     };
 
-    // Get username for mention from context
-    const mention = context.username ? `@${context.username} ` : '';
-
-    const text =
-      `${mention}   👤 *Controparte transazione*\n\n📋 Scegli dalla lista o crea un nuovo contatto\n\📄 Pagina ${
-        contactsPage.currentPage + 1
-      } di ${contactsPage.totalPages}`;
+    const text = getMessageTitle(context) +
+      '📋 Scegli dalla lista o crea un nuovo contatto\n\n' +
+      `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
 
     return {
       text,
@@ -226,7 +223,7 @@ export const presentPersonNameInput: InputPresenter = async (
 /**
  * Handle contact selection callbacks
  */
-export const handlePersonNameCallback: CallbackHandler<string> = (
+const handlePersonNameCallback: CallbackHandler<string> = (
   callbackQuery: TelegramCallbackQuery,
 ) => {
   const callbackData = callbackQuery.data!;
@@ -296,11 +293,8 @@ export const updateContactsKeyboard = async (
       parse_mode: 'MarkdownV2',
     };
 
-    const mention = context.username ? `@${context.username} ` : '';
-
-    const text =
-      `${mention}👤 **Seleziona il contatto per la transazione:**\n\n` +
-      `📋 Scegli dalla lista o aggiungi un nuovo contatto\n` +
+    const text = getMessageTitle(context) +
+      '📋 Scegli dalla lista o crea un nuovo contatto\n\n' +
       `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
 
     return {
@@ -327,11 +321,8 @@ export const presentNewContactInput = (
     },
     parse_mode: 'MarkdownV2',
   };
-
-  const mention = context.username ? `@${context.username} ` : '';
-
-  const text = `${mention}   ➕ *Aggiungi nuovo contatto:*\n\n` +
-    `📝 Inserisci il nome completo\n` +
+  const text = getMessageTitle(context) +
+    '➕ Aggiungi nuovo contatto\n\n' +
     `📋 Esempi: Mario Rossi, Anna & Marco, Giuseppe`;
 
   return {
@@ -394,9 +385,6 @@ export const presentPersonNameError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
-  // Get username for mention
-  const mention = context.username ? `@${context.username} ` : '';
-
   const options = {
     reply_markup: {
       force_reply: true,
@@ -406,7 +394,8 @@ export const presentPersonNameError: ErrorPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  const text = `${mention} ${error}\n\n` +
+  const text = getMessageTitle(context) +
+    `${error}\n\n` +
     `👤 **Riprova inserendo il nome:**\n` +
     `📝 Inserisci il nome completo\n` +
     `📋 Esempi: Mario Rossi, Anna De Sanctis, John D'Angelo`;
@@ -417,6 +406,13 @@ export const presentPersonNameError: ErrorPresenter = (
   };
 };
 
+const getMessageTitle = (context: StepContext): string => {
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
+  return `${escapeMarkdownV2(mention)}   👤 ${
+    boldMarkdownV2('Controparte transazione')
+  }\n\n`;
+};
 /**
  * Create the PersonNameStep instance using composition
  */

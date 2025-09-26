@@ -198,6 +198,15 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Amount;
 
       await this.saveSession(session);
+      // Show confirmation with keyboard removed
+      const confirmationContent = personNameStep.presentConfirmation(
+        stepContext,
+        contactName,
+      );
+      await this.editLastMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
       await this.sendAmountPromptWithStep();
       return { success: true, message: 'Person name selected for quote' };
     } else {
@@ -600,19 +609,19 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     transactionId: number,
   ): Promise<void> {
     const notificationMessage =
-      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\n` +
-      `Versati ${
+      `🔔  ${boldMarkdownV2('Quota Mensile Registrata')}\n\n` +
+      `Versati *${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
-      } come quota di ${
+      }* come quota di ${
         boldMarkdownV2(
           getMonthByNumber(transactionPayload.month as string)?.full || '',
         )
       } ${boldMarkdownV2(transactionPayload.year as string)} per ${
         boldMarkdownV2(transactionPayload.family as string)
-      }\n` +
+      }\n\n` +
       `Registrato da: ${
         boldMarkdownV2(transactionPayload.recorded_by as string)
-      }\n` +
+      }\n\n` +
       `Grazie da EnB`;
 
     // Send confirmation message to the chat where the command was issued

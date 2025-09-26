@@ -63,16 +63,10 @@ const presentAmountInput: InputPresenter = (
     },
   };
 
-  // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
-
-  const text =
-    `${escapeMarkdownV2(mention)}   💰 ${
-      boldMarkdownV2('Importo in EUR:')
-    }\n\n` +
+  const text = getMessageTitle(context) +
     `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${
       escapeMarkdownV2('25,50')
-    }\n` +
+    }\n\n` +
     `📱 Usa il tastierino numerico del telefono`;
 
   return {
@@ -92,7 +86,6 @@ const presentAmountError: ErrorPresenter = (
   error: string,
 ): StepContent => {
   // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
   const options = {
     reply_markup: {
       force_reply: true,
@@ -102,12 +95,9 @@ const presentAmountError: ErrorPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  const text =
-    `${escapeMarkdownV2(mention)}   💰 ${
-      boldMarkdownV2('Importo in EUR:')
-    }\n\n` +
+  const text = getMessageTitle(context) +
     `${escapeMarkdownV2(error)}\n\n` +
-    `💰 Riprova inserendo l'importo in EUR:\n` +
+    `💰 Riprova inserendo l'importo in EUR:\n\n` +
     `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${escapeMarkdownV2('25,50')}\n`;
 
   return {
@@ -123,7 +113,7 @@ const presentAmountConfirmation: ConfirmationPresenter<number> = (
   _context: StepContext,
   selectedAmount: number,
 ): StepContent => {
-  const text = `✅ ${boldMarkdownV2('Importo confermato')}: ${
+  const text = `✅  ${boldMarkdownV2('Importo confermato')}: ${
     formatCurrencyMarkdownV2(selectedAmount)
   }\n\n`;
 
@@ -146,6 +136,14 @@ export const createAmountStep = (): Step<number> => {
     presentAmountConfirmation, // Confirmation presenter
     "💰 Inserisci l'importo della transazione in EUR",
   );
+};
+
+const getMessageTitle = (context: StepContext): string => {
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
+  return `${escapeMarkdownV2(mention)}   💰 ${
+    boldMarkdownV2('Importo in EUR')
+  }\n\n`;
 };
 
 // Export a default instance
