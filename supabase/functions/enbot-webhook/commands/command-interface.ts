@@ -309,11 +309,12 @@ export abstract class BaseCommand implements Command {
   ): Promise<void> {
     try {
       // Get the last outgoing message ID for this session
-      const lastOutgoingMessageId = await this.context.sessionManager.getLastOutgoingMessageId(
-        this.context.userId,
-        this.context.chatId,
-        this.commandName,
-      );
+      const lastOutgoingMessageId = await this.context.sessionManager
+        .getLastOutgoingMessageId(
+          this.context.userId,
+          this.context.chatId,
+          this.commandName,
+        );
 
       if (!lastOutgoingMessageId) {
         console.warn('❌ No outgoing message ID found in session for editing');
@@ -362,11 +363,12 @@ export abstract class BaseCommand implements Command {
   protected async deleteLastMessage(): Promise<void> {
     try {
       // Get the last outgoing message ID for this session
-      const lastOutgoingMessageId = await this.context.sessionManager.getLastOutgoingMessageId(
-        this.context.userId,
-        this.context.chatId,
-        this.commandName,
-      );
+      const lastOutgoingMessageId = await this.context.sessionManager
+        .getLastOutgoingMessageId(
+          this.context.userId,
+          this.context.chatId,
+          this.commandName,
+        );
 
       if (!lastOutgoingMessageId) {
         console.warn('❌ No outgoing message ID found in session for deletion');

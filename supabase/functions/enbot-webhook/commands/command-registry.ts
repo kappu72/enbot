@@ -133,14 +133,20 @@ export class CommandRegistry {
     // The bot should only answer to the last sent message from the session
     if (userSession) {
       // Get the last outgoing message ID for this session
-      const lastOutgoingMessageId = await this.sessionManager.getLastOutgoingMessageId(
-        userId,
-        chatId,
-        userSession.command_type,
-      );
+      const lastOutgoingMessageId = await this.sessionManager
+        .getLastOutgoingMessageId(
+          userId,
+          chatId,
+          userSession.command_type,
+        );
 
-      if (lastOutgoingMessageId && message.reply_to_message?.message_id === lastOutgoingMessageId) {
-        console.log('✅ CommandRegistry: Message ID matches, executing command');
+      if (
+        lastOutgoingMessageId &&
+        message.reply_to_message?.message_id === lastOutgoingMessageId
+      ) {
+        console.log(
+          '✅ CommandRegistry: Message ID matches, executing command',
+        );
         const command = this.createCommandInstance(
           userSession.command_type,
           context,
