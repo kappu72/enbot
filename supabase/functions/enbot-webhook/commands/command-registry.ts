@@ -130,29 +130,41 @@ export class CommandRegistry {
       message.reply_to_message?.message_id,
     );
 
-    // The bot should only answer to the last sent message saved in the session row the other messages has to pass
-    if (
-      userSession &&
-      message.reply_to_message?.message_id === userSession.message_id
-    ) {
-      console.log('✅ CommandRegistry: Message ID matches, executing command');
-      const command = this.createCommandInstance(
-        userSession.command_type,
-        context,
-      );
-      if (command) {
-        // Track the incoming user message
-        try {
-          await command.trackIncomingMessage(message.message_id);
-        } catch (error) {
-          console.warn('❌ Error tracking incoming message:', error);
+    // The bot should only answer to the last sent message from the session
+    if (userSession) {
+      // Get the last outgoing message ID for this session
+      const lastOutgoingMessageId = await this.sessionManager
+        .getLastOutgoingMessageId(
+          userId,
+          chatId,
+          userSession.command_type,
+        );
+
+      if (
+        lastOutgoingMessageId &&
+        message.reply_to_message?.message_id === lastOutgoingMessageId
+      ) {
+        console.log(
+          '✅ CommandRegistry: Message ID matches, executing command',
+        );
+        const command = this.createCommandInstance(
+          userSession.command_type,
+          context,
+        );
+        if (command) {
+          // Track the incoming user message
+          try {
+            await command.trackIncomingMessage(message.message_id);
+          } catch (error) {
+            console.warn('❌ Error tracking incoming message:', error);
+          }
+          return await command.execute();
         }
-        return await command.execute();
+      } else {
+        console.log('❌ CommandRegistry: Message ID mismatch!');
+        console.log('   Expected:', lastOutgoingMessageId);
+        console.log('   Received:', message.reply_to_message?.message_id);
       }
-    } else if (userSession) {
-      console.log('❌ CommandRegistry: Message ID mismatch!');
-      console.log('   Expected:', userSession.message_id);
-      console.log('   Received:', message.reply_to_message?.message_id);
     }
 
     console.log(`❌ No command found to handle message: ${message.text}`);

@@ -18,19 +18,6 @@ export class SessionManager {
     this.supabase = supabase;
   }
 
-  async saveMessageId(
-    userId: number,
-    chatId: number,
-    commandType: string,
-    messageId: number,
-  ): Promise<void> {
-    await this.supabase
-      .from('user_sessions')
-      .update({ message_id: messageId })
-      .eq('user_id', userId)
-      .eq('chat_id', chatId)
-      .eq('command_type', commandType);
-  }
   /**
    * Save a user session to the database
    */
@@ -152,7 +139,6 @@ export class SessionManager {
       userId: persisted.user_id,
       step: persisted.step,
       transactionData: persisted.transaction_data || {},
-      messageId: persisted.message_id || null,
     };
   }
 
@@ -506,6 +492,46 @@ export class SessionManager {
       return data?.id || null;
     } catch (error) {
       console.error('❌ Failed to get session ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get the last outgoing message ID for a session
+   * This replaces the old message_id field from user_sessions table
+   */
+  async getLastOutgoingMessageId(
+    userId: number,
+    chatId: number,
+    commandType: string,
+  ): Promise<number | null> {
+    try {
+      const sessionId = await this.getSessionId(userId, chatId, commandType);
+      if (!sessionId) {
+        return null;
+      }
+
+      const { data, error } = await this.supabase
+        .from('session_messages')
+        .select('message_id')
+        .eq('session_id', sessionId)
+        .eq('message_type', 'outgoing')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No outgoing messages found
+          return null;
+        }
+        console.error('❌ Error getting last outgoing message ID:', error);
+        throw error;
+      }
+
+      return data?.message_id || null;
+    } catch (error) {
+      console.error('❌ Failed to get last outgoing message ID:', error);
       return null;
     }
   }
