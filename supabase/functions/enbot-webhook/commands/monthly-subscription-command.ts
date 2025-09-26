@@ -599,20 +599,20 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     transactionId: number,
   ): Promise<void> {
     const notificationMessage =
-      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\\nn` +
+      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\n` +
       `Versati ${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
-      }` +
-      `come  quota di ${
+      } come quota di ${
         boldMarkdownV2(
           getMonthByNumber(transactionPayload.month as string)?.full || '',
         )
-      } ${boldMarkdownV2(transactionPayload.year as string)}` +
-      `per ${boldMarkdownV2(transactionPayload.family as string)} ` +
-      ` registrato da: ${
+      } ${boldMarkdownV2(transactionPayload.year as string)} per ${
+        boldMarkdownV2(transactionPayload.family as string)
+      }\n` +
+      `Registrato da: ${
         boldMarkdownV2(transactionPayload.recorded_by as string)
-      }` +
-      '\n Grazie da EnB';
+      }\n` +
+      `Grazie da EnB`;
 
     // Send confirmation message to the chat where the command was issued
     await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });
