@@ -29,6 +29,7 @@
   - [x] 2.3 Check all step presentation messages for proper MarkdownV2 formatting
   - [x] 2.4 Check all error messages for proper MarkdownV2 formatting
   - [x] 2.5 Fix any escaped character issues found in /quota command messages
+  - [x] 2.6 CRITICAL FIX: Add parse_mode: 'MarkdownV2' to amount-step.ts present method
 
 - [ ] 3.0 Enhance markdown utility functions for better consistency
   - [ ] 3.1 Add a function to handle line breaks properly in MarkdownV2

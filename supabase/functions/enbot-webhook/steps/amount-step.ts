@@ -76,7 +76,10 @@ export const presentAmountInput: InputPresenter = (
 
   return {
     text,
-    options: keyboard,
+    options: {
+      ...keyboard,
+      parse_mode: 'MarkdownV2',
+    },
   };
 };
 

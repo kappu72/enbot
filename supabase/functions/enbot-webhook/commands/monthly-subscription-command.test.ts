@@ -77,16 +77,18 @@ Deno.test('Quota notification message formatting', () => {
     '.',
     '!',
   ];
-  
+
   // Remove formatting markers to check content only
   const contentOnly = notificationMessage.replace(/[*_`]/g, '');
-  
+
   for (const char of specialChars) {
     // Check if there are any unescaped special characters in the content
     const regex = new RegExp(`(?<!\\\\)\\${char}`, 'g');
     const matches = contentOnly.match(regex);
     if (matches && matches.length > 0) {
-      console.warn(`Unescaped special character '${char}' found ${matches.length} times in content`);
+      console.warn(
+        `Unescaped special character '${char}' found ${matches.length} times in content`,
+      );
     }
   }
 });
