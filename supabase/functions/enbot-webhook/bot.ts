@@ -10,6 +10,7 @@ import { TelegramClient } from './telegram-client.ts';
 import { AuthManager } from './auth-manager.ts';
 import { CommandRegistry } from './commands/command-registry.ts';
 import { MonthlySubscriptionCommand } from './commands/monthly-subscription-command.ts'; // Now handles /quota command
+import { IncomeCommand } from './commands/income-command.ts'; // Handles /entrata command
 import { HelpCommand } from './commands/help-command.ts';
 import {
   createGoogleSheetsClient,
@@ -65,6 +66,7 @@ export class EnBot {
   private initializeCommands(): void {
     // Register command classes (not instances) this order matters
     this.commandRegistry.registerCommand(MonthlySubscriptionCommand);
+    this.commandRegistry.registerCommand(IncomeCommand);
     // this.commandRegistry.registerCommand(TransactionCommand);
     this.commandRegistry.registerCommand(HelpCommand);
     console.log('🎯 Command system initialized');

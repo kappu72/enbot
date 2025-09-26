@@ -16,24 +16,38 @@ import { boldMarkdownV2, escapeMarkdownV2 } from '../utils/markdown-utils.ts';
 export interface Category {
   id: number;
   name: string;
-  type: 'income' | 'outcome';
+  label: string;
   description?: string;
   is_active: boolean;
   sort_order: number;
+  types: string[]; // Array of types this category belongs to
+}
+
+// Category type definition
+export interface CategoryType {
+  id: number;
+  name: string;
+  description?: string;
 }
 
 /**
  * Fetch categories from database by type
  */
 async function fetchCategoriesByType(
+  // deno-lint-ignore no-explicit-any
   supabase: any,
-  type: 'income' | 'outcome',
+  type: 'income' | 'outcome' | 'creditNote',
 ): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
-    .select('*')
-    .eq('type', type)
+    .select(`
+      id, name, label, description, is_active, sort_order,
+      category_type_assignments!inner(
+        category_types!inner(name)
+      )
+    `)
     .eq('is_active', true)
+    .eq('category_type_assignments.category_types.name', type)
     .order('sort_order', { ascending: true });
 
   if (error) {
@@ -41,7 +55,23 @@ async function fetchCategoriesByType(
     return [];
   }
 
-  return data || [];
+  // Transform the data to include types array
+  // deno-lint-ignore no-explicit-any
+  const categories: Category[] = (data || []).map((item: any) => ({
+    id: item.id,
+    name: item.name,
+    label: item.label,
+    description: item.description,
+    is_active: item.is_active,
+    sort_order: item.sort_order,
+    types:
+      // deno-lint-ignore no-explicit-any
+      item.category_type_assignments?.map((cta: any) =>
+        cta.category_types.name
+      ) || [],
+  }));
+
+  return categories;
 }
 
 /**
@@ -51,8 +81,12 @@ function createCategoryKeyboard(
   categories: Category[],
   currentPage: number = 0,
   itemsPerPage: number = 9,
-): { keyboard: any[][]; hasNext: boolean; hasPrev: boolean } {
-  const keyboard: any[][] = [];
+): {
+  keyboard: { text: string; callback_data: string }[][];
+  hasNext: boolean;
+  hasPrev: boolean;
+} {
+  const keyboard: { text: string; callback_data: string }[][] = [];
   const startIndex = currentPage * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const pageCategories = categories.slice(startIndex, endIndex);
@@ -60,7 +94,7 @@ function createCategoryKeyboard(
   // Create 3x3 grid for categories
   for (let i = 0; i < pageCategories.length; i += 3) {
     const row = pageCategories.slice(i, i + 3).map((category) => ({
-      text: category.name,
+      text: category.label,
       callback_data: `category_${category.id}`,
     }));
     keyboard.push(row);
@@ -128,59 +162,60 @@ export const validateCategory: InputValidator<number> = (
 };
 
 /**
- * Present category selection interface
+ * Create category input presenter for a specific type
  */
-const presentCategoryInput: InputPresenter = async (
-  context: StepContext,
-): Promise<StepContent> => {
-  // Get category type from session data (should be set by previous step)
-  const categoryType =
-    context.session.commandData?.categoryType as 'income' | 'outcome' ||
-    'outcome';
+const createCategoryInputPresenter = (
+  categoryType: 'income' | 'outcome' | 'creditNote',
+): InputPresenter => {
+  return async (context: StepContext): Promise<StepContent> => {
+    const categories = await fetchCategoriesByType(
+      context.supabase,
+      categoryType,
+    );
 
-  const categories = await fetchCategoriesByType(
-    context.supabase,
-    categoryType,
-  );
+    if (categories.length === 0) {
+      return {
+        text: getMessageTitle(context) +
+          `❌ ${
+            escapeMarkdownV2(
+              'Nessuna categoria disponibile per il tipo selezionato.',
+            )
+          }`,
+        options: { parse_mode: 'MarkdownV2' },
+      };
+    }
 
-  if (categories.length === 0) {
-    return {
-      text: getMessageTitle(context) +
-        `❌ ${
-          escapeMarkdownV2(
-            'Nessuna categoria disponibile per il tipo selezionato.',
-          )
-        }`,
-      options: { parse_mode: 'MarkdownV2' },
+    const { keyboard } = createCategoryKeyboard(categories, 0);
+
+    const options = {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+      parse_mode: 'MarkdownV2',
     };
-  }
 
-  const { keyboard } = createCategoryKeyboard(categories, 0);
+    const typeLabel = categoryType === 'income'
+      ? 'Entrate'
+      : categoryType === 'outcome'
+      ? 'Uscite'
+      : 'Note di Credito';
+    const text = getMessageTitle(context) +
+      `📂 ${boldMarkdownV2('Seleziona categoria')} \\(${
+        escapeMarkdownV2(typeLabel)
+      }\\)\n\n` +
+      `👆 Scegli una categoria dalla lista`;
 
-  const options = {
-    reply_markup: {
-      inline_keyboard: keyboard,
-    },
-    parse_mode: 'MarkdownV2',
-  };
-
-  const typeLabel = categoryType === 'income' ? 'Entrate' : 'Uscite';
-  const text = getMessageTitle(context) +
-    `📂 ${boldMarkdownV2('Seleziona categoria')} (${
-      escapeMarkdownV2(typeLabel)
-    })\n\n` +
-    `👆 Scegli una categoria dalla lista`;
-
-  return {
-    text,
-    options,
+    return {
+      text,
+      options,
+    };
   };
 };
 
 /**
  * Handle category selection callbacks with pagination
  */
-const handleCategoryCallback: CallbackHandler<number> = async (
+const handleCategoryCallback: CallbackHandler<number> = (
   callbackQuery: TelegramCallbackQuery,
 ) => {
   const callbackData = callbackQuery.data!;
@@ -199,11 +234,11 @@ const handleCategoryCallback: CallbackHandler<number> = async (
       // Page navigation - return special value to indicate keyboard update needed
       return {
         valid: true,
-        value: 'update_keyboard', // Special value to indicate keyboard update needed
+        value: -1, // Special value to indicate keyboard update needed
         error: undefined,
       };
     }
-  } catch (error) {
+  } catch (_error) {
     return {
       valid: false,
       error: 'Invalid category selection',
@@ -217,56 +252,61 @@ const handleCategoryCallback: CallbackHandler<number> = async (
 };
 
 /**
- * Present updated category interface after page navigation
+ * Create category update presenter for a specific type
  */
-export const presentCategoryUpdate = async (
-  context: StepContext,
-  callbackData: string,
-): Promise<StepContent> => {
-  try {
-    const parsed = parseCallbackData(callbackData);
+export const createCategoryUpdatePresenter = (
+  categoryType: 'income' | 'outcome' | 'creditNote',
+) => {
+  return async (
+    context: StepContext,
+    callbackData: string,
+  ): Promise<StepContent> => {
+    try {
+      const parsed = parseCallbackData(callbackData);
 
-    if (parsed.type === 'page') {
-      const pageNumber = parsed.value;
-      const categoryType =
-        context.session.commandData?.categoryType as 'income' | 'outcome' ||
-        'outcome';
+      if (parsed.type === 'page') {
+        const pageNumber = parsed.value;
 
-      const categories = await fetchCategoriesByType(
-        context.supabase,
-        categoryType,
-      );
-      const { keyboard, hasNext, hasPrev } = createCategoryKeyboard(
-        categories,
-        pageNumber,
-      );
+        const categories = await fetchCategoriesByType(
+          context.supabase,
+          categoryType,
+        );
+        const { keyboard } = createCategoryKeyboard(
+          categories,
+          pageNumber,
+        );
 
-      const options = {
-        reply_markup: {
-          inline_keyboard: keyboard,
-        },
-        parse_mode: 'MarkdownV2',
-      };
+        const options = {
+          reply_markup: {
+            inline_keyboard: keyboard,
+          },
+          parse_mode: 'MarkdownV2',
+        };
 
-      const typeLabel = categoryType === 'income' ? 'Entrate' : 'Uscite';
-      const text = getMessageTitle(context) +
-        `📂 ${boldMarkdownV2('Seleziona categoria')} (${
-          escapeMarkdownV2(typeLabel)
-        })\n\n` +
-        `📄 Pagina ${pageNumber + 1}\n` +
-        `👆 Scegli una categoria dalla lista`;
+        const typeLabel = categoryType === 'income'
+          ? 'Entrate'
+          : categoryType === 'outcome'
+          ? 'Uscite'
+          : 'Note di Credito';
+        const text = getMessageTitle(context) +
+          `📂 ${boldMarkdownV2('Seleziona categoria')} \\(${
+            escapeMarkdownV2(typeLabel)
+          }\\)\n\n` +
+          `📄 Pagina ${pageNumber + 1}\n` +
+          `👆 Scegli una categoria dalla lista`;
 
-      return {
-        text,
-        options,
-      };
+        return {
+          text,
+          options,
+        };
+      }
+    } catch (error) {
+      console.error('Error in presentCategoryUpdate:', error);
     }
-  } catch (error) {
-    console.error('Error in presentCategoryUpdate:', error);
-  }
 
-  // Fallback to initial presentation
-  return await presentCategoryInput(context);
+    // Fallback to initial presentation
+    return await createCategoryInputPresenter(categoryType)(context);
+  };
 };
 
 /**
@@ -289,39 +329,19 @@ export const presentCategoryError: ErrorPresenter = (
 /**
  * Present category selection confirmation
  */
-export const presentCategoryConfirmation: ConfirmationPresenter<number> =
-  async (
-    context: StepContext,
-    selectedCategoryId: number,
-  ): Promise<StepContent> => {
-    // Fetch category details for confirmation
-    const { data: category, error } = await context.supabase
-      .from('categories')
-      .select('name, type')
-      .eq('id', selectedCategoryId)
-      .single();
+export const presentCategoryConfirmation: ConfirmationPresenter<number> = (
+  _context: StepContext,
+  _selectedCategoryId: number,
+): StepContent => {
+  // For now, return a generic confirmation message
+  // The actual category name will be fetched and displayed by the command
+  const text = `✅ 📂 ${boldMarkdownV2('Categoria selezionata')}`;
 
-    if (error || !category) {
-      return {
-        text: `✅ ${boldMarkdownV2('Categoria selezionata')}`,
-        options: { parse_mode: 'MarkdownV2' },
-      };
-    }
-
-    const typeLabel = category.type === 'income' ? 'Entrata' : 'Uscita';
-    const text = `✅ 📂 ${
-      boldMarkdownV2(
-        `Categoria selezionata: ${escapeMarkdownV2(category.name)} (${
-          escapeMarkdownV2(typeLabel)
-        })`,
-      )
-    }`;
-
-    return {
-      text,
-      options: { parse_mode: 'MarkdownV2' }, // No reply_markup = keyboard removed
-    };
+  return {
+    text,
+    options: { parse_mode: 'MarkdownV2' }, // No reply_markup = keyboard removed
   };
+};
 
 const getMessageTitle = (context: StepContext): string => {
   const mention = context.username ? `@${context.username} ` : '';
@@ -329,19 +349,18 @@ const getMessageTitle = (context: StepContext): string => {
 };
 
 /**
- * Create the CategoryStep instance using composition
+ * Create the CategoryStep instance using composition with specific type
  */
-export const createCategoryStep = (): Step<number> => {
+export const createCategoryStep = (
+  categoryType: 'income' | 'outcome' | 'creditNote',
+): Step<number> => {
   return new Step(
     'category',
-    presentCategoryInput,
+    createCategoryInputPresenter(categoryType),
     validateCategory,
     handleCategoryCallback,
     presentCategoryError,
     presentCategoryConfirmation,
-    '📂 Seleziona la categoria della transazione',
+    `📂 Seleziona la categoria per ${categoryType}`,
   );
 };
-
-// Export a default instance
-export const categoryStep = createCategoryStep();
