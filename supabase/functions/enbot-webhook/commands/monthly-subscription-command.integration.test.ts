@@ -101,17 +101,35 @@ Deno.test('Integration: Complete quota notification message generation', () => {
 Deno.test('Integration: Quota notification with various transaction scenarios', () => {
   const testCases = [
     {
-      payload: { amount: 0.50, month: '01', year: '2024', family: 'Rossi', recorded_by: 'Admin' },
+      payload: {
+        amount: 0.50,
+        month: '01',
+        year: '2024',
+        family: 'Rossi',
+        recorded_by: 'Admin',
+      },
       expectedCurrency: '€0\\.50',
       expectedMonth: 'Gennaio',
     },
     {
-      payload: { amount: 100.00, month: '06', year: '2024', family: 'Bianchi', recorded_by: 'User1' },
+      payload: {
+        amount: 100.00,
+        month: '06',
+        year: '2024',
+        family: 'Bianchi',
+        recorded_by: 'User1',
+      },
       expectedCurrency: '€100\\.00',
       expectedMonth: 'Giugno',
     },
     {
-      payload: { amount: 1234.56, month: '12', year: '2023', family: 'Verdi', recorded_by: 'User2' },
+      payload: {
+        amount: 1234.56,
+        month: '12',
+        year: '2023',
+        family: 'Verdi',
+        recorded_by: 'User2',
+      },
       expectedCurrency: '€1234\\.56',
       expectedMonth: 'Dicembre',
     },
@@ -326,7 +344,8 @@ Deno.test('Integration: Quota notification edge cases', () => {
   );
 
   // Test with very long family name
-  const longFamilyName = 'Very Long Family Name With Many Words That Could Cause Issues';
+  const longFamilyName =
+    'Very Long Family Name With Many Words That Could Cause Issues';
   const longFamilyPayload = {
     amount: 25.50,
     month: '01',
@@ -389,7 +408,7 @@ Deno.test('Integration: Quota notification message structure validation', () => 
   assertEquals(
     notificationMessage.length < 4096,
     true,
-    'Message should be under Telegram\'s 4096 character limit',
+    "Message should be under Telegram's 4096 character limit",
   );
 
   // Verify message contains all required components
@@ -412,7 +431,8 @@ Deno.test('Integration: Quota notification message structure validation', () => 
   }
 
   // Verify message structure with regex
-  const messageStructureRegex = /🔔 \*Quota Mensile Registrata\*\nVersati €[\d\\.]+ come quota di \*[\w]+\* \*[\d]+\* per \*[\w\\-]+\*\nRegistrato da: \*[\w\\_]+\*\nGrazie da EnB/;
+  const messageStructureRegex =
+    /🔔 \*Quota Mensile Registrata\*\nVersati €[\d\\.]+ come quota di \*[\w]+\* \*[\d]+\* per \*[\w\\-]+\*\nRegistrato da: \*[\w\\_]+\*\nGrazie da EnB/;
   assertEquals(
     messageStructureRegex.test(notificationMessage),
     true,

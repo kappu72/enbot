@@ -45,9 +45,9 @@
   - [x] 4.4 Add tests for edge cases with special characters
   - [x] 4.5 Add tests for multi-line message formatting
 
-- [ ] 5.0 Update Telegram client to ensure consistent MarkdownV2 usage
-  - [ ] 5.1 Add parse_mode: 'MarkdownV2' to sendMessage method by default
-  - [ ] 5.2 Update editMessage method to ensure consistent MarkdownV2 usage
-  - [ ] 5.3 Add validation to prevent sending improperly formatted messages
+- [x] 5.0 Update Telegram client to ensure consistent MarkdownV2 usage
+  - [x] 5.1 Add parse_mode: 'MarkdownV2' to sendMessage method by default
+  - [x] 5.2 Update editMessage method to ensure consistent MarkdownV2 usage
+  - [x] 5.3 Add validation to prevent sending improperly formatted messages
   - [ ] 5.4 Update error handling for MarkdownV2 parsing errors
   - [ ] 5.5 Add logging for message formatting issues

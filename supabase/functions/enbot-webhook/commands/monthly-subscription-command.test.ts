@@ -2,8 +2,8 @@ import { assertEquals } from 'https://deno.land/std@0.208.0/assert/mod.ts';
 import {
   boldMarkdownV2,
   formatCurrencyMarkdownV2,
-  validateMarkdownV2,
   formatMultiLineMarkdownV2,
+  validateMarkdownV2,
 } from '../utils/markdown-utils.ts';
 import { getMonthByNumber } from '../utils/date-utils.ts';
 
@@ -206,9 +206,11 @@ Deno.test('Quota notification with special characters in family names', () => {
 Deno.test('Multi-line quota notification formatting', () => {
   const lines = [
     '🔔 ' + boldMarkdownV2('Quota Mensile Registrata'),
-    'Versati ' + formatCurrencyMarkdownV2(25.50) + ' come quota di ' + boldMarkdownV2('Gennaio') + ' ' + boldMarkdownV2('2024') + ' per ' + boldMarkdownV2('Rossi'),
+    'Versati ' + formatCurrencyMarkdownV2(25.50) + ' come quota di ' +
+    boldMarkdownV2('Gennaio') + ' ' + boldMarkdownV2('2024') + ' per ' +
+    boldMarkdownV2('Rossi'),
     'Registrato da: ' + boldMarkdownV2('Admin'),
-    'Grazie da EnB'
+    'Grazie da EnB',
   ];
 
   const message = formatMultiLineMarkdownV2(lines);
@@ -269,7 +271,8 @@ Deno.test('Quota notification edge cases', () => {
   // assertEquals(validation.isValid, true, `Message with empty family should be valid: ${validation.errors.join(', ')}`);
 
   // Test with very long family name
-  const longFamilyName = 'Very Long Family Name With Many Words That Could Cause Issues';
+  const longFamilyName =
+    'Very Long Family Name With Many Words That Could Cause Issues';
   const longFamilyPayload = {
     amount: 25.50,
     month: '01',
