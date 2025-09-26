@@ -1,5 +1,8 @@
 import { assertEquals } from 'https://deno.land/std@0.208.0/assert/mod.ts';
-import { boldMarkdownV2, formatCurrencyMarkdownV2 } from '../utils/markdown-utils.ts';
+import {
+  boldMarkdownV2,
+  formatCurrencyMarkdownV2,
+} from '../utils/markdown-utils.ts';
 import { getMonthByNumber } from '../utils/date-utils.ts';
 
 // Test the notification message formatting
@@ -10,7 +13,7 @@ Deno.test('Quota notification message formatting', () => {
     month: '01',
     year: '2024',
     family: 'Rossi',
-    recorded_by: 'Admin'
+    recorded_by: 'Admin',
   };
 
   // Build the notification message (same logic as in the command)
@@ -35,14 +38,45 @@ Deno.test('Quota notification message formatting', () => {
   console.log('---');
 
   // Test that the message contains proper line breaks
-  assertEquals(notificationMessage.includes('\n'), true, 'Message should contain line breaks');
-  
+  assertEquals(
+    notificationMessage.includes('\n'),
+    true,
+    'Message should contain line breaks',
+  );
+
   // Test that the message doesn't contain escaped characters
-  assertEquals(notificationMessage.includes('\\n'), false, 'Message should not contain escaped \\n');
-  assertEquals(notificationMessage.includes('\\nn'), false, 'Message should not contain escaped \\nn');
-  
+  assertEquals(
+    notificationMessage.includes('\\n'),
+    false,
+    'Message should not contain escaped \\n',
+  );
+  assertEquals(
+    notificationMessage.includes('\\nn'),
+    false,
+    'Message should not contain escaped \\nn',
+  );
+
   // Test that MarkdownV2 special characters are properly escaped
-  const specialChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+  const specialChars = [
+    '_',
+    '*',
+    '[',
+    ']',
+    '(',
+    ')',
+    '~',
+    '`',
+    '>',
+    '#',
+    '+',
+    '-',
+    '=',
+    '|',
+    '{',
+    '}',
+    '.',
+    '!',
+  ];
   for (const char of specialChars) {
     // Check that special characters in the content are escaped (but not in the formatting)
     const contentParts = notificationMessage.split(/[*_`]/);
@@ -58,13 +92,25 @@ Deno.test('Quota notification message formatting', () => {
 Deno.test('Markdown utility functions', () => {
   // Test bold formatting
   const boldText = boldMarkdownV2('Test Text');
-  assertEquals(boldText, '*Test Text*', 'Bold formatting should work correctly');
-  
+  assertEquals(
+    boldText,
+    '*Test Text*',
+    'Bold formatting should work correctly',
+  );
+
   // Test currency formatting
   const currencyText = formatCurrencyMarkdownV2(25.50);
-  assertEquals(currencyText, '€25\\.50', 'Currency formatting should escape special characters');
-  
+  assertEquals(
+    currencyText,
+    '€25\\.50',
+    'Currency formatting should escape special characters',
+  );
+
   // Test with special characters
   const specialText = boldMarkdownV2('Text with _underscore_ and *asterisk*');
-  assertEquals(specialText, '*Text with \\_underscore\\_ and \\*asterisk\\**', 'Special characters should be escaped');
+  assertEquals(
+    specialText,
+    '*Text with \\_underscore\\_ and \\*asterisk\\**',
+    'Special characters should be escaped',
+  );
 });

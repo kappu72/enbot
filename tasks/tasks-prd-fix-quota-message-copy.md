@@ -23,12 +23,12 @@
   - [x] 1.2 Test the quota command to verify line breaks render correctly
   - [x] 1.3 Verify the notification message displays properly formatted
 
-- [ ] 2.0 Audit and fix MarkdownV2 formatting across all commands
-  - [ ] 2.1 Review help-command.ts for MarkdownV2 formatting issues
-  - [ ] 2.2 Review transaction-command.ts for MarkdownV2 formatting issues
-  - [ ] 2.3 Check all sendMessage calls for proper parse_mode usage
-  - [ ] 2.4 Ensure all editMessage calls use MarkdownV2 consistently
-  - [ ] 2.5 Fix any escaped character issues found in other commands
+- [x] 2.0 Audit and fix MarkdownV2 formatting in /quota command
+  - [x] 2.1 Review all sendMessage calls in monthly-subscription-command.ts
+  - [x] 2.2 Review all editMessage calls in monthly-subscription-command.ts
+  - [x] 2.3 Check all step presentation messages for proper MarkdownV2 formatting
+  - [x] 2.4 Check all error messages for proper MarkdownV2 formatting
+  - [x] 2.5 Fix any escaped character issues found in /quota command messages
 
 - [ ] 3.0 Enhance markdown utility functions for better consistency
   - [ ] 3.1 Add a function to handle line breaks properly in MarkdownV2

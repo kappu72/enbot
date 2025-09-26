@@ -488,7 +488,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       if (error) {
         console.error('Error saving quote transaction:', error);
         await this.sendMessage(
-          '❌ Errore durante il salvataggio della quota. Riprova.',
+          '❌ Errore durante il salvataggio della quota\\. Riprova\\.',
+          { parse_mode: 'MarkdownV2' }
         );
         return { success: false, message: 'Database error' };
       }
@@ -509,7 +510,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita. Verrà ritentata automaticamente.',
+            '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            { parse_mode: 'MarkdownV2' }
           );
         }
       } else {
@@ -523,7 +525,10 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       return { success: true, message: 'Quote completed successfully' };
     } catch (error) {
       console.error('Error completing quote:', error);
-      await this.sendMessage('❌ Errore durante il completamento della quota.');
+      await this.sendMessage(
+        '❌ Errore durante il completamento della quota\\.',
+        { parse_mode: 'MarkdownV2' }
+      );
       return { success: false, message: 'Completion error' };
     }
   }
