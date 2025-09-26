@@ -41,14 +41,15 @@ async function fetchCategoriesByType(
   const { data, error } = await supabase
     .from('categories')
     .select(`
-      id, name, label, description, is_active, sort_order,
+      id, name, label, description, is_active,
       category_type_assignments!inner(
+        sort_order,
         category_types!inner(name)
       )
     `)
     .eq('is_active', true)
     .eq('category_type_assignments.category_types.name', type)
-    .order('sort_order', { ascending: true });
+    .order('category_type_assignments.sort_order', { ascending: true });
 
   if (error) {
     console.error('Error fetching categories:', error);
@@ -63,7 +64,7 @@ async function fetchCategoriesByType(
     label: item.label,
     description: item.description,
     is_active: item.is_active,
-    sort_order: item.sort_order,
+    sort_order: item.category_type_assignments?.[0]?.sort_order || 0,
     types:
       // deno-lint-ignore no-explicit-any
       item.category_type_assignments?.map((cta: any) =>
@@ -133,12 +134,12 @@ function parseCallbackData(callbackData: string): {
   type: 'category' | 'page';
   value: number;
 } {
-  if (callbackData.startsWith('category_')) {
-    const categoryId = parseInt(callbackData.replace('category_', ''));
-    return { type: 'category', value: categoryId };
-  } else if (callbackData.startsWith('category_page_')) {
+  if (callbackData.startsWith('category_page_')) {
     const pageNumber = parseInt(callbackData.replace('category_page_', ''));
     return { type: 'page', value: pageNumber };
+  } else if (callbackData.startsWith('category_')) {
+    const categoryId = parseInt(callbackData.replace('category_', ''));
+    return { type: 'category', value: categoryId };
   }
   throw new Error('Invalid callback data');
 }

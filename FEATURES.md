@@ -30,21 +30,21 @@
 
 ### Bot Functionality
 
-- [ ] **Implement "entrate cassa" command**
+- [X] **Implement "entrate cassa" command**
   - Create new EntrateCassaCommand class for cash inflows
   - Add step-by-step flow for cash income entry
   - Add validation for positive amounts
   - Store transactions in database with proper categorization
   - **Priority**: High | **Effort**: Medium
 
-- [ ] **Implement "uscite cassa" command**
+- [X] **Implement "uscite cassa" command**
   - Create new UsciteCassaCommand class for cash outflows
   - Add step-by-step flow for cash expense entry
   - Add validation for positive amounts
   - Store transactions in database with proper categorization
   - **Priority**: High | **Effort**: Medium
 
-- [ ] **Implement "note di credito" command**
+- [X] **Implement "note di credito" command**
   - Create new NoteDiCreditoCommand class for credit notes
   - Add step-by-step flow for credit note entry
   - Add validation for negative amounts (credits)

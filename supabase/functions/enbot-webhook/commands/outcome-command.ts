@@ -1,4 +1,4 @@
-// Income command implementation - handles all types of income transactions
+// Outcome command implementation - handles all types of outcome transactions
 import type {
   CommandContext,
   CommandResult,
@@ -35,20 +35,21 @@ enum STEPS {
   'Period' = 'period',
 }
 
-export class IncomeCommand extends BaseCommand {
-  static commandName = 'entrata';
-  static description = '💰 Registra una nuova entrata';
-  private readonly messagePrefix = '__entrata:';
+export class OutcomeCommand extends BaseCommand {
+  static commandName = 'uscita';
+  static description = '💸 Registra una nuova uscita';
+  private readonly messagePrefix = '__uscita:';
 
   constructor(context: CommandContext) {
-    super(context, IncomeCommand.commandName);
+    super(context, OutcomeCommand.commandName);
   }
 
   /**
-   * Check if the current category requires a description step
+   * Check if the current category requires a person name step
    */
-  private requiresDescriptionStep(categoryName: string): boolean {
-    return categoryName === 'Eventi' || categoryName === 'Altro';
+  private requiresPersonNameStep(categoryName: string): boolean {
+    return categoryName === 'Stipendi contributi' ||
+      categoryName === 'Rimborsi';
   }
 
   async execute(): Promise<CommandResult> {
@@ -66,13 +67,13 @@ export class IncomeCommand extends BaseCommand {
   private async handleMessage(
     message: TelegramMessage,
   ): Promise<CommandResult> {
-    // Check if this is a command initiation (both /entrata and /entrata@botname)
+    // Check if this is a command initiation (both /uscita and /uscita@botname)
     const commandPrefix = `/${this.commandName}`;
     const isCommandStart = message.text === commandPrefix ||
       (message.text?.startsWith(commandPrefix + '@') ?? false);
 
     if (isCommandStart) {
-      return await this.startIncome();
+      return await this.startOutcome();
     } else {
       return await this.handleTextInput(message.text!);
     }
@@ -86,7 +87,7 @@ export class IncomeCommand extends BaseCommand {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
     console.log(
-      '🔍 IncomeCommand: Handling callback query:',
+      '🔍 OutcomeCommand: Handling callback query:',
       callbackQuery,
       session,
     );
@@ -132,11 +133,11 @@ export class IncomeCommand extends BaseCommand {
     };
   }
 
-  private async startIncome(): Promise<CommandResult> {
+  private async startOutcome(): Promise<CommandResult> {
     // Clean any existing session with message cleanup
     await this.deleteUserSessionWithCleanup(true, false);
 
-    // Initialize new income session
+    // Initialize new outcome session
     const session: CommandSession = {
       chatId: this.context.chatId,
       userId: this.context.userId,
@@ -165,7 +166,7 @@ export class IncomeCommand extends BaseCommand {
 
     await this.sendCategoryPromptWithStep();
 
-    return { success: true, message: 'Income started' };
+    return { success: true, message: 'Outcome started' };
   }
 
   private async handleTextInput(text: string): Promise<CommandResult> {
@@ -183,7 +184,7 @@ export class IncomeCommand extends BaseCommand {
       default:
         return {
           success: false,
-          message: "Passo non valido per l'inserimento di un'entrata",
+          message: "Passo non valido per l'inserimento di un'uscita",
         };
     }
   }
@@ -193,7 +194,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing category selection:',
+      '🔍 OutcomeCommand: Processing category selection:',
       callbackData,
     );
 
@@ -205,7 +206,7 @@ export class IncomeCommand extends BaseCommand {
 
     // Process callback using CategoryStep
     const callbackQuery = this.context.callbackQuery!;
-    const categoryStep = createCategoryStep('income');
+    const categoryStep = createCategoryStep('outcome');
     const result = await categoryStep.processCallback(
       callbackQuery,
       stepContext,
@@ -215,12 +216,12 @@ export class IncomeCommand extends BaseCommand {
       if (result.processedValue === -1) {
         // Page navigation - update keyboard without completing step
         console.log(
-          '🔄 IncomeCommand: Updating category keyboard:',
+          '🔄 OutcomeCommand: Updating category keyboard:',
           callbackData,
         );
 
         // Update the message with new keyboard state
-        const presentCategoryUpdate = createCategoryUpdatePresenter('income');
+        const presentCategoryUpdate = createCategoryUpdatePresenter('outcome');
         const updateContent = await presentCategoryUpdate(
           stepContext,
           callbackData,
@@ -259,10 +260,17 @@ export class IncomeCommand extends BaseCommand {
 
         session.transactionData.category = category.name;
         session.commandData.categoryId = categoryId;
-        session.step = STEPS.PersonName;
+
+        // Check if we need person name step based on category
+        const categoryName = category.name;
+        if (this.requiresPersonNameStep(categoryName)) {
+          session.step = STEPS.PersonName;
+        } else {
+          session.step = STEPS.Amount;
+        }
 
         console.log(
-          '✅ IncomeCommand: Category completed:',
+          '✅ OutcomeCommand: Category completed:',
           category.name,
         );
 
@@ -287,11 +295,15 @@ export class IncomeCommand extends BaseCommand {
         );
 
         // Continue to next step
-        await this.sendPersonNamePromptWithStep();
+        if (this.requiresPersonNameStep(categoryName)) {
+          await this.sendPersonNamePromptWithStep();
+        } else {
+          await this.sendAmountPromptWithStep();
+        }
 
         return {
           success: true,
-          message: 'Category selected for income',
+          message: 'Category selected for outcome',
         };
       } else {
         // Handle other valid callbacks (like noop)
@@ -302,7 +314,7 @@ export class IncomeCommand extends BaseCommand {
       }
     } else {
       console.log(
-        '❌ IncomeCommand: Category selection failed:',
+        '❌ OutcomeCommand: Category selection failed:',
         result.error,
       );
       return {
@@ -317,7 +329,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing person name input:',
+      '🔍 OutcomeCommand: Processing person name input:',
       text,
     );
 
@@ -339,7 +351,7 @@ export class IncomeCommand extends BaseCommand {
       // If we're in new contact mode, save to database first
       if (isNewContactMode) {
         console.log(
-          '➕ IncomeCommand: Saving new contact:',
+          '➕ OutcomeCommand: Saving new contact:',
           contactName,
         );
 
@@ -373,10 +385,10 @@ export class IncomeCommand extends BaseCommand {
         confirmationContent.options,
       );
       await this.sendAmountPromptWithStep();
-      return { success: true, message: 'Person name selected for income' };
+      return { success: true, message: 'Person name selected for outcome' };
     } else {
       console.log(
-        '❌ IncomeCommand: Person name validation failed:',
+        '❌ OutcomeCommand: Person name validation failed:',
         result.error,
       );
       // Present error using PersonNameStep's error presenter
@@ -394,7 +406,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing person name selection:',
+      '🔍 OutcomeCommand: Processing person name selection:',
       callbackData,
     );
 
@@ -415,7 +427,7 @@ export class IncomeCommand extends BaseCommand {
       if (result.processedValue === 'UPDATE_KEYBOARD') {
         // Page navigation - update keyboard without completing step
         console.log(
-          '🔄 IncomeCommand: Updating contacts keyboard:',
+          '🔄 OutcomeCommand: Updating contacts keyboard:',
           callbackData,
         );
 
@@ -441,7 +453,7 @@ export class IncomeCommand extends BaseCommand {
       } else if (result.processedValue === 'NEW_CONTACT_MODE') {
         // Switch to text input mode for new contact
         console.log(
-          '➕ IncomeCommand: Switching to new contact input mode',
+          '➕ OutcomeCommand: Switching to new contact input mode',
         );
 
         // Present new contact input interface
@@ -468,7 +480,7 @@ export class IncomeCommand extends BaseCommand {
         session.step = STEPS.Amount;
 
         console.log(
-          '✅ IncomeCommand: Person name completed:',
+          '✅ OutcomeCommand: Person name completed:',
           contactName,
         );
 
@@ -497,7 +509,7 @@ export class IncomeCommand extends BaseCommand {
 
         return {
           success: true,
-          message: 'Person name selected for income',
+          message: 'Person name selected for outcome',
         };
       } else {
         // Handle other valid callbacks (like noop)
@@ -508,7 +520,7 @@ export class IncomeCommand extends BaseCommand {
       }
     } else {
       console.log(
-        '❌ IncomeCommand: Person name callback failed:',
+        '❌ OutcomeCommand: Person name callback failed:',
         result.error,
       );
       return {
@@ -523,7 +535,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing amount input:',
+      '🔍 OutcomeCommand: Processing amount input:',
       text,
     );
 
@@ -539,14 +551,7 @@ export class IncomeCommand extends BaseCommand {
     if (result.success) {
       // Save the validated amount in session
       session.transactionData.amount = result.processedValue;
-
-      // Check if we need description step based on category
-      const categoryName = session.transactionData.category as string;
-      if (this.requiresDescriptionStep(categoryName)) {
-        session.step = STEPS.Description;
-      } else {
-        session.step = STEPS.Period;
-      }
+      session.step = STEPS.Description;
 
       await this.saveSession(session);
 
@@ -560,16 +565,12 @@ export class IncomeCommand extends BaseCommand {
         confirmationContent.options,
       );
 
-      // Continue to next step
-      if (this.requiresDescriptionStep(categoryName)) {
-        await this.sendDescriptionPromptWithStep();
-      } else {
-        await this.sendPeriodPromptWithStep();
-      }
-      return { success: true, message: 'Amount entered for income' };
+      // Continue to next step (always description for outcome)
+      await this.sendDescriptionPromptWithStep();
+      return { success: true, message: 'Amount entered for outcome' };
     } else {
       console.log(
-        '❌ IncomeCommand: Amount validation failed:',
+        '❌ OutcomeCommand: Amount validation failed:',
         result.error,
       );
       // Present error using AmountStep's error presenter
@@ -587,7 +588,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing description input:',
+      '🔍 OutcomeCommand: Processing description input:',
       text,
     );
 
@@ -619,10 +620,10 @@ export class IncomeCommand extends BaseCommand {
 
       // Continue to next step
       await this.sendPeriodPromptWithStep();
-      return { success: true, message: 'Description entered for income' };
+      return { success: true, message: 'Description entered for outcome' };
     } else {
       console.log(
-        '❌ IncomeCommand: Description validation failed:',
+        '❌ OutcomeCommand: Description validation failed:',
         result.error,
       );
       // Present error using DescriptionStep's error presenter
@@ -641,7 +642,7 @@ export class IncomeCommand extends BaseCommand {
     session: CommandSession,
   ): Promise<CommandResult> {
     console.log(
-      '🔍 IncomeCommand: Processing period selection:',
+      '🔍 OutcomeCommand: Processing period selection:',
       callbackData,
     );
 
@@ -660,7 +661,7 @@ export class IncomeCommand extends BaseCommand {
       if (result.processedValue === 'update_keyboard') {
         // Month or year selection - update keyboard without completing step
         console.log(
-          '🔄 IncomeCommand: Updating period keyboard:',
+          '🔄 OutcomeCommand: Updating period keyboard:',
           callbackData,
         );
 
@@ -684,7 +685,7 @@ export class IncomeCommand extends BaseCommand {
         // Final confirmation - complete the step
         session.transactionData.period = result.processedValue as string;
         console.log(
-          '✅ IncomeCommand: Period completed:',
+          '✅ OutcomeCommand: Period completed:',
           result.processedValue,
         );
 
@@ -709,11 +710,11 @@ export class IncomeCommand extends BaseCommand {
         );
 
         // Complete the transaction (no more steps needed)
-        return await this.completeIncome(session);
+        return await this.completeOutcome(session);
       }
     } else {
       console.log(
-        '❌ IncomeCommand: Period selection failed:',
+        '❌ OutcomeCommand: Period selection failed:',
         result.error,
       );
       // For callback errors, we typically send a new message
@@ -733,7 +734,7 @@ export class IncomeCommand extends BaseCommand {
    * Completion handler - finalizes the transaction after all steps are completed
    * This is NOT a step, but the business logic that runs after input collection
    */
-  private async completeIncome(
+  private async completeOutcome(
     session: CommandSession,
   ): Promise<CommandResult> {
     // split the period into month and year
@@ -754,9 +755,9 @@ export class IncomeCommand extends BaseCommand {
         .single();
 
       if (error) {
-        console.error('Error saving income transaction:', error);
+        console.error('Error saving outcome transaction:', error);
         await this.sendMessage(
-          "❌ Errore durante il salvataggio dell'entrata\\. Riprova\\.",
+          "❌ Errore durante il salvataggio dell'uscita\\. Riprova\\.",
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -779,7 +780,7 @@ export class IncomeCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            '⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            '⚠️ Uscita salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -791,11 +792,11 @@ export class IncomeCommand extends BaseCommand {
 
       await this.sendNotification(transactionPayload, transactionId);
 
-      return { success: true, message: 'Income completed successfully' };
+      return { success: true, message: 'Outcome completed successfully' };
     } catch (error) {
-      console.error('Error completing income:', error);
+      console.error('Error completing outcome:', error);
       await this.sendMessage(
-        "❌ Errore durante il completamento dell'entrata\\.",
+        "❌ Errore durante il completamento dell'uscita\\.",
         { parse_mode: 'MarkdownV2' },
       );
       return { success: false, message: 'Completion error' };
@@ -810,7 +811,7 @@ export class IncomeCommand extends BaseCommand {
     }
 
     console.log(
-      '🔍 IncomeCommand: Current session before CategoryStep:',
+      '🔍 OutcomeCommand: Current session before CategoryStep:',
       session,
     );
 
@@ -819,10 +820,10 @@ export class IncomeCommand extends BaseCommand {
       session,
     };
 
-    const categoryStep = createCategoryStep('income');
+    const categoryStep = createCategoryStep('outcome');
     const content = await categoryStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: CategoryStep presented');
+    console.log('🔍 OutcomeCommand: CategoryStep presented');
   }
 
   private async sendAmountPromptWithStep(): Promise<void> {
@@ -833,7 +834,7 @@ export class IncomeCommand extends BaseCommand {
     }
 
     console.log(
-      '🔍 IncomeCommand: Current session before AmountStep:',
+      '🔍 OutcomeCommand: Current session before AmountStep:',
       session,
     );
 
@@ -844,7 +845,7 @@ export class IncomeCommand extends BaseCommand {
 
     const content = await amountStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: AmountStep presented');
+    console.log('🔍 OutcomeCommand: AmountStep presented');
   }
 
   private async sendDescriptionPromptWithStep(): Promise<void> {
@@ -855,7 +856,7 @@ export class IncomeCommand extends BaseCommand {
     }
 
     console.log(
-      '🔍 IncomeCommand: Current session before DescriptionStep:',
+      '🔍 OutcomeCommand: Current session before DescriptionStep:',
       session,
     );
 
@@ -866,7 +867,7 @@ export class IncomeCommand extends BaseCommand {
 
     const content = descriptionStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: DescriptionStep presented');
+    console.log('🔍 OutcomeCommand: DescriptionStep presented');
   }
 
   // UI Helper methods
@@ -877,7 +878,7 @@ export class IncomeCommand extends BaseCommand {
     }
 
     console.log(
-      '🔍 IncomeCommand: Current session before PersonNameStep:',
+      '🔍 OutcomeCommand: Current session before PersonNameStep:',
       session,
     );
 
@@ -888,7 +889,7 @@ export class IncomeCommand extends BaseCommand {
 
     const content = await personNameStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: PersonNameStep presented');
+    console.log('🔍 OutcomeCommand: PersonNameStep presented');
   }
 
   // PeriodStep method
@@ -899,7 +900,7 @@ export class IncomeCommand extends BaseCommand {
     }
 
     console.log(
-      '🔍 IncomeCommand: Current session before PeriodStep:',
+      '🔍 OutcomeCommand: Current session before PeriodStep:',
       session,
     );
 
@@ -910,7 +911,7 @@ export class IncomeCommand extends BaseCommand {
 
     const content = await periodStep.present(stepContext);
     await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: PeriodStep presented');
+    console.log('🔍 OutcomeCommand: PeriodStep presented');
   }
 
   private async sendNotification(
@@ -924,12 +925,12 @@ export class IncomeCommand extends BaseCommand {
     const recordedBy = transactionPayload.recorded_by as string;
 
     const notificationMessage =
-      `🔔  ${boldMarkdownV2('Entrata Registrata')}\n\n` +
-      `Ricevuti *${
+      `🔔  ${boldMarkdownV2('Uscita Registrata')}\n\n` +
+      `Spesi *${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
       }* per ${boldMarkdownV2(categoryName)} di ${boldMarkdownV2(monthName)} ${
         boldMarkdownV2(transactionPayload.year as string)
-      } da ${boldMarkdownV2(familyName)}\n\n` +
+      }${familyName ? ` da ${boldMarkdownV2(familyName)}` : ''}\n\n` +
       `Registrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
       `Grazie da EnB`;
 
@@ -941,14 +942,16 @@ export class IncomeCommand extends BaseCommand {
       true,
     );
 
-    console.log(`✅ Income notification sent for transaction ${transactionId}`);
+    console.log(
+      `✅ Outcome notification sent for transaction ${transactionId}`,
+    );
   }
 
   override getHelpText(): string {
-    return '/entrata - Registra una nuova entrata';
+    return '/uscita - Registra una nuova uscita';
   }
 
   override getDescription(): string {
-    return IncomeCommand.description;
+    return OutcomeCommand.description;
   }
 }
