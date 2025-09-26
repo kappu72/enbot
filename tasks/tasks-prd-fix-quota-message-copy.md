@@ -38,12 +38,12 @@
   - [x] 3.4 Update existing utility functions to handle edge cases
   - [x] 3.5 Add documentation for all markdown utility functions
 
-- [ ] 4.0 Add comprehensive testing for message formatting
-  - [ ] 4.1 Create unit tests for markdown-utils.ts functions
-  - [ ] 4.2 Create unit tests for monthly-subscription-command notification message
-  - [ ] 4.3 Create integration tests for quota command message formatting
-  - [ ] 4.4 Add tests for edge cases with special characters
-  - [ ] 4.5 Add tests for multi-line message formatting
+- [x] 4.0 Add comprehensive testing for message formatting
+  - [x] 4.1 Create unit tests for markdown-utils.ts functions
+  - [x] 4.2 Create unit tests for monthly-subscription-command notification message
+  - [x] 4.3 Create integration tests for quota command message formatting
+  - [x] 4.4 Add tests for edge cases with special characters
+  - [x] 4.5 Add tests for multi-line message formatting
 
 - [ ] 5.0 Update Telegram client to ensure consistent MarkdownV2 usage
   - [ ] 5.1 Add parse_mode: 'MarkdownV2' to sendMessage method by default
