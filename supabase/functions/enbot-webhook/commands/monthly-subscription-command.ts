@@ -9,16 +9,12 @@ import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import {
   personNameStep,
   presentNewContactInput,
-  presentPersonNameConfirmation,
   saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
-import { amountStep, presentAmountConfirmation } from '../steps/amount-step.ts';
+import { amountStep } from '../steps/amount-step.ts';
 import { periodStep } from '../steps/period-step.ts';
-import {
-  presentPeriodConfirmation,
-  presentPeriodUpdate,
-} from '../steps/period-step.ts';
+import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 import {
   boldMarkdownV2,
@@ -202,6 +198,15 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       session.step = STEPS.Amount;
 
       await this.saveSession(session);
+      // Show confirmation with keyboard removed
+      const confirmationContent = personNameStep.presentConfirmation(
+        stepContext,
+        contactName,
+      );
+      await this.editLastMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
       await this.sendAmountPromptWithStep();
       return { success: true, message: 'Person name selected for quote' };
     } else {
@@ -297,7 +302,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         await this.saveSession(session);
 
         // Show confirmation with keyboard removed
-        const confirmationContent = presentPersonNameConfirmation(
+        const confirmationContent = personNameStep.presentConfirmation(
           stepContext,
           contactName,
         );
@@ -358,7 +363,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       await this.saveSession(session);
 
       // Show confirmation with explicit keyboard removal
-      const confirmationContent = presentAmountConfirmation(
+      const confirmationContent = amountStep.presentConfirmation(
         stepContext,
         result.processedValue as number,
       );
@@ -433,7 +438,7 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         await this.saveSession(session);
 
         // Show confirmation with keyboard removed
-        const confirmationContent = presentPeriodConfirmation(
+        const confirmationContent = periodStep.presentConfirmation(
           stepContext,
           result.processedValue!,
         );
@@ -488,7 +493,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       if (error) {
         console.error('Error saving quote transaction:', error);
         await this.sendMessage(
-          '❌ Errore durante il salvataggio della quota. Riprova.',
+          '❌ Errore durante il salvataggio della quota\\. Riprova\\.',
+          { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
       }
@@ -509,7 +515,8 @@ export class MonthlySubscriptionCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita. Verrà ritentata automaticamente.',
+            '⚠️ Quota salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            { parse_mode: 'MarkdownV2' },
           );
         }
       } else {
@@ -523,7 +530,10 @@ export class MonthlySubscriptionCommand extends BaseCommand {
       return { success: true, message: 'Quote completed successfully' };
     } catch (error) {
       console.error('Error completing quote:', error);
-      await this.sendMessage('❌ Errore durante il completamento della quota.');
+      await this.sendMessage(
+        '❌ Errore durante il completamento della quota\\.',
+        { parse_mode: 'MarkdownV2' },
+      );
       return { success: false, message: 'Completion error' };
     }
   }
@@ -599,20 +609,20 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     transactionId: number,
   ): Promise<void> {
     const notificationMessage =
-      `🔔 ${boldMarkdownV2('Quota Mensile Registrata')}\\nn` +
-      `Versati ${
+      `🔔  ${boldMarkdownV2('Quota Mensile Registrata')}\n\n` +
+      `Versati *${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
-      }` +
-      `come  quota di ${
+      }* come quota di ${
         boldMarkdownV2(
           getMonthByNumber(transactionPayload.month as string)?.full || '',
         )
-      } ${boldMarkdownV2(transactionPayload.year as string)}` +
-      `per ${boldMarkdownV2(transactionPayload.family as string)} ` +
-      ` registrato da: ${
+      } ${boldMarkdownV2(transactionPayload.year as string)} per ${
+        boldMarkdownV2(transactionPayload.family as string)
+      }\n\n` +
+      `Registrato da: ${
         boldMarkdownV2(transactionPayload.recorded_by as string)
-      }` +
-      '\n Grazie da EnB';
+      }\n\n` +
+      `Grazie da EnB`;
 
     // Send confirmation message to the chat where the command was issued
     await this.sendMessage(notificationMessage, { parse_mode: 'MarkdownV2' });

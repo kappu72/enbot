@@ -51,6 +51,11 @@ export type ErrorPresenter = (
   error: string,
 ) => StepContent;
 
+export type ConfirmationPresenter<T = unknown> = (
+  context: StepContext,
+  selectedValue: T,
+) => StepContent;
+
 // Main Step class using composition
 export class Step<T = unknown> {
   constructor(
@@ -59,6 +64,7 @@ export class Step<T = unknown> {
     private validator?: InputValidator<T>,
     private callbackHandler?: CallbackHandler<T>,
     private errorPresenter?: ErrorPresenter,
+    private confirmationPresenter?: ConfirmationPresenter<T>,
     private helpText: string = 'Nessun aiuto disponibile',
   ) {}
 
@@ -83,6 +89,17 @@ export class Step<T = unknown> {
       };
     }
     return this.errorPresenter(context, error);
+  }
+
+  presentConfirmation(context: StepContext, selectedValue: T): StepContent {
+    if (!this.confirmationPresenter) {
+      // Fallback generico per conferme
+      return {
+        text: `✅ ${this.name} completato`,
+        options: { parse_mode: 'MarkdownV2' },
+      };
+    }
+    return this.confirmationPresenter(context, selectedValue);
   }
 
   processInput(input: string, _context: StepContext): StepResult<T> {

@@ -1,6 +1,7 @@
 // Combined Period step implementation (month + year + confirm in one keyboard)
 import {
   type CallbackHandler,
+  type ConfirmationPresenter,
   type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
@@ -21,14 +22,6 @@ import {
   getMonthsArrangement,
   getYearsArrangement,
 } from '../utils/date-utils.ts';
-
-/**
- * Type for confirmation presenter functions
- */
-type ConfirmationPresenter = (
-  context: StepContext,
-  selectedValue: unknown,
-) => StepContent;
 
 /**
  * Parse state from callback data or return empty state
@@ -115,7 +108,7 @@ export const validatePeriod: InputValidator<string> = (
 /**
  * Present period selection interface with combined month+year keyboard
  */
-export const presentPeriodInput: InputPresenter = (
+const presentPeriodInput: InputPresenter = (
   context: StepContext,
 ): StepContent => {
   // Start with no selections
@@ -128,16 +121,10 @@ export const presentPeriodInput: InputPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
-
   const currentYear = getCurrentYear();
   const currentMonthName = getCurrentMonthName();
 
-  const text =
-    `${escapeMarkdownV2(mention)}   📅 ${
-      boldMarkdownV2('Periodo di riferimento:')
-    }\n\n` +
+  const text = getMessageTitle(context) +
     `🗓️ ${boldMarkdownV2('Mese corrente')}: ${
       escapeMarkdownV2(currentMonthName)
     }\n` +
@@ -155,7 +142,7 @@ export const presentPeriodInput: InputPresenter = (
 /**
  * Handle period selection callbacks with auto-completion
  */
-export const handlePeriodCallback: CallbackHandler<string> = (
+const handlePeriodCallback: CallbackHandler<string> = (
   callbackQuery: TelegramCallbackQuery,
 ) => {
   const callbackData = callbackQuery.data!;
@@ -234,12 +221,7 @@ export const presentPeriodUpdate = (
     parse_mode: 'MarkdownV2',
   };
 
-  // Build status text from context
-  const mention = context.username ? `@${context.username} ` : '';
-
-  let statusText = `${escapeMarkdownV2(mention)}   📅 ${
-    boldMarkdownV2('Periodo di riferimento:')
-  }\n\n`;
+  let statusText = getMessageTitle(context);
 
   if (state.selectedMonth) {
     const monthData = getMonthByNumber(state.selectedMonth);
@@ -277,13 +259,9 @@ export const presentPeriodUpdate = (
  */
 export const presentPeriodError: ErrorPresenter = (
   context: StepContext,
-  error: string,
 ): StepContent => {
-  const mention = context.username ? `@${context.username} ` : '';
-
-  const text = `${escapeMarkdownV2(mention)}${escapeMarkdownV2(error)}\n\n📅 ${
-    escapeMarkdownV2('Riprova selezionando periodo.')
-  }`;
+  const text = getMessageTitle(context) +
+    `📅 ${escapeMarkdownV2('Riprova selezionando periodo.')}`;
 
   return {
     text,
@@ -294,28 +272,36 @@ export const presentPeriodError: ErrorPresenter = (
 /**
  * Present period selection confirmation
  */
-export const presentPeriodConfirmation: ConfirmationPresenter = (
+export const presentPeriodConfirmation: ConfirmationPresenter<string> = (
   context: StepContext,
-  selectedValue: unknown,
+  selectedValue: string,
 ): StepContent => {
-  const period = selectedValue as string; // "01-2025"
+  const period = selectedValue; // "01-2025"
   const [monthNumber, year] = period.split('-');
   const monthData = getMonthByNumber(monthNumber);
 
   const mention = context.username ? `@${context.username} ` : '';
 
-  const text = `${escapeMarkdownV2(mention)}  📅 ${
-    boldMarkdownV2('Periodo selezionato')
-  }: ${escapeMarkdownV2(monthData?.full || '')} ${escapeMarkdownV2(year)} ${
-    escapeMarkdownV2(`(${period})`)
-  }\n\n`;
+  const text = `✅ 📅 ${
+    boldMarkdownV2(
+      `Periodo selezionato: ${escapeMarkdownV2(monthData?.full || '')} ${
+        escapeMarkdownV2(year)
+      }`,
+    )
+  }`;
 
   return {
     text,
     options: { parse_mode: 'MarkdownV2' }, // No reply_markup = keyboard removed
   };
 };
-
+const getMessageTitle = (context: StepContext): string => {
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
+  return `${escapeMarkdownV2(mention)}   📅 ${
+    boldMarkdownV2('Periodo di riferimento')
+  }\n\n`;
+};
 /**
  * Create the PeriodStep instance using composition
  */
@@ -326,6 +312,7 @@ export const createPeriodStep = (): Step<string> => {
     validatePeriod,
     handlePeriodCallback,
     presentPeriodError,
+    presentPeriodConfirmation,
     '📅 Seleziona il periodo di riferimento (mese + anno)',
   );
 };

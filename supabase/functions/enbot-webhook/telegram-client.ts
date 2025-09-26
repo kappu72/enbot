@@ -1,10 +1,10 @@
 // Telegram API client wrapper
 import type {
   BotCommand,
-  BotCommandScope,
   BotConfig,
   MenuButton,
 } from './types.ts';
+import { validateMarkdownV2 } from './utils/markdown-utils.ts';
 
 export class TelegramClient {
   private botToken: string;
@@ -26,10 +26,26 @@ export class TelegramClient {
       messageText = `🧪 [DEV MODE]\n\n${text}`;
     }
 
+    // Validate MarkdownV2 formatting if parse_mode is MarkdownV2
+    const parseMode = options?.parse_mode || 'MarkdownV2';
+    if (parseMode === 'MarkdownV2') {
+      // Only validate the original message, not the development mode prefix
+      const textToValidate = this.isDevelopment ? text : messageText;
+      const validation = validateMarkdownV2(textToValidate);
+      if (!validation.isValid) {
+        console.warn('MarkdownV2 validation failed:', validation.errors);
+        // In development mode, throw error to catch formatting issues early
+        if (this.isDevelopment) {
+          throw new Error(`MarkdownV2 validation failed: ${validation.errors.join(', ')}`);
+        }
+      }
+    }
+
     const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
     const payload = {
       chat_id: chatId,
       text: messageText,
+      parse_mode: 'MarkdownV2',
       ...options,
     };
 
@@ -107,6 +123,19 @@ export class TelegramClient {
     text: string,
     options?: Record<string, unknown>,
   ): Promise<void> {
+    // Validate MarkdownV2 formatting if parse_mode is MarkdownV2
+    const parseMode = options?.parse_mode || 'MarkdownV2';
+    if (parseMode === 'MarkdownV2') {
+      const validation = validateMarkdownV2(text);
+      if (!validation.isValid) {
+        console.warn('MarkdownV2 validation failed for editMessage:', validation.errors);
+        // In development mode, throw error to catch formatting issues early
+        if (this.isDevelopment) {
+          throw new Error(`MarkdownV2 validation failed: ${validation.errors.join(', ')}`);
+        }
+      }
+    }
+
     const url = `https://api.telegram.org/bot${this.botToken}/editMessageText`;
     const payload = {
       chat_id: chatId,

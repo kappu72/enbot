@@ -1,5 +1,6 @@
 // Amount step implementation using composition approach
 import {
+  type ConfirmationPresenter,
   type ErrorPresenter,
   type InputPresenter,
   type InputValidator,
@@ -16,7 +17,7 @@ import {
 /**
  * Pure function to validate amount input
  */
-export const validateAmount: InputValidator<number> = (input: string) => {
+const validateAmount: InputValidator<number> = (input: string) => {
   // Remove whitespace and normalize decimal separator
   const cleanInput = input.trim().replace(',', '.');
 
@@ -51,7 +52,7 @@ export const validateAmount: InputValidator<number> = (input: string) => {
 /**
  * Pure function to present amount input interface
  */
-export const presentAmountInput: InputPresenter = (
+const presentAmountInput: InputPresenter = (
   context: StepContext,
 ): StepContent => {
   const keyboard = {
@@ -62,33 +63,29 @@ export const presentAmountInput: InputPresenter = (
     },
   };
 
-  // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
-
-  const text =
-    `${escapeMarkdownV2(mention)}   💰 ${
-      boldMarkdownV2('Importo in EUR:')
-    }\n\n` +
+  const text = getMessageTitle(context) +
     `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${
       escapeMarkdownV2('25,50')
-    }\n` +
+    }\n\n` +
     `📱 Usa il tastierino numerico del telefono`;
 
   return {
     text,
-    options: keyboard,
+    options: {
+      ...keyboard,
+      parse_mode: 'MarkdownV2',
+    },
   };
 };
 
 /**
  * Pure function to present amount input error
  */
-export const presentAmountError: ErrorPresenter = (
+const presentAmountError: ErrorPresenter = (
   context: StepContext,
   error: string,
 ): StepContent => {
   // Get username for mention from context
-  const mention = context.username ? `@${context.username} ` : '';
   const options = {
     reply_markup: {
       force_reply: true,
@@ -98,12 +95,9 @@ export const presentAmountError: ErrorPresenter = (
     parse_mode: 'MarkdownV2',
   };
 
-  const text =
-    `${escapeMarkdownV2(mention)}   💰 ${
-      boldMarkdownV2('Importo in EUR:')
-    }\n\n` +
+  const text = getMessageTitle(context) +
     `${escapeMarkdownV2(error)}\n\n` +
-    `💰 Riprova inserendo l'importo in EUR:\n` +
+    `💰 Riprova inserendo l'importo in EUR:\n\n` +
     `🔢 Esempio: ${escapeMarkdownV2('25.50')} o ${escapeMarkdownV2('25,50')}\n`;
 
   return {
@@ -115,11 +109,11 @@ export const presentAmountError: ErrorPresenter = (
 /**
  * Present amount confirmation after successful input
  */
-export const presentAmountConfirmation = (
+const presentAmountConfirmation: ConfirmationPresenter<number> = (
   _context: StepContext,
   selectedAmount: number,
 ): StepContent => {
-  const text = `✅ ${boldMarkdownV2('Importo confermato')}: ${
+  const text = `✅  ${boldMarkdownV2('Importo confermato')}: ${
     formatCurrencyMarkdownV2(selectedAmount)
   }\n\n`;
 
@@ -139,8 +133,17 @@ export const createAmountStep = (): Step<number> => {
     validateAmount,
     undefined, // Does not handle callbacks
     presentAmountError, // Error presenter
+    presentAmountConfirmation, // Confirmation presenter
     "💰 Inserisci l'importo della transazione in EUR",
   );
+};
+
+const getMessageTitle = (context: StepContext): string => {
+  // Get username for mention from context
+  const mention = context.username ? `@${context.username} ` : '';
+  return `${escapeMarkdownV2(mention)}   💰 ${
+    boldMarkdownV2('Importo in EUR')
+  }\n\n`;
 };
 
 // Export a default instance

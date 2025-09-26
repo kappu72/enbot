@@ -1,0 +1,149 @@
+---
+description: Comprehensive feature requirements and acceptance criteria system
+globs:
+alwaysApply: false
+---
+
+# Feature Requirements & Acceptance Criteria System
+
+## Overview
+
+This rule guides the creation of comprehensive feature requirements with clear acceptance criteria, following industry best practices for software development.
+
+## Workflow
+
+1. **Feature Selection**: Choose a feature from FEATURES.md
+2. **Requirements Gathering**: Use clarifying questions to understand the feature
+3. **PRD Creation**: Generate detailed Product Requirements Document
+4. **Task Generation**: Create actionable task list from PRD
+5. **Implementation**: Execute tasks one by one with proper testing and commits
+
+## Feature Requirements Template
+
+### 1. Feature Overview
+- **Feature Name**: [Clear, descriptive name]
+- **Priority**: High/Medium/Low
+- **Effort**: High/Medium/Low
+- **Problem Statement**: What problem does this solve?
+- **Success Criteria**: How do we measure success?
+
+### 2. User Stories
+- **As a** [user type], **I want** [functionality] **so that** [benefit]
+- Include primary and secondary user stories
+- Consider edge cases and error scenarios
+
+### 3. Acceptance Criteria
+Each user story should have specific, testable acceptance criteria:
+
+#### Given-When-Then Format
+- **Given** [initial context]
+- **When** [action is performed]
+- **Then** [expected outcome]
+
+#### Definition of Done
+- [ ] Feature works as specified
+- [ ] Unit tests written and passing
+- [ ] Integration tests written and passing
+- [ ] Code reviewed and approved
+- [ ] Documentation updated
+- [ ] No breaking changes to existing functionality
+
+### 4. Technical Requirements
+- **Dependencies**: What needs to be in place first?
+- **Database Changes**: Schema modifications, migrations
+- **API Changes**: New endpoints, modifications
+- **Performance Requirements**: Response times, throughput
+- **Security Considerations**: Authentication, authorization, data protection
+
+### 5. Design Considerations
+- **UI/UX Requirements**: User interface specifications
+- **Accessibility**: WCAG compliance, screen reader support
+- **Responsive Design**: Mobile, tablet, desktop compatibility
+- **Error Handling**: User-friendly error messages
+
+### 6. Testing Strategy
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Component interaction testing
+- **End-to-End Tests**: Full user workflow testing
+- **Performance Tests**: Load and stress testing
+- **Security Tests**: Vulnerability assessment
+
+## Clarifying Questions Framework
+
+When gathering requirements, ask these categories of questions:
+
+### A. Problem & Goals
+1. What specific problem does this feature solve?
+2. Who is the primary user of this feature?
+3. What is the main goal we want to achieve?
+4. How will we measure success?
+
+### B. Functionality & Behavior
+1. What are the key actions users should be able to perform?
+2. What data does this feature need to display or manipulate?
+3. Are there any specific business rules or validations?
+4. What happens in error scenarios?
+
+### C. User Experience
+1. How should users discover this feature?
+2. What is the expected user flow?
+3. Are there any existing design patterns to follow?
+4. What feedback should users receive?
+
+### D. Technical & Integration
+1. Does this feature integrate with existing systems?
+2. Are there any performance requirements?
+3. What are the security considerations?
+4. Are there any constraints or limitations?
+
+### E. Scope & Boundaries
+1. What should this feature NOT do?
+2. Are there any future enhancements planned?
+3. What is the minimum viable version?
+
+## Quality Gates
+
+### Requirements Quality Checklist
+- [ ] All user stories have acceptance criteria
+- [ ] Acceptance criteria are testable and specific
+- [ ] Edge cases and error scenarios are covered
+- [ ] Technical requirements are clearly defined
+- [ ] Dependencies and constraints are identified
+- [ ] Success metrics are measurable
+
+### Implementation Quality Checklist
+- [ ] Code follows project conventions
+- [ ] All tests pass
+- [ ] Code is reviewed and approved
+- [ ] Documentation is updated
+- [ ] No breaking changes introduced
+- [ ] Performance requirements met
+
+## Integration with Existing Rules
+
+This system integrates with your existing Cursor rules:
+
+1. **create-prd.mdc**: Use for detailed PRD creation
+2. **generate-tasks.mdc**: Use for task list generation
+3. **process-task-list.mdc**: Use for implementation workflow
+4. **create-db-functions.mdc**: Use for database-related features
+5. **create-migration.mdc**: Use for schema changes
+6. **create-rls-policies.mdc**: Use for security policies
+
+## Example Usage
+
+1. Select a feature from FEATURES.md
+2. Run: "Create PRD for [feature name]"
+3. Answer clarifying questions
+4. Review generated PRD
+5. Run: "Generate tasks from PRD"
+6. Execute tasks following process-task-list.mdc
+
+## Best Practices
+
+- **Start with user value**: Always begin with the user's problem
+- **Be specific**: Vague requirements lead to implementation issues
+- **Think edge cases**: Consider error scenarios and boundary conditions
+- **Test early**: Write tests as you define requirements
+- **Iterate**: Requirements evolve, be prepared to update them
+- **Document decisions**: Keep track of why decisions were made
