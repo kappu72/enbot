@@ -40,7 +40,6 @@ export interface LegacyTransaction {
 export interface UserSession {
   chatId: number;
   userId: number;
-  messageId: number | null;
   step:
     | 'idle'
     | 'family'
@@ -80,7 +79,6 @@ export interface PersistedUserSession {
   created_at: string;
   updated_at: string;
   expires_at: string;
-  message_id: number | null;
 }
 
 export interface BotConfig {

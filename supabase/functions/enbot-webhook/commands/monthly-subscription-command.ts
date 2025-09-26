@@ -112,7 +112,6 @@ export class MonthlySubscriptionCommand extends BaseCommand {
     const session: CommandSession = {
       chatId: this.context.chatId,
       userId: this.context.userId,
-      messageId: null,
       step: STEPS.PersonName,
       transactionData: {
         category: 'quota mensile', // Fixed category for quotes

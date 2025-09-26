@@ -145,7 +145,7 @@ export interface CommandSession extends UserSession {
  * }
  * ```
  */
-export abstract class BaseCommand {
+export abstract class BaseCommand implements Command {
   /** Command execution context containing all dependencies and current state */
   protected context: CommandContext;
   /** Name of this command (e.g., 'transaction', 'quota') */
@@ -282,18 +282,10 @@ export abstract class BaseCommand {
     console.log('🔍 Message sent:', result);
 
     try {
-      // Save message ID in session (backward compatibility)
-      await this.context.sessionManager.saveMessageId(
-        this.context.userId,
-        this.context.chatId,
-        this.commandName,
-        result.message_id,
-      );
-
-      // Track message in new message tracking system
+      // Track message in message tracking system
       await this.trackOutgoingMessage(result.message_id, isLastMessage);
     } catch (error) {
-      console.warn('❌ Error saving message id:', error);
+      console.warn('❌ Error tracking message:', error);
     }
     return result;
   }
@@ -316,17 +308,21 @@ export abstract class BaseCommand {
     options?: Record<string, unknown>,
   ): Promise<void> {
     try {
-      // Get the command-specific session
-      const session = await this.loadCommandSession();
+      // Get the last outgoing message ID for this session
+      const lastOutgoingMessageId = await this.context.sessionManager.getLastOutgoingMessageId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
 
-      if (!session?.messageId) {
-        console.warn('❌ No message ID found in session for editing');
+      if (!lastOutgoingMessageId) {
+        console.warn('❌ No outgoing message ID found in session for editing');
         return;
       }
 
       const result = await this.context.telegram.editMessage(
         this.context.chatId,
-        session.messageId,
+        lastOutgoingMessageId,
         text,
         options,
       );
@@ -365,16 +361,23 @@ export abstract class BaseCommand {
    */
   protected async deleteLastMessage(): Promise<void> {
     try {
-      const session = await this.loadCommandSession();
-      if (!session?.messageId) {
-        console.warn('❌ No message ID found in session for deletion');
+      // Get the last outgoing message ID for this session
+      const lastOutgoingMessageId = await this.context.sessionManager.getLastOutgoingMessageId(
+        this.context.userId,
+        this.context.chatId,
+        this.commandName,
+      );
+
+      if (!lastOutgoingMessageId) {
+        console.warn('❌ No outgoing message ID found in session for deletion');
         return;
       }
+
       await this.context.telegram.deleteMessage(
         this.context.chatId,
-        session.messageId,
+        lastOutgoingMessageId,
       );
-      console.log('🗑️ Message deleted:', session.messageId);
+      console.log('🗑️ Message deleted:', lastOutgoingMessageId);
     } catch (error) {
       console.warn('❌ Error deleting last message:', error);
       // Do not throw, deletion is best-effort
@@ -613,7 +616,7 @@ export abstract class BaseCommand {
    * Track an incoming message (from user)
    * @param messageId - The Telegram message ID
    */
-  protected async trackIncomingMessage(messageId: number): Promise<void> {
+  async trackIncomingMessage(messageId: number): Promise<void> {
     try {
       const sessionId = await this.context.sessionManager.getSessionId(
         this.context.userId,
@@ -841,4 +844,6 @@ export interface Command {
   getDescription(): string;
   /** Get the command name identifier */
   getCommandName(): string;
+  /** Track an incoming message (from user) */
+  trackIncomingMessage(messageId: number): Promise<void>;
 }
