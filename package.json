@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "clean": "rm -rf node_modules dist",
-    "dev": "deno run --allow-env --allow-read --allow-import --allow-net --watch local-dev.ts",
+    "dev": "deno run --allow-env --allow-read --allow-import --allow-net --watch=supabase/functions/enbot-webhook,local-dev.ts,types local-dev.ts",
+    "dev:watch-all": "deno run --allow-env --allow-read --allow-import --allow-net --watch=**/*.ts local-dev.ts",
     "dev:serve": "supabase functions serve enbot-webhook --no-verify-jwt",
     "deploy": "supabase functions deploy enbot-webhook",
     "type-check": "deno check supabase/functions/enbot-webhook/index.ts",

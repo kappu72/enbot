@@ -26,7 +26,8 @@
     "@supabase/functions-js/edge-runtime": "jsr:@supabase/functions-js/edge-runtime"
   },
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --allow-import --watch local-dev.ts",
+    "dev": "deno run --allow-net --allow-env --allow-read --allow-import --watch=supabase/functions/enbot-webhook,local-dev.ts,setup-bot-commands.ts,types local-dev.ts",
+    "dev:watch-all": "deno run --allow-net --allow-env --allow-read --allow-import --watch=**/*.ts local-dev.ts",
     "check": "deno check supabase/functions/enbot-webhook/index.ts",
     "check-local": "deno check local-dev.ts",
     "test-webhook": "deno run --allow-net test-webhook.ts"
