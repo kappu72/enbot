@@ -146,24 +146,25 @@ export class IncomeCommand extends BaseCommand {
       commandData: {},
     };
 
-    await this.saveSession(session);
+    const sessionId = await this.saveSession(session);
 
     // Track the initial command message now that we have a session
-    if (this.context.message?.message_id) {
-      const sessionId = await this.context.sessionManager.getSessionId(
-        this.context.userId,
-        this.context.chatId,
-        this.commandName,
+    if (this.context.message?.message_id && sessionId) {
+      await this.trackIncomingMessageBySessionId(
+        sessionId,
+        this.context.message.message_id,
       );
-      if (sessionId) {
-        await this.trackIncomingMessageBySessionId(
-          sessionId,
-          this.context.message.message_id,
-        );
-      }
     }
 
-    await this.sendCategoryPromptWithStep();
+    // Start with category selection
+    const categoryStep = createCategoryStep('income');
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+    const content = await categoryStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 IncomeCommand: CategoryStep presented');
 
     return { success: true, message: 'Income started' };
   }
@@ -800,29 +801,6 @@ export class IncomeCommand extends BaseCommand {
       );
       return { success: false, message: 'Completion error' };
     }
-  }
-
-  private async sendCategoryPromptWithStep(): Promise<void> {
-    // Create StepContext for presenting the category step
-    const session = await this.loadCommandSession();
-    if (!session) {
-      throw new Error('No session found for category prompt');
-    }
-
-    console.log(
-      '🔍 IncomeCommand: Current session before CategoryStep:',
-      session,
-    );
-
-    const stepContext: StepContext = {
-      ...this.context,
-      session,
-    };
-
-    const categoryStep = createCategoryStep('income');
-    const content = await categoryStep.present(stepContext);
-    await this.sendMessage(content.text, content.options);
-    console.log('🔍 IncomeCommand: CategoryStep presented');
   }
 
   private async sendAmountPromptWithStep(): Promise<void> {

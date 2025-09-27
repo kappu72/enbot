@@ -20,10 +20,14 @@ export class SessionManager {
 
   /**
    * Save a user session to the database
+   * @returns The session ID of the saved session
    */
-  async saveSession(session: UserSession, commandType: string): Promise<void> {
+  async saveSession(
+    session: UserSession,
+    commandType: string,
+  ): Promise<number | null> {
     try {
-      const { error } = await this.supabase
+      const { data, error } = await this.supabase
         .from('user_sessions')
         .upsert({
           user_id: session.userId,
@@ -37,16 +41,21 @@ export class SessionManager {
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,chat_id',
-        }).eq('user_id', session.userId).eq('chat_id', session.chatId);
+        }).eq('user_id', session.userId).eq('chat_id', session.chatId)
+        .select('id')
+        .single();
 
       if (error) {
         console.error('❌ Error saving session:', error);
         throw error;
       }
 
+      const sessionId = data?.id || null;
       console.log(
-        `💾 Session saved for user ${session.userId}, command: ${commandType}, step: ${session.step}`,
+        `💾 Session saved for user ${session.userId}, command: ${commandType}, step: ${session.step}, session ID: ${sessionId}`,
       );
+
+      return sessionId;
     } catch (error) {
       console.error('❌ Failed to save session:', error);
       throw error;

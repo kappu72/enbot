@@ -139,7 +139,15 @@ export class CreditNoteCommand extends BaseCommand {
       commandData: {},
     };
 
-    await this.saveSession(session);
+    const sessionId = await this.saveSession(session);
+
+    // Track the initial command message now that we have a session
+    if (this.context.message?.message_id && sessionId) {
+      await this.trackIncomingMessageBySessionId(
+        sessionId,
+        this.context.message.message_id,
+      );
+    }
 
     // Start with category selection
     const categoryStep = createCategoryStep('creditNote');

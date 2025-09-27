@@ -38,18 +38,30 @@ async function fetchCategoriesByType(
   supabase: any,
   type: 'income' | 'outcome' | 'creditNote',
 ): Promise<Category[]> {
+  // First get the category type ID
+  const { data: typeData, error: typeError } = await supabase
+    .from('category_types')
+    .select('id')
+    .eq('name', type)
+    .single();
+
+  if (typeError || !typeData) {
+    console.error('Error fetching category type:', typeError);
+    return [];
+  }
+
+  // Then get categories with their assignments ordered by sort_order
   const { data, error } = await supabase
-    .from('categories')
+    .from('category_type_assignments')
     .select(`
-      id, name, label, description, is_active,
-      category_type_assignments!inner(
-        sort_order,
-        category_types!inner(name)
+      sort_order,
+      categories!inner(
+        id, name, label, description, is_active
       )
     `)
-    .eq('is_active', true)
-    .eq('category_type_assignments.category_types.name', type)
-    .order('category_type_assignments(sort_order)', { ascending: true });
+    .eq('category_type_id', typeData.id)
+    .eq('categories.is_active', true)
+    .order('sort_order', { ascending: true });
 
   if (error) {
     console.error('Error fetching categories:', error);
@@ -59,17 +71,13 @@ async function fetchCategoriesByType(
   // Transform the data to include types array
   // deno-lint-ignore no-explicit-any
   const categories: Category[] = (data || []).map((item: any) => ({
-    id: item.id,
-    name: item.name,
-    label: item.label,
-    description: item.description,
-    is_active: item.is_active,
-    sort_order: item.category_type_assignments?.[0]?.sort_order || 0,
-    types:
-      // deno-lint-ignore no-explicit-any
-      item.category_type_assignments?.map((cta: any) =>
-        cta.category_types.name
-      ) || [],
+    id: item.categories.id,
+    name: item.categories.name,
+    label: item.categories.label,
+    description: item.categories.description,
+    is_active: item.categories.is_active,
+    sort_order: item.sort_order,
+    types: [type], // Since we're filtering by type, we know this category belongs to this type
   }));
 
   return categories;
@@ -201,10 +209,10 @@ const createCategoryInputPresenter = (
       ? 'Uscite'
       : 'Note di Credito';
     const text = getMessageTitle(context) +
-      `📂 ${boldMarkdownV2('Seleziona categoria')} \\(${
+      `📂 ${escapeMarkdownV2('Seleziona categoria')} \\(${
         escapeMarkdownV2(typeLabel)
       }\\)\n\n` +
-      `👆 Scegli una categoria dalla lista`;
+      `👆 ${escapeMarkdownV2('Scegli una categoria dalla lista')}`;
 
     return {
       text,
@@ -290,11 +298,17 @@ export const createCategoryUpdatePresenter = (
           ? 'Uscite'
           : 'Note di Credito';
         const text = getMessageTitle(context) +
-          `📂 ${boldMarkdownV2('Seleziona categoria')} \\(${
+          `📂 ${escapeMarkdownV2('Seleziona categoria')} \\(${
             escapeMarkdownV2(typeLabel)
           }\\)\n\n` +
-          `📄 Pagina ${pageNumber + 1}\n` +
-          `👆 Scegli una categoria dalla lista`;
+          `📄 ${escapeMarkdownV2('Pagina')} ${
+            escapeMarkdownV2((pageNumber + 1).toString())
+          }\n` +
+          `👆 ${escapeMarkdownV2('Scegli una categoria dalla lista')}`;
+
+        // Debug: log the text to see what's at position 51
+        console.log('Generated text:', JSON.stringify(text));
+        console.log('Text at position 51:', text[51]);
 
         return {
           text,
@@ -346,7 +360,9 @@ export const presentCategoryConfirmation: ConfirmationPresenter<number> = (
 
 const getMessageTitle = (context: StepContext): string => {
   const mention = context.username ? `@${context.username} ` : '';
-  return `${escapeMarkdownV2(mention)}   📂 ${boldMarkdownV2('Categoria')}\n\n`;
+  return `${escapeMarkdownV2(mention)}   📂 ${
+    escapeMarkdownV2('Categoria')
+  }\n\n`;
 };
 
 /**

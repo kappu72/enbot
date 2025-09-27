@@ -1,6 +1,7 @@
 // Command interface and base classes
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type {
+  PersistedUserSession,
   TelegramCallbackQuery,
   TelegramMessage,
   UserSession,
@@ -187,8 +188,10 @@ export abstract class BaseCommand implements Command {
    * @param session - The session data to save
    * @protected
    */
-  protected async saveSession(session: CommandSession): Promise<void> {
-    await this.context.sessionManager.saveSession({
+  protected async saveSession(
+    session: CommandSession,
+  ): Promise<number | null> {
+    return await this.context.sessionManager.saveSession({
       ...session,
       userId: this.context.userId,
       chatId: this.context.chatId,
