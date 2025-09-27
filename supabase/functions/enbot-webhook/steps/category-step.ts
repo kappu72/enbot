@@ -49,7 +49,7 @@ async function fetchCategoriesByType(
     `)
     .eq('is_active', true)
     .eq('category_type_assignments.category_types.name', type)
-    .order('category_type_assignments.sort_order', { ascending: true });
+    .order('category_type_assignments(sort_order)', { ascending: true });
 
   if (error) {
     console.error('Error fetching categories:', error);

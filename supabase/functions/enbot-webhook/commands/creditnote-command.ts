@@ -12,8 +12,6 @@ import {
 } from '../steps/category-step.ts';
 import {
   personNameStep,
-  presentNewContactInput,
-  saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
 import { amountStep } from '../steps/amount-step.ts';

@@ -15,32 +15,33 @@ export class HelpCommand extends BaseCommand {
 
   async execute(): Promise<CommandResult> {
     const helpMessage = `
-🤖 **EnBot - Gestione Transazioni**
+🤖 **EnBot \\- Gestione Transazioni**
 
 **Comandi disponibili:**
-• /entrata - Registra una nuova entrata (con selezione categoria)
-• /help - Mostra questo messaggio di aiuto
-• /cancel - Annulla la transazione in corso
+• /entrata \\- 💰 Registra una nuova entrata
+• /uscita \\- 💸 Registra una nuova uscita  
+• /notacredito \\- 📄 Registra una nota di credito
+• /help \\- ❓ Mostra questo messaggio di aiuto
+• /cancel \\- ❌ Annulla la transazione in corso
 
 **Come utilizzare:**
-1. Usa /entrata per registrare una nuova entrata
-2. Seleziona la categoria appropriata
-3. Segui le istruzioni per inserire i dati richiesti
-4. Usa /cancel se vuoi annullare
+1\\. Usa uno dei comandi per registrare una transazione
+2\\. Seleziona la categoria appropriata
+3\\. Segui le istruzioni per inserire i dati richiesti
+4\\. Usa /cancel se vuoi annullare
 
-**Categorie disponibili:**
-• Q. Mese (Quota Mensile)
-• Q. Esame (Quota Esame)  
-• Iscrizione (Quota Iscrizione)
-• Eventi
-• Cauzione (Deposito Cauzionale)
-• Altro
+**Tipi di transazioni:**
+• **Entrate**: Quote mensili, esami, iscrizioni, eventi, depositi, altro
+• **Uscite**: Cambusa, circolo, legna, manutenzione, stipendi, rimborsi, altro
+• **Note di credito**: Stipendi, cambusa, materiale didattico, manutenzione, utenze, altro
 
-**Comandi di test:**
-• /testmsg @nome - Testa l'invio di messaggi
+**Flussi speciali:**
+• **Entrate**: Descrizione opzionale per "Eventi" e "Altro"
+• **Uscite**: Nome persona per "Stipendi contributi" e "Rimborsi"
+• **Note di credito**: Descrizione per "Spese Varie"
 
 🔒 **Sicurezza:**
-Questo bot può essere utilizzato solo nel gruppo autorizzato.`;
+Questo bot può essere utilizzato solo nel gruppo autorizzato\\.`;
 
     await this.sendMessage(helpMessage, { parse_mode: 'MarkdownV2' });
 
