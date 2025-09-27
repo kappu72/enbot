@@ -164,21 +164,25 @@ export class TelegramClient {
 
   async answerCallbackQuery(
     callbackQueryId: string,
-    text: string,
+    text?: string,
     chatId?: number | string,
     messageId?: number | string,
   ): Promise<void> {
-    if (chatId && messageId) {
+    if (chatId && messageId && text) {
       // Update message and remove keyboard using the dedicated method
       await this.editMessage(chatId, messageId as number, text);
     }
 
     const url =
       `https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`;
-    const payload = {
+    const payload: { callback_query_id: string; text?: string } = {
       callback_query_id: callbackQueryId,
-      text: text,
     };
+
+    // Only include text if it's provided and not empty
+    if (text && text.trim().length > 0) {
+      payload.text = text;
+    }
 
     const response = await fetch(url, {
       method: 'POST',

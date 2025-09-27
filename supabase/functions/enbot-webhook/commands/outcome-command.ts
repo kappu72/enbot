@@ -196,7 +196,7 @@ export class OutcomeCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          '',
+          undefined, // No message for pagination
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );

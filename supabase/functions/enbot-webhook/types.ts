@@ -102,18 +102,8 @@ export type TelegramCallbackQuery = CallbackQuery;
 export type TelegramUpdate = Update;
 export type TelegramBotCommandScope = GrammyBotCommandScope;
 
-export const FAMILY_OPTIONS = [
-  'Famiglia Rossi',
-  'Famiglia Bianchi',
-  'Famiglia Verdi',
-  'Famiglia Neri',
-  'Famiglia Blu',
-] as const;
-
 // Categories are now managed dynamically from the database
 // See: supabase/functions/enbot-webhook/steps/category-step.ts
-
-export type FamilyOption = typeof FAMILY_OPTIONS[number];
 
 // Type guards and utility functions for Grammy types
 export function isTextMessage(

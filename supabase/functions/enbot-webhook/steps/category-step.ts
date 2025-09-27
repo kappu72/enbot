@@ -297,18 +297,43 @@ export const createCategoryUpdatePresenter = (
           : categoryType === 'outcome'
           ? 'Uscite'
           : 'Note di Credito';
-        const text = getMessageTitle(context) +
-          `📂 ${escapeMarkdownV2('Seleziona categoria')} \\(${
-            escapeMarkdownV2(typeLabel)
-          }\\)\n\n` +
-          `📄 ${escapeMarkdownV2('Pagina')} ${
-            escapeMarkdownV2((pageNumber + 1).toString())
-          }\n` +
-          `👆 ${escapeMarkdownV2('Scegli una categoria dalla lista')}`;
+        const title = getMessageTitle(context);
+        const categoryText = `📂 ${
+          escapeMarkdownV2('Seleziona categoria')
+        } \\(${escapeMarkdownV2(typeLabel)}\\)`;
+        const pageText = `📄 ${escapeMarkdownV2('Pagina')} ${
+          escapeMarkdownV2((pageNumber + 1).toString())
+        }`;
+        const instructionText = `👆 ${
+          escapeMarkdownV2('Scegli una categoria dalla lista')
+        }`;
 
-        // Debug: log the text to see what's at position 51
-        console.log('Generated text:', JSON.stringify(text));
-        console.log('Text at position 51:', text[51]);
+        const text = title + categoryText + '\n\n' + pageText + '\n' +
+          instructionText;
+
+        // Validate that text is not empty
+        if (!text || text.trim().length === 0) {
+          console.error('❌ Generated empty text for category update:', {
+            title: JSON.stringify(title),
+            categoryText: JSON.stringify(categoryText),
+            pageText: JSON.stringify(pageText),
+            instructionText: JSON.stringify(instructionText),
+            pageNumber,
+            categoryType,
+          });
+          // Fallback to initial presentation
+          return await createCategoryInputPresenter(categoryType)(context);
+        }
+
+        // Debug logging
+        console.log('Category update text parts:', {
+          title: JSON.stringify(title),
+          categoryText: JSON.stringify(categoryText),
+          pageText: JSON.stringify(pageText),
+          instructionText: JSON.stringify(instructionText),
+          fullText: JSON.stringify(text),
+          textLength: text.length,
+        });
 
         return {
           text,
@@ -360,9 +385,17 @@ export const presentCategoryConfirmation: ConfirmationPresenter<number> = (
 
 const getMessageTitle = (context: StepContext): string => {
   const mention = context.username ? `@${context.username} ` : '';
-  return `${escapeMarkdownV2(mention)}   📂 ${
+  const title = `${escapeMarkdownV2(mention)}   📂 ${
     escapeMarkdownV2('Categoria')
   }\n\n`;
+
+  // Validate that title is not empty
+  if (!title || title.trim().length === 0) {
+    console.error('❌ Generated empty title:', { mention, context });
+    return '📂 Categoria\n\n'; // Fallback title
+  }
+
+  return title;
 };
 
 /**

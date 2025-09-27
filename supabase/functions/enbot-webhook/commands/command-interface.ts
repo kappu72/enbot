@@ -311,6 +311,16 @@ export abstract class BaseCommand implements Command {
     options?: Record<string, unknown>,
   ): Promise<void> {
     try {
+      // Validate text is not empty
+      if (!text || text.trim().length === 0) {
+        console.error('❌ Attempted to edit message with empty text:', {
+          text: JSON.stringify(text),
+          options,
+          commandName: this.commandName,
+        });
+        return;
+      }
+
       // Get the last outgoing message ID for this session
       const lastOutgoingMessageId = await this.context.sessionManager
         .getLastOutgoingMessageId(
@@ -398,9 +408,12 @@ export abstract class BaseCommand implements Command {
     chatId?: number | string,
     messageId?: number,
   ): Promise<void> {
+    // Don't pass empty strings to Telegram API - use undefined instead
+    const messageText = text && text.trim().length > 0 ? text : undefined;
+
     await this.context.telegram.answerCallbackQuery(
       callbackQueryId,
-      text || '',
+      messageText,
       chatId,
       messageId,
     );

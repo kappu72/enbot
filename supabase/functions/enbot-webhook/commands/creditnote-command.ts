@@ -5,17 +5,21 @@ import type {
   CommandSession,
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
-import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
+// Removed unused imports: TelegramCallbackQuery, TelegramMessage
 import {
   createCategoryStep,
   createCategoryUpdatePresenter,
 } from '../steps/category-step.ts';
 import {
   personNameStep,
+  presentNewContactInput,
+  saveNewContact,
   updateContactsKeyboard,
 } from '../steps/person-name-step.ts';
 import { amountStep } from '../steps/amount-step.ts';
 import { descriptionStep } from '../steps/description-step.ts';
+import { periodStep } from '../steps/period-step.ts';
+import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 import {
   boldMarkdownV2,
@@ -27,6 +31,7 @@ enum STEPS {
   'PersonName' = 'person-name',
   'Amount' = 'amount',
   'Description' = 'description',
+  'Period' = 'period',
 }
 
 export class CreditNoteCommand extends BaseCommand {
@@ -68,6 +73,8 @@ export class CreditNoteCommand extends BaseCommand {
         return await this.handleAmountInputWithStep(text, session);
       case STEPS.Description:
         return await this.handleDescriptionInputWithStep(text, session);
+      case STEPS.Period:
+        return await this.handlePeriodInputWithStep(text, session);
       default:
         return {
           success: false,
@@ -98,6 +105,18 @@ export class CreditNoteCommand extends BaseCommand {
       data.startsWith('contact:')
     ) {
       return await this.handlePersonNameCallbackWithStep(
+        data,
+        session,
+      );
+    }
+
+    // Handle PeriodStep callbacks (month:, year:)
+    if (
+      session.step === STEPS.Period &&
+      (data.startsWith('month:') ||
+        data.startsWith('year:'))
+    ) {
+      return await this.handlePeriodSelectionWithStep(
         data,
         session,
       );
@@ -183,7 +202,7 @@ export class CreditNoteCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          '',
+          undefined, // No message for pagination
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -214,6 +233,24 @@ export class CreditNoteCommand extends BaseCommand {
         session.transactionData.category = category.name;
         session.step = STEPS.PersonName;
         await this.saveSession(session);
+
+        // Show confirmation with keyboard removed
+        const confirmationContent = categoryStep.presentConfirmation(
+          stepContext,
+          categoryId,
+        );
+        await this.editLastMessage(
+          confirmationContent.text,
+          confirmationContent.options,
+        );
+
+        // Answer the callback query
+        await this.answerCallbackQuery(
+          callbackQuery.id,
+          `Categoria selezionata: ${category.name}`,
+          callbackQuery.message?.chat.id,
+          callbackQuery.message?.message_id,
+        );
 
         return await this.sendPersonNamePromptWithStep(session);
       }
@@ -255,7 +292,7 @@ export class CreditNoteCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          '',
+          undefined, // No message for pagination
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -264,14 +301,55 @@ export class CreditNoteCommand extends BaseCommand {
           success: true,
           message: 'Person name keyboard updated',
         };
+      } else if (result.processedValue === 'NEW_CONTACT_MODE') {
+        // Switch to text input mode for new contact
+        console.log(
+          '➕ CreditNoteCommand: Switching to new contact input mode',
+        );
+
+        // Present new contact input interface
+        const newContactContent = presentNewContactInput(stepContext);
+        await this.editLastMessage(
+          newContactContent.text,
+          newContactContent.options,
+        );
+
+        // Keep the same step but mark that we're in text input mode
+        session.commandData.isNewContactMode = true;
+        await this.saveSession(session);
+
+        return {
+          success: true,
+          message: 'New contact input mode activated',
+        };
       } else if (
         typeof result.processedValue === 'string' &&
         result.processedValue !== 'UPDATE_KEYBOARD'
       ) {
         // Person selected, move to amount step
-        session.transactionData.family = result.processedValue;
+        const contactName = result.processedValue;
+        session.transactionData.family = contactName;
         session.step = STEPS.Amount;
         await this.saveSession(session);
+
+        // Show confirmation with keyboard removed
+        const confirmationContent = personNameStep.presentConfirmation(
+          stepContext,
+          contactName,
+        );
+        await this.editLastMessage(
+          confirmationContent.text,
+          confirmationContent.options,
+        );
+
+        // Answer the callback query
+        await this.answerCallbackQuery(
+          callbackQuery.id,
+          `Contatto selezionato: ${contactName}`,
+          callbackQuery.message?.chat.id,
+          callbackQuery.message?.message_id,
+        );
+
         return await this.sendAmountPromptWithStep(session);
       }
     }
@@ -288,16 +366,63 @@ export class CreditNoteCommand extends BaseCommand {
       session,
     };
 
-    const result = await personNameStep.processInput(text, stepContext);
+    // Check if we're in new contact mode
+    if (session.commandData.isNewContactMode) {
+      const contactName = text.trim();
 
-    if (result.success) {
-      // Person name saved, move to amount step
+      console.log(
+        '➕ CreditNoteCommand: Saving new contact:',
+        contactName,
+      );
+
+      const saved = await saveNewContact(stepContext, contactName);
+      if (!saved) {
+        const errorContent = personNameStep.presentError(
+          stepContext,
+          '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+        );
+        await this.sendMessage(errorContent.text, errorContent.options);
+        return { success: false, message: 'Failed to save new contact' };
+      }
+
+      // Clear new contact mode and save contact name
+      session.commandData.isNewContactMode = false;
+      session.transactionData.family = contactName;
       session.step = STEPS.Amount;
       await this.saveSession(session);
-      return await this.sendAmountPromptWithStep(session);
-    }
 
-    return result;
+      // Show confirmation with keyboard removed
+      const confirmationContent = personNameStep.presentConfirmation(
+        stepContext,
+        contactName,
+      );
+      await this.editLastMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
+      await this.sendAmountPromptWithStep(session);
+      return { success: true, message: 'Person name selected for credit note' };
+    } else {
+      const result = await personNameStep.processInput(text, stepContext);
+
+      if (result.success) {
+        // Person name saved, move to amount step
+        session.step = STEPS.Amount;
+        await this.saveSession(session);
+        return await this.sendAmountPromptWithStep(session);
+      } else {
+        // Present error using PersonNameStep's error presenter
+        const errorContent = personNameStep.presentError(
+          stepContext,
+          result.error || 'Error in person name validation',
+        );
+        await this.sendMessage(errorContent.text, errorContent.options);
+        return {
+          success: false,
+          message: result.error || 'Invalid person name',
+        };
+      }
+    }
   }
 
   private async handleAmountInputWithStep(
@@ -312,20 +437,46 @@ export class CreditNoteCommand extends BaseCommand {
     const result = await amountStep.processInput(text, stepContext);
 
     if (result.success) {
-      // Amount saved, check if we need description step
+      // Save the validated amount in session
+      session.transactionData.amount = result.processedValue;
+
+      // Check if we need description step based on category
       const categoryName = session.transactionData.category as string;
       if (this.requiresDescriptionStep(categoryName)) {
-        // Move to description step
         session.step = STEPS.Description;
-        await this.saveSession(session);
+      } else {
+        // Skip description, go to period step
+        session.step = STEPS.Period;
+      }
+
+      await this.saveSession(session);
+
+      // Show confirmation with explicit keyboard removal
+      const confirmationContent = amountStep.presentConfirmation(
+        stepContext,
+        result.processedValue as number,
+      );
+      await this.sendMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
+
+      // Continue to next step
+      if (this.requiresDescriptionStep(categoryName)) {
         return await this.sendDescriptionPromptWithStep(session);
       } else {
-        // Skip description, complete the transaction
-        return await this.completeTransaction(session);
+        await this.sendPeriodPromptWithStep();
+        return { success: true, message: 'Amount entered for credit note' };
       }
+    } else {
+      // Present error using AmountStep's error presenter
+      const errorContent = amountStep.presentError(
+        stepContext,
+        result.error || "Errore nella validazione dell'importo",
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return { success: false, message: result.error || 'Invalid amount' };
     }
-
-    return result;
   }
 
   private async handleDescriptionInputWithStep(
@@ -340,11 +491,33 @@ export class CreditNoteCommand extends BaseCommand {
     const result = await descriptionStep.processInput(text, stepContext);
 
     if (result.success) {
-      // Description saved, complete the transaction
-      return await this.completeTransaction(session);
-    }
+      // Save the description in session (can be empty string)
+      session.transactionData.description = result.processedValue as string;
+      session.step = STEPS.Period;
+      await this.saveSession(session);
 
-    return result;
+      // Show confirmation with explicit keyboard removal
+      const confirmationContent = descriptionStep.presentConfirmation(
+        stepContext,
+        result.processedValue as string,
+      );
+      await this.sendMessage(
+        confirmationContent.text,
+        confirmationContent.options,
+      );
+
+      // Go to period step
+      await this.sendPeriodPromptWithStep();
+      return { success: true, message: 'Description entered for credit note' };
+    } else {
+      // Present error using DescriptionStep's error presenter
+      const errorContent = descriptionStep.presentError(
+        stepContext,
+        result.error || 'Errore nella validazione della descrizione',
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return { success: false, message: result.error || 'Invalid description' };
+    }
   }
 
   private async sendPersonNamePromptWithStep(
@@ -403,63 +576,221 @@ export class CreditNoteCommand extends BaseCommand {
         return { success: false, message: 'Missing required transaction data' };
       }
 
-      // Get category ID from database
-      const { data: categoryData, error: categoryError } = await this.context
-        .supabase
-        .from('categories')
-        .select('id')
-        .eq('name', transactionData.category as string)
-        .single();
+      // Create transaction payload using the same format as income/outcome commands
+      const transactionPayload = {
+        category: transactionData.category as string,
+        amount: transactionData.amount as number,
+        description: transactionData.description || '',
+        family: transactionData.family as string,
+        recorded_at: new Date().toISOString(),
+        recorded_by: `@${this.context.username || this.context.userId}`,
+      };
 
-      if (categoryError || !categoryData) {
-        return { success: false, message: 'Category not found' };
-      }
+      // Save transaction to database using the same schema as income/outcome
+      const transaction = {
+        payload: transactionPayload,
+        created_by_user_id: this.context.userId,
+        command_type: session.commandType,
+        is_synced: false,
+        chat_id: this.context.chatId,
+      };
 
-      // Save transaction to database
-      const { data, error } = await this.context.supabase
+      const { data: _data, error } = await this.context.supabase
         .from('transactions')
-        .insert({
-          user_id: session.userId,
-          category_id: categoryData.id,
-          person_name: transactionData.family as string,
-          amount: transactionData.amount,
-          description: transactionData.description || null,
-          transaction_type: 'creditNote',
-          created_at: new Date().toISOString(),
-        })
-        .select()
+        .insert(transaction)
+        .select('id')
         .single();
 
       if (error) {
         console.error('Error saving credit note transaction:', error);
-        return { success: false, message: 'Failed to save transaction' };
+        await this.sendMessage(
+          '❌ Errore durante il salvataggio della nota di credito\\. Riprova\\.',
+          { parse_mode: 'MarkdownV2' },
+        );
+        return { success: false, message: 'Database error' };
       }
 
-      // Clear session
-      await this.deleteUserSessionWithCleanup(false, true);
+      // Delete session after successful completion with message cleanup
+      // Preserve the last notification message
+      await this.deleteSessionWithCleanup(true, true);
 
-      // Format success message
-      const categoryName = transactionData.category as string;
-      const amount = formatCurrencyMarkdownV2(transactionData.amount);
-      const personName = boldMarkdownV2(transactionData.family as string);
-      const description = transactionData.description
-        ? `\n\n📝 ${
-          boldMarkdownV2('Descrizione')
-        }: ${transactionData.description}`
-        : '';
+      const transactionId = _data.id;
 
-      const message = `✅ ${boldMarkdownV2('Nota di credito registrata')}\n\n` +
-        `📄 ${boldMarkdownV2('Categoria')}: ${categoryName}\n` +
-        `👤 ${boldMarkdownV2('Persona')}: ${personName}\n` +
-        `💰 ${boldMarkdownV2('Importo')}: ${amount}${description}`;
+      // Send notification message
+      await this.sendCreditNoteNotification(transactionPayload, transactionId);
 
       return {
         success: true,
-        message: message,
+        message: 'Credit note transaction completed successfully',
       };
     } catch (error) {
       console.error('Error completing credit note transaction:', error);
       return { success: false, message: 'Failed to complete transaction' };
     }
+  }
+
+  // PeriodStep callback handler (month + year + confirm)
+  private async handlePeriodSelectionWithStep(
+    callbackData: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
+    console.log(
+      '🔍 CreditNoteCommand: Processing period selection:',
+      callbackData,
+    );
+
+    // Create StepContext from current command context
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    // Process callback using PeriodStep
+    const callbackQuery = this.context.callbackQuery!;
+    const result = await periodStep.processCallback(callbackQuery, stepContext);
+
+    if (result.success) {
+      // Check if this is a final confirm or just a keyboard update
+      if (result.processedValue === 'update_keyboard') {
+        // Month or year selection - update keyboard without completing step
+        console.log(
+          '🔄 CreditNoteCommand: Updating period keyboard:',
+          callbackData,
+        );
+
+        // Update the message with new keyboard state
+        const updateContent = presentPeriodUpdate(stepContext, callbackData);
+        await this.editLastMessage(updateContent.text, updateContent.options);
+
+        // Answer the callback query
+        await this.answerCallbackQuery(
+          callbackQuery.id,
+          undefined, // No message for pagination
+          callbackQuery.message?.chat.id,
+          callbackQuery.message?.message_id,
+        );
+
+        return {
+          success: true,
+          message: 'Period keyboard updated',
+        };
+      } else {
+        // Final confirmation - complete the step
+        session.transactionData.period = result.processedValue as string;
+        console.log(
+          '✅ CreditNoteCommand: Period completed:',
+          result.processedValue,
+        );
+
+        await this.saveSession(session);
+
+        // Show confirmation with keyboard removed
+        const confirmationContent = periodStep.presentConfirmation(
+          stepContext,
+          result.processedValue!,
+        );
+        await this.editLastMessage(
+          confirmationContent.text,
+          confirmationContent.options,
+        );
+
+        // Answer the callback query
+        await this.answerCallbackQuery(
+          callbackQuery.id,
+          'Periodo confermato',
+          callbackQuery.message?.chat.id,
+          callbackQuery.message?.message_id,
+        );
+
+        // Complete the transaction (no more steps needed)
+        return await this.completeTransaction(session);
+      }
+    } else {
+      console.log(
+        '❌ CreditNoteCommand: Period selection failed:',
+        result.error,
+      );
+      // For callback errors, we typically send a new message
+      const errorContent = periodStep.presentError(
+        stepContext,
+        result.error || 'Errore nella selezione del periodo',
+      );
+      await this.sendMessage(errorContent.text, errorContent.options);
+      return { success: false, message: result.error || 'Invalid period' };
+    }
+  }
+
+  // PeriodStep text input handler (should not be used as PeriodStep only uses callbacks)
+  private handlePeriodInputWithStep(
+    _text: string,
+    _session: CommandSession,
+  ): CommandResult {
+    // PeriodStep only uses callbacks, not text input
+    return {
+      success: false,
+      message: 'Period selection only works with inline keyboard buttons',
+    };
+  }
+
+  // PeriodStep method
+  private async sendPeriodPromptWithStep(): Promise<void> {
+    const session = await this.loadCommandSession();
+    if (!session) {
+      throw new Error('No session found for period prompt');
+    }
+
+    console.log(
+      '🔍 CreditNoteCommand: Current session before PeriodStep:',
+      session,
+    );
+
+    const stepContext: StepContext = {
+      ...this.context,
+      session,
+    };
+
+    const content = await periodStep.present(stepContext);
+    await this.sendMessage(content.text, content.options);
+    console.log('🔍 CreditNoteCommand: PeriodStep presented');
+  }
+
+  /**
+   * Send notification message after successful credit note completion
+   */
+  private async sendCreditNoteNotification(
+    transactionPayload: Record<string, unknown>,
+    transactionId: number,
+  ): Promise<void> {
+    const categoryName = transactionPayload.category as string;
+    const familyName = transactionPayload.family as string;
+    const recordedBy = transactionPayload.recorded_by as string;
+    const description = transactionPayload.description as string;
+
+    const notificationMessage =
+      `🔔  ${boldMarkdownV2('Nota di Credito Registrata')}\n\n` +
+      `📄 ${boldMarkdownV2('Categoria')}: ${boldMarkdownV2(categoryName)}\n` +
+      `👤 ${boldMarkdownV2('Persona')}: ${boldMarkdownV2(familyName)}\n` +
+      `💰 ${boldMarkdownV2('Importo')}: ${
+        formatCurrencyMarkdownV2(transactionPayload.amount as number)
+      }\n` +
+      (description
+        ? `📝 ${boldMarkdownV2('Descrizione')}: ${
+          boldMarkdownV2(description)
+        }\n`
+        : '') +
+      `\nRegistrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
+      `Grazie da EnB`;
+
+    // Send confirmation message to the chat where the command was issued
+    // Mark this as the last message to preserve during cleanup
+    await this.sendMessage(
+      notificationMessage,
+      { parse_mode: 'MarkdownV2' },
+      true,
+    );
+
+    console.log(
+      `✅ Credit note notification sent for transaction ${transactionId}`,
+    );
   }
 }
