@@ -45,18 +45,6 @@ export class CreditNoteCommand extends BaseCommand {
     return categoryName === 'Spese Varie';
   }
 
-  async execute(): Promise<CommandResult> {
-    if (this.context.message) {
-      return await this.handleMessage(this.context.message);
-    } else if (this.context.callbackQuery) {
-      return await this.handleCallbackQuery(this.context.callbackQuery);
-    }
-    return {
-      success: false,
-      message: `${this.commandName} command execution failed`,
-    };
-  }
-
   getHelpText(): string {
     return `📄 ${CreditNoteCommand.description}\n\n` +
       `Questo comando ti permette di registrare una nota di credito.\n\n` +
@@ -68,42 +56,38 @@ export class CreditNoteCommand extends BaseCommand {
       `Usa /${CreditNoteCommand.commandName} per iniziare.`;
   }
 
-  private async handleMessage(
-    message: TelegramMessage,
-  ): Promise<CommandResult> {
-    // Check if this is a command initiation (both /notacredito and /notacredito@botname)
-    const commandPrefix = `/${this.commandName}`;
-    const isCommandStart = message.text === commandPrefix ||
-      (message.text?.startsWith(commandPrefix + '@') ?? false);
-
-    if (isCommandStart) {
-      return await this.startCreditNote();
-    } else {
-      return await this.handleTextInput(message.text!);
-    }
-  }
-
-  private async handleCallbackQuery(
-    callbackQuery: TelegramCallbackQuery,
-  ): Promise<CommandResult> {
+  protected async handleTextInput(text: string): Promise<CommandResult> {
     const session = await this.loadCommandSession();
     if (!session) {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
-    console.log(
-      '🔍 CreditNoteCommand: Handling callback query:',
-      callbackQuery,
-      session,
-    );
+    switch (session.step) {
+      case STEPS.PersonName:
+        return await this.handlePersonNameInputWithStep(text, session);
+      case STEPS.Amount:
+        return await this.handleAmountInputWithStep(text, session);
+      case STEPS.Description:
+        return await this.handleDescriptionInputWithStep(text, session);
+      default:
+        return {
+          success: false,
+          message: "Passo non valido per l'inserimento di una nota di credito",
+        };
+    }
+  }
 
+  protected async handleCallbackData(
+    data: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     // Handle CategoryStep callbacks (category_, category_page_)
     if (
       session.step === STEPS.Category &&
-      (callbackQuery.data?.startsWith('category_') ||
-        callbackQuery.data?.startsWith('category_page_'))
+      (data.startsWith('category_') ||
+        data.startsWith('category_page_'))
     ) {
       return await this.handleCategorySelectionWithStep(
-        callbackQuery.data,
+        data,
         session,
       );
     }
@@ -111,21 +95,21 @@ export class CreditNoteCommand extends BaseCommand {
     // Handle PersonNameStep callbacks (contact:)
     if (
       session.step === STEPS.PersonName &&
-      callbackQuery.data?.startsWith('contact:')
+      data.startsWith('contact:')
     ) {
       return await this.handlePersonNameCallbackWithStep(
-        callbackQuery.data,
+        data,
         session,
       );
     }
 
     return {
       success: false,
-      message: `Unknown callback data ${callbackQuery.data}`,
+      message: `Unknown callback data ${data}`,
     };
   }
 
-  private async startCreditNote(): Promise<CommandResult> {
+  protected async startCommand(): Promise<CommandResult> {
     // Clean any existing session with message cleanup
     await this.deleteUserSessionWithCleanup(true, false);
 
@@ -160,29 +144,6 @@ export class CreditNoteCommand extends BaseCommand {
     await this.sendMessage(content.text, content.options);
 
     return { success: true, message: 'Credit note started' };
-  }
-
-  private async handleTextInput(text: string): Promise<CommandResult> {
-    const session = await this.loadCommandSession();
-    if (!session) {
-      return { success: false, message: 'Nessuna sessione trovata' };
-    }
-
-    console.log('🔍 CreditNoteCommand: Handling text input:', text, session);
-
-    switch (session.step) {
-      case STEPS.PersonName:
-        return await this.handlePersonNameInputWithStep(text, session);
-      case STEPS.Amount:
-        return await this.handleAmountInputWithStep(text, session);
-      case STEPS.Description:
-        return await this.handleDescriptionInputWithStep(text, session);
-      default:
-        return {
-          success: false,
-          message: `Step non supportato per input testo: ${session.step}`,
-        };
-    }
   }
 
   private async handleCategorySelectionWithStep(

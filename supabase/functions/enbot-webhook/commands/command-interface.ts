@@ -552,15 +552,112 @@ export abstract class BaseCommand implements Command {
   }
 
   /**
-   * Execute the main command logic
+   * Execute the command
    *
-   * This is the entry point for command execution. Implement your command's
-   * main workflow here, including session management, step orchestration,
-   * and completion handling.
+   * This is the main entry point for command execution. The default implementation
+   * handles the common pattern of routing between message and callback query handling.
+   * Override this method if you need custom execution logic.
    *
    * @returns Promise resolving to the command execution result
    */
-  abstract execute(): Promise<CommandResult>;
+  async execute(): Promise<CommandResult> {
+    if (this.context.message) {
+      return await this.handleMessage(this.context.message);
+    } else if (this.context.callbackQuery) {
+      return await this.handleCallbackQuery(this.context.callbackQuery);
+    }
+    return {
+      success: false,
+      message: `${this.commandName} command execution failed`,
+    };
+  }
+
+  /**
+   * Handle incoming message
+   *
+   * This method handles text messages sent to the bot. The default implementation
+   * checks if the message is a command initiation and calls the appropriate start method.
+   * Override this method if you need custom message handling logic.
+   *
+   * @param message - The incoming Telegram message
+   * @returns Promise resolving to the command execution result
+   */
+  protected async handleMessage(
+    message: TelegramMessage,
+  ): Promise<CommandResult> {
+    // Check if this is a command initiation (both /command and /command@botname)
+    const commandPrefix = `/${this.commandName}`;
+    const isCommandStart = message.text === commandPrefix ||
+      (message.text?.startsWith(commandPrefix + '@') ?? false);
+
+    if (isCommandStart) {
+      return await this.startCommand();
+    } else {
+      // Handle text input during command execution
+      return await this.handleTextInput(message.text || '');
+    }
+  }
+
+  /**
+   * Handle callback query from inline buttons
+   *
+   * This method handles callback queries from inline keyboard buttons.
+   * The default implementation loads the session and delegates to handleCallbackData.
+   * Override this method if you need custom callback handling logic.
+   *
+   * @param callbackQuery - The incoming Telegram callback query
+   * @returns Promise resolving to the command execution result
+   */
+  protected async handleCallbackQuery(
+    callbackQuery: TelegramCallbackQuery,
+  ): Promise<CommandResult> {
+    const session = await this.loadCommandSession();
+    if (!session) {
+      return { success: false, message: 'Nessuna sessione trovata' };
+    }
+    console.log(
+      `🔍 ${this.constructor.name}: Handling callback query:`,
+      callbackQuery,
+      session,
+    );
+    return await this.handleCallbackData(callbackQuery.data || '', session);
+  }
+
+  /**
+   * Start the command workflow
+   *
+   * This method is called when a user initiates the command. Override this method
+   * to implement the specific start logic for your command.
+   *
+   * @returns Promise resolving to the command execution result
+   */
+  protected abstract startCommand(): Promise<CommandResult>;
+
+  /**
+   * Handle text input during command execution
+   *
+   * This method is called when a user sends text input during command execution.
+   * Override this method to implement specific text input handling logic.
+   *
+   * @param text - The text input from the user
+   * @returns Promise resolving to the command execution result
+   */
+  protected abstract handleTextInput(text: string): Promise<CommandResult>;
+
+  /**
+   * Handle callback data from inline buttons
+   *
+   * This method is called when a user clicks an inline button during command execution.
+   * Override this method to implement specific callback data handling logic.
+   *
+   * @param data - The callback data from the button
+   * @param session - The current command session
+   * @returns Promise resolving to the command execution result
+   */
+  protected abstract handleCallbackData(
+    data: string,
+    session: CommandSession,
+  ): Promise<CommandResult>;
 
   /**
    * Get help text for this command

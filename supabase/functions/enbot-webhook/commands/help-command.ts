@@ -22,13 +22,12 @@ export class HelpCommand extends BaseCommand {
 • /uscita \\- 💸 Registra una nuova uscita  
 • /notacredito \\- 📄 Registra una nota di credito
 • /help \\- ❓ Mostra questo messaggio di aiuto
-• /cancel \\- ❌ Annulla la transazione in corso
 
 **Come utilizzare:**
 1\\. Usa uno dei comandi per registrare una transazione
 2\\. Seleziona la categoria appropriata
 3\\. Segui le istruzioni per inserire i dati richiesti
-4\\. Usa /cancel se vuoi annullare
+4\\. Completa tutti i passaggi richiesti
 
 **Tipi di transazioni:**
 • **Entrate**: Quote mensili, esami, iscrizioni, eventi, depositi, altro

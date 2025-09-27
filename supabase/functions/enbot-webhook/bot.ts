@@ -83,6 +83,7 @@ export class EnBot {
   ): Promise<void> {
     const commands: BotCommand[] = this.commandRegistry
       .getAllCommands()
+      .filter((command) => command.getCommandName() !== 'start')
       .map((command) => ({
         command: command.getCommandName(),
         description: command.getDescription(),

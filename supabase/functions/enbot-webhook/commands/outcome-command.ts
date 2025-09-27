@@ -52,54 +52,38 @@ export class OutcomeCommand extends BaseCommand {
       categoryName === 'Rimborsi';
   }
 
-  async execute(): Promise<CommandResult> {
-    if (this.context.message) {
-      return await this.handleMessage(this.context.message);
-    } else if (this.context.callbackQuery) {
-      return await this.handleCallbackQuery(this.context.callbackQuery);
-    }
-    return {
-      success: false,
-      message: `${this.commandName} command execution failed`,
-    };
-  }
-
-  private async handleMessage(
-    message: TelegramMessage,
-  ): Promise<CommandResult> {
-    // Check if this is a command initiation (both /uscita and /uscita@botname)
-    const commandPrefix = `/${this.commandName}`;
-    const isCommandStart = message.text === commandPrefix ||
-      (message.text?.startsWith(commandPrefix + '@') ?? false);
-
-    if (isCommandStart) {
-      return await this.startOutcome();
-    } else {
-      return await this.handleTextInput(message.text!);
-    }
-  }
-
-  private async handleCallbackQuery(
-    callbackQuery: TelegramCallbackQuery,
-  ): Promise<CommandResult> {
+  protected async handleTextInput(text: string): Promise<CommandResult> {
     const session = await this.loadCommandSession();
     if (!session) {
       return { success: false, message: 'Nessuna sessione trovata' };
     }
-    console.log(
-      '🔍 OutcomeCommand: Handling callback query:',
-      callbackQuery,
-      session,
-    );
+    switch (session.step) {
+      case STEPS.PersonName:
+        return await this.handlePersonNameSelectionWithStep(text, session);
+      case STEPS.Amount:
+        return await this.handleAmountInputWithStep(text, session);
+      case STEPS.Description:
+        return await this.handleDescriptionInputWithStep(text, session);
+      default:
+        return {
+          success: false,
+          message: "Passo non valido per l'inserimento di un'uscita",
+        };
+    }
+  }
 
+  protected async handleCallbackData(
+    data: string,
+    session: CommandSession,
+  ): Promise<CommandResult> {
     // Handle CategoryStep callbacks (category_, category_page_)
     if (
       session.step === STEPS.Category &&
-      (callbackQuery.data?.startsWith('category_') ||
-        callbackQuery.data?.startsWith('category_page_'))
+      (data.startsWith('category_') ||
+        data.startsWith('category_page_'))
     ) {
       return await this.handleCategorySelectionWithStep(
-        callbackQuery.data,
+        data,
         session,
       );
     }
@@ -107,10 +91,10 @@ export class OutcomeCommand extends BaseCommand {
     // Handle PersonNameStep callbacks (contact:)
     if (
       session.step === STEPS.PersonName &&
-      callbackQuery.data?.startsWith('contact:')
+      data.startsWith('contact:')
     ) {
       return await this.handlePersonNameCallbackWithStep(
-        callbackQuery.data,
+        data,
         session,
       );
     }
@@ -118,22 +102,22 @@ export class OutcomeCommand extends BaseCommand {
     // Handle PeriodStep callbacks (month:, year:)
     if (
       session.step === STEPS.Period &&
-      (callbackQuery.data?.startsWith('month:') ||
-        callbackQuery.data?.startsWith('year:'))
+      (data.startsWith('month:') ||
+        data.startsWith('year:'))
     ) {
       return await this.handlePeriodSelectionWithStep(
-        callbackQuery.data,
+        data,
         session,
       );
     }
 
     return {
       success: false,
-      message: `Unknown callback data ${callbackQuery.data}`,
+      message: `Unknown callback data ${data}`,
     };
   }
 
-  private async startOutcome(): Promise<CommandResult> {
+  protected async startCommand(): Promise<CommandResult> {
     // Clean any existing session with message cleanup
     await this.deleteUserSessionWithCleanup(true, false);
 
@@ -168,26 +152,6 @@ export class OutcomeCommand extends BaseCommand {
     await this.sendMessage(content.text, content.options);
 
     return { success: true, message: 'Outcome started' };
-  }
-
-  private async handleTextInput(text: string): Promise<CommandResult> {
-    const session = await this.loadCommandSession();
-    if (!session) {
-      return { success: false, message: 'Nessuna sessione trovata' };
-    }
-    switch (session.step) {
-      case STEPS.PersonName:
-        return await this.handlePersonNameSelectionWithStep(text, session);
-      case STEPS.Amount:
-        return await this.handleAmountInputWithStep(text, session);
-      case STEPS.Description:
-        return await this.handleDescriptionInputWithStep(text, session);
-      default:
-        return {
-          success: false,
-          message: "Passo non valido per l'inserimento di un'uscita",
-        };
-    }
   }
 
   private async handleCategorySelectionWithStep(
