@@ -20,7 +20,8 @@ async function main(): Promise<void> {
     ?.split('=')[1];
   const chatIdArg = Deno.args.find((arg) => arg.startsWith('--chat-id='))
     ?.split('=')[1];
-
+  const userIdArg = Deno.args.find((arg) => arg.startsWith('--user-id='))
+    ?.split('=')[1];
   // Determine environment
   const envArg = Deno.args.find((arg) => arg.startsWith('--env='))
     ?.split('=')[1];
@@ -64,7 +65,7 @@ async function main(): Promise<void> {
   );
 
   // Determine scope for command removal
-  let scope: TelegramBotCommandScope | undefined;
+  let scope: TelegramBotCommandScope | undefined = { type: 'default' };
 
   if (scopeArg === 'group') {
     if (chatIdArg) {
@@ -104,6 +105,22 @@ async function main(): Promise<void> {
       type: 'all_chat_administrators',
     };
     console.log('🎯 Removing commands from all chat administrators');
+  } else if (scopeArg === 'chat_administrators') {
+    scope = {
+      type: 'chat_administrators',
+      chat_id: parseInt(chatIdArg),
+    };
+    console.log('🎯 Removing commands from specific chat administrators');
+  } else if (scopeArg === 'chat_member') {
+    scope = {
+      type: 'chat_member',
+      chat_id: parseInt(chatIdArg),
+      user_id: parseInt(userIdArg),
+    };
+    console.log(
+      `🎯 Removing commands from specific chat member: ${chatIdArg} ${userIdArg}`,
+    );
+    console.log('🎯 Removing commands from specific chat member');
   } else {
     // Default: remove global commands
     console.log('🎯 Removing global bot commands');

@@ -36,13 +36,17 @@ enum STEPS {
 
 export class CreditNoteCommand extends BaseCommand {
   static commandName = 'notacredito';
-  static description = '📄 Registra una nuova nota di credito';
+  static description = '📄↩️ Registra una nuova nota di credito';
+  static emoji = '📄↩️';
   private readonly messagePrefix = '__notacredito:';
 
   constructor(context: CommandContext) {
     super(context, CreditNoteCommand.commandName);
   }
 
+  override getDescription(): string {
+    return CreditNoteCommand.description;
+  }
   /**
    * Check if the current category requires a description step
    */
