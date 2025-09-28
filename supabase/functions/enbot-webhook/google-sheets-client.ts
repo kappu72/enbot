@@ -4,7 +4,7 @@ import type { LegacyTransaction } from './types.ts';
 export interface GoogleSheetsConfig {
   serviceAccountKey: string; // Base64 encoded service account JSON
   spreadsheetId: string;
-  sheetName?: string; // Optional sheet name, defaults to 'Transactions'
+  sheetName?: string; // Optional sheet name, will be determined by command type
 }
 
 export interface GoogleSheetsRow {
@@ -180,10 +180,16 @@ export class GoogleSheetsClient {
   /**
    * Get spreadsheet information and create sheet if it doesn't exist
    */
-  private async ensureSheetExists(): Promise<string> {
+  private async ensureSheetExists(sheetName?: string): Promise<string> {
     await this.ensureValidToken();
 
-    const sheetName = this.config.sheetName || 'Transactions';
+    const targetSheetName = sheetName || this.config.sheetName;
+
+    if (!targetSheetName) {
+      throw new Error(
+        'Sheet name must be provided either as parameter or in config',
+      );
+    }
 
     try {
       // Get spreadsheet information
@@ -204,16 +210,16 @@ export class GoogleSheetsClient {
 
       const spreadsheet = await response.json();
       const existingSheet = spreadsheet.sheets?.find((sheet: any) =>
-        sheet.properties?.title === sheetName
+        sheet.properties?.title === targetSheetName
       );
 
       if (existingSheet) {
-        return sheetName;
+        return targetSheetName;
       }
 
       // Create the sheet if it doesn't exist
-      await this.createSheet(sheetName);
-      return sheetName;
+      await this.createSheet(targetSheetName);
+      return targetSheetName;
     } catch (error) {
       console.error('❌ Error ensuring sheet exists:', error);
       throw error;
@@ -233,7 +239,7 @@ export class GoogleSheetsClient {
             title: sheetName,
             gridProperties: {
               rowCount: 1000,
-              columnCount: 10, // Updated to match new structure (A-J)
+              columnCount: 8, // Updated to match new structure (A-H)
             },
           },
         },
@@ -267,19 +273,17 @@ export class GoogleSheetsClient {
    */
   private async addHeaders(sheetName: string): Promise<void> {
     const headers = [
-      'ID',
-      'Family',
-      'Category',
-      'Amount',
-      'Year',
-      'Month',
-      'Description',
-      'Recorded By',
-      'Recorded At',
-      'Chat ID',
+      'categoria',
+      'valore',
+      'anno ref',
+      'mese ref',
+      'descrizione',
+      'controparte',
+      'data creazione',
+      'creato da',
     ];
 
-    const range = `${sheetName}!A1:J1`;
+    const range = `${sheetName}!A1:H1`;
 
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}?valueInputOption=RAW`,
@@ -326,13 +330,17 @@ export class GoogleSheetsClient {
    */
   async pushTransaction(
     transaction: LegacyTransaction | GoogleSheetsRow,
+    sheetName?: string,
   ): Promise<void> {
     try {
-      const sheetName = await this.ensureSheetExists();
+      const targetSheetName = sheetName || await this.ensureSheetExists();
       await this.ensureValidToken();
 
+      // Ensure the specific sheet exists
+      await this.ensureSheetExists(targetSheetName);
+
       const row = this.transactionToRow(transaction);
-      const range = `${sheetName}!A:J`;
+      const range = `${targetSheetName}!A:H`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
@@ -354,7 +362,7 @@ export class GoogleSheetsClient {
       }
 
       console.log(
-        `✅ Successfully pushed transaction to Google Sheets: ${transaction.family} - €${transaction.amount}`,
+        `✅ Successfully pushed transaction to Google Sheets (${targetSheetName}): ${transaction.family} - €${transaction.amount}`,
       );
     } catch (error) {
       console.error('❌ Error pushing transaction to Google Sheets:', error);
@@ -367,6 +375,7 @@ export class GoogleSheetsClient {
    */
   async pushTransactions(
     transactions: (LegacyTransaction | GoogleSheetsRow)[],
+    sheetName?: string,
   ): Promise<void> {
     if (transactions.length === 0) {
       console.log('ℹ️ No transactions to push to Google Sheets');
@@ -374,13 +383,16 @@ export class GoogleSheetsClient {
     }
 
     try {
-      const sheetName = await this.ensureSheetExists();
+      const targetSheetName = sheetName || await this.ensureSheetExists();
       await this.ensureValidToken();
+
+      // Ensure the specific sheet exists
+      await this.ensureSheetExists(targetSheetName);
 
       const rows = transactions.map((transaction) =>
         this.transactionToRow(transaction)
       );
-      const range = `${sheetName}!A:J`;
+      const range = `${targetSheetName}!A:H`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
@@ -402,7 +414,7 @@ export class GoogleSheetsClient {
       }
 
       console.log(
-        `✅ Successfully pushed ${transactions.length} transactions to Google Sheets`,
+        `✅ Successfully pushed ${transactions.length} transactions to Google Sheets (${targetSheetName})`,
       );
     } catch (error) {
       console.error('❌ Error pushing transactions to Google Sheets:', error);
@@ -418,7 +430,7 @@ export class GoogleSheetsClient {
       const sheetName = await this.ensureSheetExists();
       await this.ensureValidToken();
 
-      const range = `${sheetName}!A2:J`; // Skip header row
+      const range = `${sheetName}!A2:H`; // Skip header row
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}`,
@@ -465,7 +477,7 @@ export class GoogleSheetsClient {
       const sheetName = await this.ensureSheetExists();
       await this.ensureValidToken();
 
-      const range = `${sheetName}!A2:J`;
+      const range = `${sheetName}!A2:H`;
 
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:clear`,
@@ -497,7 +509,6 @@ export class GoogleSheetsClient {
 export interface GoogleSheetsEnvConfig {
   GOOGLE_SERVICE_ACCOUNT_KEY?: string;
   GOOGLE_SPREADSHEET_ID?: string;
-  GOOGLE_SHEET_NAME?: string;
 }
 
 /**
@@ -514,7 +525,6 @@ export function createGoogleSheetsClient(
 
   const serviceAccountKey = envConfig.GOOGLE_SERVICE_ACCOUNT_KEY;
   const spreadsheetId = envConfig.GOOGLE_SPREADSHEET_ID;
-  const sheetName = envConfig.GOOGLE_SHEET_NAME || 'Transactions';
 
   // Debug logging
   console.log('🔍 Checking Google Sheets configuration:');
@@ -525,11 +535,6 @@ export function createGoogleSheetsClient(
   );
   console.log(
     `- GOOGLE_SPREADSHEET_ID: ${spreadsheetId ? 'Set ✅' : 'Missing ❌'}`,
-  );
-  console.log(
-    `- GOOGLE_SHEET_NAME: ${sheetName} ${
-      sheetName !== 'Transactions' ? '(custom)' : '(default)'
-    }`,
   );
 
   if (!serviceAccountKey || !spreadsheetId) {
@@ -546,6 +551,6 @@ export function createGoogleSheetsClient(
   return new GoogleSheetsClient({
     serviceAccountKey,
     spreadsheetId,
-    sheetName,
+    // No default sheet name - will be determined by command type
   });
 }

@@ -1,7 +1,6 @@
 // Command interface and base classes
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import type {
-  PersistedUserSession,
   TelegramCallbackQuery,
   TelegramMessage,
   UserSession,
@@ -420,6 +419,24 @@ export abstract class BaseCommand implements Command {
   }
 
   /**
+   * Get the Google Sheets name for the current command type
+   * @returns The sheet name to use for this command type
+   * @protected
+   */
+  protected getGoogleSheetsName(): string {
+    switch (this.commandName) {
+      case 'entrata':
+        return 'Entrate Cassa';
+      case 'uscita':
+        return 'Uscite Cassa';
+      case 'notacredito':
+        return 'Note di credito';
+      default:
+        return 'Transazioni'; // Fallback for unknown commands
+    }
+  }
+
+  /**
    * Synchronize transaction with Google Sheets and mark as synced
    *
    * This method provides built-in integration with Google Sheets for transaction
@@ -477,8 +494,12 @@ export abstract class BaseCommand implements Command {
         chatId: transaction.chat_id,
       };
 
-      // Push to Google Sheets
-      await this.context.googleSheetsClient.pushTransaction(googleSheetsRow);
+      // Push to Google Sheets with the appropriate sheet name
+      const sheetName = this.getGoogleSheetsName();
+      await this.context.googleSheetsClient.pushTransaction(
+        googleSheetsRow,
+        sheetName,
+      );
 
       // Update transaction as synced in database
       const { error: updateError } = await this.context.supabase
@@ -495,7 +516,7 @@ export abstract class BaseCommand implements Command {
       }
 
       console.log(
-        `✅ Transaction ${transactionId} successfully synced to Google Sheets`,
+        `✅ Transaction ${transactionId} successfully synced to Google Sheets (${sheetName})`,
       );
       return { success: true };
     } catch (error) {
