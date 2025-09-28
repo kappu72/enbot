@@ -581,14 +581,7 @@ export class CreditNoteCommand extends BaseCommand {
       }
 
       // Create transaction payload using the same format as income/outcome commands
-      const transactionPayload = {
-        category: transactionData.category as string,
-        amount: transactionData.amount as number,
-        description: transactionData.description || '',
-        family: transactionData.family as string,
-        recorded_at: new Date().toISOString(),
-        recorded_by: `@${this.context.username || this.context.userId}`,
-      };
+      const transactionPayload = this.getTransactionPayload(session);
 
       // Save transaction to database using the same schema as income/outcome
       const transaction = {
@@ -619,6 +612,27 @@ export class CreditNoteCommand extends BaseCommand {
       await this.deleteSessionWithCleanup(true, true);
 
       const transactionId = _data.id;
+
+      // Sync with Google Sheets (optional)
+      const syncResult = await this.syncTransactionToGoogleSheets(
+        transactionId,
+      );
+      if (!syncResult.success) {
+        console.warn(
+          `⚠️ Failed to sync transaction ${transactionId} to Google Sheets: ${syncResult.error}`,
+        );
+        // Only show error message if it's not a configuration issue
+        if (!syncResult.error?.includes('not configured')) {
+          await this.sendMessage(
+            '⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            { parse_mode: 'MarkdownV2' },
+          );
+        }
+      } else {
+        console.log(
+          `✅ Transaction ${transactionId} synced to Google Sheets successfully`,
+        );
+      }
 
       // Send notification message
       await this.sendCreditNoteNotification(transactionPayload, transactionId);
