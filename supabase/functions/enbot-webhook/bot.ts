@@ -98,6 +98,42 @@ export class EnBot {
     }
   }
 
+  /**
+   * Remove bot commands menu for Telegram
+   */
+  async removeBotCommands(
+    scope?: TelegramBotCommandScope,
+  ): Promise<void> {
+    try {
+      let commands = await this.getBotCommands(scope);
+      console.log(`🎯 Removing ${commands.length} bot commands`);
+      await this.telegram.deleteMyCommands(scope);
+      commands = await this.getBotCommands(scope);
+      console.log(
+        `✅ Bot commands menu removed successfully: ${commands.length} bot commands`,
+      );
+    } catch (error) {
+      console.error('❌ Failed to remove bot commands:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the list of currently configured bot commands
+   */
+  async getBotCommands(
+    scope?: TelegramBotCommandScope,
+  ): Promise<BotCommand[]> {
+    try {
+      const commands = await this.telegram.getMyCommands(scope);
+      console.log(`✅ Retrieved ${commands.length} bot commands`);
+      return commands;
+    } catch (error) {
+      console.error('❌ Failed to get bot commands:', error);
+      throw error;
+    }
+  }
+
   async processUpdate(update: TelegramUpdate): Promise<void> {
     try {
       // Process callback queries (button presses)

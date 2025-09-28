@@ -5,6 +5,8 @@
  * Usage:
  * - Global commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
  * - Group commands: deno run --allow-env --allow-net --allow-read setup-bot-commands.ts
+ *
+ * To remove bot commands, use: remove-bot-commands.ts
  */
 /// <reference path="./types/deno.d.ts" />
 

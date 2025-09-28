@@ -1,5 +1,10 @@
 // Telegram API client wrapper
-import type { BotCommand, BotConfig, MenuButton } from './types.ts';
+import type {
+  BotCommand,
+  BotConfig,
+  MenuButton,
+  TelegramBotCommandScope,
+} from './types.ts';
 import { validateMarkdownV2 } from './utils/markdown-utils.ts';
 
 export class TelegramClient {
@@ -14,8 +19,8 @@ export class TelegramClient {
   async sendMessage(
     chatId: number | string,
     text: string,
-    options?: any,
-  ): Promise<any> {
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     // Add development mode indicator
     let messageText = text;
     if (this.isDevelopment) {
@@ -65,7 +70,7 @@ export class TelegramClient {
    */
   async setBotCommands(
     commands: BotCommand[],
-    scope?: BotCommandScope,
+    scope?: TelegramBotCommandScope,
   ): Promise<void> {
     console.log('setBotCommands', commands, scope);
     const url = `https://api.telegram.org/bot${this.botToken}/setMyCommands`;
@@ -84,6 +89,51 @@ export class TelegramClient {
       const error = await response.text();
       throw new Error(`Telegram API error setting commands: ${error}`);
     }
+  }
+
+  /**
+   * Remove bot commands menu for groups/chats
+   */
+  async deleteMyCommands(scope?: TelegramBotCommandScope): Promise<void> {
+    console.log('deleteMyCommands', scope);
+    const url = `https://api.telegram.org/bot${this.botToken}/deleteMyCommands`;
+    const payload = scope ? { scope } : {};
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      console.log('deleteMyCommands error', response.text());
+      const error = await response.text();
+      console.log('deleteMyCommands error', error);
+      throw new Error(`Telegram API error deleting commands: ${error}`);
+    }
+    console.log('deleteMyCommands response', await response.json());
+  }
+
+  /**
+   * Get the list of bot commands for a specific scope
+   */
+  async getMyCommands(scope?: TelegramBotCommandScope): Promise<BotCommand[]> {
+    console.log('getMyCommands', scope);
+    const url = `https://api.telegram.org/bot${this.botToken}/getMyCommands`;
+    const payload = scope ? { scope } : {};
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Telegram API error getting commands: ${error}`);
+    }
+
+    const result = await response.json();
+    return result.result || [];
   }
 
   /**
@@ -241,8 +291,9 @@ export class TelegramClient {
           console.log(`🗑️ Message ${messageId} deleted successfully`);
         } catch (error) {
           failed++;
-          const errorMsg =
-            `Failed to delete message ${messageId}: ${error.message}`;
+          const errorMsg = `Failed to delete message ${messageId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
           errors.push(errorMsg);
           console.warn(`❌ ${errorMsg}`);
         }
