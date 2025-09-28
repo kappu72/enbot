@@ -285,11 +285,13 @@ export abstract class BaseCommand implements Command {
 
     try {
       // Track message in message tracking system
-      await this.trackOutgoingMessage(result.message_id, isLastMessage);
+      await this.trackOutgoingMessage(
+        result.message_id as number,
+        isLastMessage,
+      );
     } catch (error) {
       console.warn('❌ Error tracking message:', error);
     }
-    return result;
   }
 
   /**
@@ -946,15 +948,60 @@ export abstract class BaseCommand implements Command {
     try {
       // Clean up messages if requested
       if (cleanupMessages) {
-        // Get all sessions for this user and clean up their messages
-        const sessionId = await this.context.sessionManager.getSessionId(
-          this.context.userId,
-          this.context.chatId,
-          this.commandName,
-        );
+        // Get the current session for this user/chat (there's only one session per user/chat)
+        // We need to get it without specifying command_type since the user might be switching commands
+        const currentSession = await this.context.sessionManager
+          .loadUserSession(
+            this.context.userId,
+            this.context.chatId,
+          );
 
-        if (sessionId) {
-          await this.cleanupSessionMessages(preserveLastMessage);
+        if (currentSession) {
+          console.log(
+            `🧹 Cleaning up messages for session ${currentSession.id} (current command: ${currentSession.command_type})`,
+          );
+
+          // Get all messages for this session
+          const messages = await this.context.sessionManager.getSessionMessages(
+            currentSession.id,
+          );
+
+          if (messages.length === 0) {
+            console.log(
+              `📭 No messages to clean up for session ${currentSession.id}`,
+            );
+          } else {
+            // Determine which messages to delete
+            const messagesToDelete = preserveLastMessage
+              ? messages.filter((msg) => !msg.is_last_message)
+              : messages;
+
+            // Delete messages from Telegram
+            if (messagesToDelete.length > 0) {
+              const messageIds = messagesToDelete.map((msg) => msg.message_id);
+              const result = await this.context.telegram.deleteMessages(
+                this.context.chatId,
+                messageIds,
+              );
+              console.log(
+                `🗑️ Deleted ${result.deleted} messages from Telegram for session ${currentSession.id} (${result.failed} failed)`,
+              );
+            }
+
+            // Clean up from database
+            const dbResult = await this.context.sessionManager
+              .cleanupSessionMessages(
+                currentSession.id,
+                preserveLastMessage,
+              );
+            console.log(
+              `🗑️ Cleaned ${dbResult.deleted} messages from database for session ${currentSession.id}`,
+            );
+          }
+        } else {
+          console.log(
+            `📭 No active session found for user ${this.context.userId} in chat ${this.context.chatId}`,
+          );
         }
       }
 
