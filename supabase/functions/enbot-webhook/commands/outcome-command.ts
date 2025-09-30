@@ -5,7 +5,6 @@ import type {
   CommandSession,
 } from './command-interface.ts';
 import { BaseCommand } from './command-interface.ts';
-import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import {
   createCategoryStep,
   createCategoryUpdatePresenter,
@@ -50,7 +49,8 @@ export class OutcomeCommand extends BaseCommand {
    */
   private requiresPersonNameStep(categoryName: string): boolean {
     return categoryName === 'Stipendi contributi' ||
-      categoryName === 'Rimborsi';
+      categoryName === 'Rimborsi' ||
+      categoryName === 'Straordinaria manutenzione';
   }
 
   protected async handleTextInput(text: string): Promise<CommandResult> {
@@ -750,7 +750,9 @@ export class OutcomeCommand extends BaseCommand {
           await this.sendMessage(
             `⚠️ Uscita salvata ma sincronizzazione con Google Sheets fallita${
               escapeMarkdownV2('.')
-            }${escapeMarkdownV2('.')}. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
+            }${escapeMarkdownV2('.')}. Verrà ritentata automaticamente${
+              escapeMarkdownV2('.')
+            }.`,
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -877,9 +879,11 @@ export class OutcomeCommand extends BaseCommand {
       `🔔  ${boldMarkdownV2('Uscita Registrata')}\n\n` +
       `Spesi *${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
-      }* per ${boldMarkdownV2(escapeMarkdownV2(categoryName))} di ${boldMarkdownV2(monthName)} ${
-        boldMarkdownV2(transactionPayload.year as string)
-      }${familyName ? ` da ${boldMarkdownV2(familyName)}` : ''}\n\n` +
+      }* per ${boldMarkdownV2(escapeMarkdownV2(categoryName))} di ${
+        boldMarkdownV2(monthName)
+      } ${boldMarkdownV2(transactionPayload.year as string)}${
+        familyName ? ` da ${boldMarkdownV2(familyName)}` : ''
+      }\n\n` +
       `Registrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
       `Grazie da EnB`;
 

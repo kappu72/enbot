@@ -16,6 +16,7 @@ import { boldMarkdownV2, escapeMarkdownV2 } from '../utils/markdown-utils.ts';
 interface Contact {
   id: number;
   contact: string;
+  roles?: string[]; // Array of role names for this contact
 }
 
 interface ContactsPage {
@@ -27,7 +28,104 @@ interface ContactsPage {
 }
 
 /**
- * Load contacts from database with pagination
+ * Determine required roles based on command and category
+ */
+
+enum ROLES {
+  'Famiglia' = 'famiglia',
+  'Proprietario' = 'proprietario',
+  'Maestro' = 'maestro',
+  'Fornitore' = 'fornitore',
+  'Multi' = 'multi',
+}
+// Configuration for role requirements based on command and category
+const ROLE_REQUIREMENTS = {
+  'entrata': {
+    defaultRoles: [ROLES.Famiglia] as string[],
+    categoryRoles: {
+      [ROLES.Famiglia]: [
+        'Quota Mensile',
+        'Quota Esame',
+        'Quota Iscrizione',
+        'Deposito Cauzionale',
+      ] as string[],
+      [ROLES.Multi]: ['Eventi', 'Altro'] as string[], // famiglia, proprietario, maestro
+    },
+  },
+  'uscita': {
+    defaultRoles: [ROLES.Fornitore] as string[],
+    categoryRoles: {
+      [ROLES.Proprietario]: ['Starordinaria manutenzione'] as string[],
+      [ROLES.Maestro]: ['Stipendi contributi'] as string[],
+      [ROLES.Multi]: ['Rimborsi'] as string[], // famiglia, proprietario, maestro
+    },
+  },
+  'notadicredito': {
+    defaultRoles: [
+      ROLES.Famiglia,
+      ROLES.Proprietario,
+      ROLES.Maestro,
+    ] as string[], // All categories
+    categoryRoles: {} as Record<string, string[]>,
+  },
+} as const;
+
+function getRequiredRoles(
+  commandType: string,
+  categoryName?: string,
+): string[] {
+  const normalizedCommand = commandType.toLowerCase();
+
+  // Get command configuration
+  const commandConfig =
+    ROLE_REQUIREMENTS[normalizedCommand as keyof typeof ROLE_REQUIREMENTS];
+
+  if (!commandConfig) {
+    // Fallback for unknown commands
+    return ['famiglia', 'proprietario', 'maestro', 'fornitore'];
+  }
+
+  // If no category specified, return default roles
+  if (!categoryName) {
+    return commandConfig.defaultRoles;
+  }
+
+  // Check category-specific roles
+  for (
+    const [roleType, categories] of Object.entries(commandConfig.categoryRoles)
+  ) {
+    if (categories.includes(categoryName)) {
+      switch (roleType) {
+        case ROLES.Famiglia:
+          return [ROLES.Famiglia];
+        case ROLES.Proprietario:
+          return [ROLES.Proprietario];
+        case ROLES.Maestro:
+          return [ROLES.Maestro];
+        case ROLES.Multi:
+          return [ROLES.Famiglia, ROLES.Proprietario, ROLES.Maestro];
+        default:
+          return [ROLES.Famiglia]; // fallback
+      }
+    }
+  }
+
+  // For uscita command, if category not found in specific mappings, use fornitore
+  if (normalizedCommand === 'uscita') {
+    return [ROLES.Fornitore];
+  }
+
+  // For entrata command, if category not found in specific mappings, use famiglia
+  if (normalizedCommand === 'entrata') {
+    return [ROLES.Famiglia];
+  }
+
+  // Default fallback
+  return commandConfig.defaultRoles;
+}
+
+/**
+ * Load contacts from database with role-based filtering and pagination
  */
 async function loadContacts(
   context: StepContext,
@@ -35,31 +133,110 @@ async function loadContacts(
   pageSize = 9,
 ): Promise<ContactsPage> {
   try {
+    // Get command and category from session
+    const commandType = context.session.commandType;
+    const categoryName = context.session.commandData?.category as string;
+
+    // Determine required roles based on command and category
+    const requiredRoles = getRequiredRoles(commandType, categoryName);
+
+    console.log(
+      `🔍 Filtering contacts for command: ${commandType}, category: ${categoryName}, roles: ${requiredRoles}`,
+    );
+
+    // Get contacts with their roles, filtered by required roles
+    const { data: contactsWithRoles, error } = await context.supabase
+      .from('contacts')
+      .select(`
+        id,
+        contact,
+        contact_roles!inner(
+          roles!inner(name)
+        )
+      `)
+      .eq('contact_roles.roles.is_active', true)
+      .in('contact_roles.roles.name', requiredRoles)
+      .order('contact');
+
+    if (error) {
+      console.error('❌ Error loading contacts with roles:', error);
+      throw error;
+    }
+
+    // Transform and deduplicate contacts
+    const contactsMap = new Map<string, Contact>();
+
+    (contactsWithRoles || []).forEach((contactData: unknown) => {
+      const data = contactData as {
+        id: number;
+        contact: string;
+        contact_roles?: Array<{ roles: { name: string } }>;
+      };
+
+      const contactName = data.contact;
+      const roles = data.contact_roles?.map((cr: { roles: { name: string } }) =>
+        cr.roles.name
+      ) || [];
+
+      if (!contactsMap.has(contactName)) {
+        contactsMap.set(contactName, {
+          id: data.id,
+          contact: contactName,
+          roles: roles,
+        });
+      } else {
+        // Merge roles for existing contact
+        const existingContact = contactsMap.get(contactName)!;
+        existingContact.roles = [
+          ...new Set([...existingContact.roles || [], ...roles]),
+        ];
+      }
+    });
+
+    const uniqueContacts = Array.from(contactsMap.values());
+
+    // Apply pagination
+    const offset = page * pageSize;
+    const paginatedContacts = uniqueContacts.slice(offset, offset + pageSize);
+
+    const totalCount = uniqueContacts.length;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    return {
+      contacts: paginatedContacts,
+      currentPage: page,
+      totalPages,
+      hasNext: page < totalPages - 1,
+      hasPrevious: page > 0,
+    };
+  } catch (filterError) {
+    console.error('❌ Failed to load filtered contacts:', filterError);
+
+    // Fallback to unfiltered contacts if role filtering fails
+    console.log('🔄 Falling back to unfiltered contacts');
     const offset = page * pageSize;
 
-    // Get total count
     const { count, error: countError } = await context.supabase
       .from('contacts')
       .select('*', { count: 'exact', head: true });
 
     if (countError) {
-      console.error('❌ Error counting contacts:', countError);
+      console.error('❌ Error counting contacts in fallback:', countError);
       throw countError;
     }
 
     const totalCount = count || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    // Get contacts for current page
-    const { data: contacts, error } = await context.supabase
+    const { data: contacts, error: loadError } = await context.supabase
       .from('contacts')
       .select('id, contact')
       .order('contact')
       .range(offset, offset + pageSize - 1);
 
-    if (error) {
-      console.error('❌ Error loading contacts:', error);
-      throw error;
+    if (loadError) {
+      console.error('❌ Error loading contacts in fallback:', loadError);
+      throw loadError;
     }
 
     return {
@@ -68,15 +245,6 @@ async function loadContacts(
       totalPages,
       hasNext: page < totalPages - 1,
       hasPrevious: page > 0,
-    };
-  } catch (error) {
-    console.error('❌ Failed to load contacts:', error);
-    return {
-      contacts: [],
-      currentPage: 0,
-      totalPages: 0,
-      hasNext: false,
-      hasPrevious: false,
     };
   }
 }
@@ -204,9 +372,46 @@ const presentPersonNameInput: InputPresenter = async (
       parse_mode: 'MarkdownV2',
     };
 
-    const text = getMessageTitle(context) +
-      '📋 Scegli dalla lista o crea un nuovo contatto\n\n' +
+    // Get command and category info for better user experience
+    const commandType = context.session.commandType;
+    const categoryName = context.session.commandData?.category as string;
+    const requiredRoles = getRequiredRoles(commandType, categoryName);
+
+    const commandLabel = commandType === 'entrata'
+      ? 'Entrata'
+      : commandType === 'uscita' || commandType === 'uscite'
+      ? 'Uscita'
+      : commandType === 'notadicredito' || commandType === 'nota di credito'
+      ? 'Nota di Credito'
+      : commandType;
+
+    let text = getMessageTitle(context) +
+      `📋 Scegli dalla lista o crea un nuovo contatto\n\n` +
       `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
+
+    // Add filtering information if roles are being filtered
+    if (requiredRoles.length < 4) { // Less than all roles means filtering is applied
+      const roleLabels = requiredRoles.map((role) => {
+        switch (role) {
+          case 'famiglia':
+            return '👨‍👩‍👧‍👦 Famiglia';
+          case 'proprietario':
+            return '🏢 Proprietario';
+          case 'maestro':
+            return '👨‍🏫 Maestro';
+          case 'fornitore':
+            return '🏪 Fornitore';
+          default:
+            return role;
+        }
+      }).join(', ');
+
+      text += `\n\n🔍 *Contatti filtrati per:* ${roleLabels}`;
+      if (categoryName) {
+        text += `\n📂 *Categoria:* ${escapeMarkdownV2(categoryName)}`;
+      }
+      text += `\n🎯 *Comando:* ${commandLabel}`;
+    }
 
     return {
       text,
@@ -293,9 +498,46 @@ export const updateContactsKeyboard = async (
       parse_mode: 'MarkdownV2',
     };
 
-    const text = getMessageTitle(context) +
-      '📋 Scegli dalla lista o crea un nuovo contatto\n\n' +
+    // Get command and category info for better user experience
+    const commandType = context.session.commandType;
+    const categoryName = context.session.commandData?.category as string;
+    const requiredRoles = getRequiredRoles(commandType, categoryName);
+
+    const commandLabel = commandType === 'entrata'
+      ? 'Entrata'
+      : commandType === 'uscita' || commandType === 'uscite'
+      ? 'Uscita'
+      : commandType === 'notadicredito' || commandType === 'nota di credito'
+      ? 'Nota di Credito'
+      : commandType;
+
+    let text = getMessageTitle(context) +
+      `📋 Scegli dalla lista o crea un nuovo contatto\n\n` +
       `📄 Pagina ${contactsPage.currentPage + 1} di ${contactsPage.totalPages}`;
+
+    // Add filtering information if roles are being filtered
+    if (requiredRoles.length < 4) { // Less than all roles means filtering is applied
+      const roleLabels = requiredRoles.map((role) => {
+        switch (role) {
+          case 'famiglia':
+            return '👨‍👩‍👧‍👦 Famiglia';
+          case 'proprietario':
+            return '🏢 Proprietario';
+          case 'maestro':
+            return '👨‍🏫 Maestro';
+          case 'fornitore':
+            return '🏪 Fornitore';
+          default:
+            return role;
+        }
+      }).join(', ');
+
+      text += `\n\n🔍 *Contatti filtrati per:* ${roleLabels}`;
+      if (categoryName) {
+        text += `\n📂 *Categoria:* ${escapeMarkdownV2(categoryName)}`;
+      }
+      text += `\n🎯 *Comando:* ${commandLabel}`;
+    }
 
     return {
       text,
