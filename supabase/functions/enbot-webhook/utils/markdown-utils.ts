@@ -73,7 +73,7 @@ export function handleLineBreaksMarkdownV2(text: string): string {
   // Split by line breaks, escape each line, then rejoin
   return text
     .split('\n')
-    .map(line => escapeMarkdownV2(line))
+    .map((line) => escapeMarkdownV2(line))
     .join('\n');
 }
 
@@ -86,7 +86,7 @@ export function handleLineBreaksMarkdownV2(text: string): string {
  */
 export function formatMultiLineMarkdownV2(lines: string[]): string {
   return lines
-    .map(line => escapeMarkdownV2(line))
+    .map((line) => escapeMarkdownV2(line))
     .join('\n');
 }
 
@@ -102,21 +102,40 @@ export function validateMarkdownV2(text: string): {
   errors: string[];
   unescapedChars: string[];
 } {
-  const specialChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+  const specialChars = [
+    '_',
+    '*',
+    '[',
+    ']',
+    '(',
+    ')',
+    '~',
+    '`',
+    '>',
+    '#',
+    '+',
+    '-',
+    '=',
+    '|',
+    '{',
+    '}',
+    '.',
+    '!',
+  ];
   const errors: string[] = [];
   const unescapedChars: string[] = [];
-  
+
   // Check each character in the text
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (specialChars.includes(char)) {
       const beforeChar = text[i - 1];
-      
+
       // If the character is not preceded by a backslash, it's unescaped
       if (beforeChar !== '\\') {
         // Check if this is a formatting marker (bold, italic, etc.)
         const isFormattingMarker = isFormattingChar(text, i, char);
-        
+
         if (!isFormattingMarker) {
           if (!unescapedChars.includes(char)) {
             unescapedChars.push(char);
@@ -126,7 +145,7 @@ export function validateMarkdownV2(text: string): {
       }
     }
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -137,47 +156,107 @@ export function validateMarkdownV2(text: string): {
 /**
  * Helper function to determine if a special character is used for formatting
  */
-function isFormattingChar(text: string, position: number, char: string): boolean {
+function isFormattingChar(
+  text: string,
+  position: number,
+  char: string,
+): boolean {
   // Check for bold formatting: *text*
   if (char === '*') {
-    // Look for matching asterisk
+    // Count opening and closing asterisks
+    let openingCount = 0;
+    let closingCount = 0;
+
+    // Count opening asterisks before current position
+    for (let i = 0; i < position; i++) {
+      if (text[i] === '*' && text[i - 1] !== '\\') {
+        openingCount++;
+      }
+    }
+
+    // Count closing asterisks after current position
     for (let i = position + 1; i < text.length; i++) {
       if (text[i] === '*' && text[i - 1] !== '\\') {
-        return true; // Found matching asterisk for bold formatting
+        closingCount++;
       }
     }
+
+    // If we have an unmatched opening asterisk, this could be a closing one
+    return openingCount > closingCount;
   }
-  
+
   // Check for italic formatting: _text_
   if (char === '_') {
-    // Look for matching underscore
+    // Count opening and closing underscores
+    let openingCount = 0;
+    let closingCount = 0;
+
+    // Count opening underscores before current position
+    for (let i = 0; i < position; i++) {
+      if (text[i] === '_' && text[i - 1] !== '\\') {
+        openingCount++;
+      }
+    }
+
+    // Count closing underscores after current position
     for (let i = position + 1; i < text.length; i++) {
       if (text[i] === '_' && text[i - 1] !== '\\') {
-        return true; // Found matching underscore for italic formatting
+        closingCount++;
       }
     }
+
+    // If we have an unmatched opening underscore, this could be a closing one
+    return openingCount > closingCount;
   }
-  
+
   // Check for code formatting: `text`
   if (char === '`') {
-    // Look for matching backtick
+    // Count opening and closing backticks
+    let openingCount = 0;
+    let closingCount = 0;
+
+    // Count opening backticks before current position
+    for (let i = 0; i < position; i++) {
+      if (text[i] === '`' && text[i - 1] !== '\\') {
+        openingCount++;
+      }
+    }
+
+    // Count closing backticks after current position
     for (let i = position + 1; i < text.length; i++) {
       if (text[i] === '`' && text[i - 1] !== '\\') {
-        return true; // Found matching backtick for code formatting
+        closingCount++;
       }
     }
+
+    // If we have an unmatched opening backtick, this could be a closing one
+    return openingCount > closingCount;
   }
-  
+
   // Check for strikethrough formatting: ~text~
   if (char === '~') {
-    // Look for matching tilde
-    for (let i = position + 1; i < text.length; i++) {
+    // Count opening and closing tildes
+    let openingCount = 0;
+    let closingCount = 0;
+
+    // Count opening tildes before current position
+    for (let i = 0; i < position; i++) {
       if (text[i] === '~' && text[i - 1] !== '\\') {
-        return true; // Found matching tilde for strikethrough formatting
+        openingCount++;
       }
     }
+
+    // Count closing tildes after current position
+    for (let i = position + 1; i < text.length; i++) {
+      if (text[i] === '~' && text[i - 1] !== '\\') {
+        closingCount++;
+      }
+    }
+
+    // If we have an unmatched opening tilde, this could be a closing one
+    return openingCount > closingCount;
   }
-  
+
   return false; // Not a formatting character
 }
 

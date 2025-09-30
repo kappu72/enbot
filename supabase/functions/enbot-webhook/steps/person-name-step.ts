@@ -340,7 +340,9 @@ export const presentPersonNameConfirmation: ConfirmationPresenter<string> = (
 ): StepContent => {
   const _mention = context.username ? `@${context.username} ` : '';
 
-  const text = `✅ *Contatto selezionato:* ${selectedContactName}`;
+  const text = `✅ *Contatto selezionato:* ${
+    escapeMarkdownV2(selectedContactName)
+  }`;
 
   const options = {
     parse_mode: 'MarkdownV2',

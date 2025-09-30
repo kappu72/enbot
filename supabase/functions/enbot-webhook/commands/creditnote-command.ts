@@ -23,6 +23,7 @@ import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 import {
   boldMarkdownV2,
+  escapeMarkdownV2,
   formatCurrencyMarkdownV2,
 } from '../utils/markdown-utils.ts';
 
@@ -251,7 +252,7 @@ export class CreditNoteCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          `Categoria selezionata: ${category.name}`,
+          `Categoria selezionata: ${escapeMarkdownV2(category.name)}`,
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -349,7 +350,7 @@ export class CreditNoteCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          `Contatto selezionato: ${contactName}`,
+          `Contatto selezionato: ${escapeMarkdownV2(contactName)}`,
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -601,7 +602,9 @@ export class CreditNoteCommand extends BaseCommand {
       if (error) {
         console.error('Error saving credit note transaction:', error);
         await this.sendMessage(
-          '❌ Errore durante il salvataggio della nota di credito\\. Riprova\\.',
+          `❌ Errore durante il salvataggio della nota di credito${
+            escapeMarkdownV2('.')
+          }. Riprova${escapeMarkdownV2('.')}.`,
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -624,7 +627,9 @@ export class CreditNoteCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            '⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            `⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita${
+              escapeMarkdownV2('.')
+            }. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
             { parse_mode: 'MarkdownV2' },
           );
         }

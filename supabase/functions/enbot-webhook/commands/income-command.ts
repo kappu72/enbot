@@ -23,6 +23,7 @@ import { presentPeriodUpdate } from '../steps/period-step.ts';
 import type { StepContext } from '../steps/step-types.ts';
 import {
   boldMarkdownV2,
+  escapeMarkdownV2,
   formatCurrencyMarkdownV2,
 } from '../utils/markdown-utils.ts';
 import { getMonthByNumber } from '../utils/date-utils.ts';
@@ -246,7 +247,7 @@ export class IncomeCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          `Categoria selezionata: ${category.name}`,
+          `Categoria selezionata: ${escapeMarkdownV2(category.name)}`,
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -452,7 +453,7 @@ export class IncomeCommand extends BaseCommand {
         // Answer the callback query
         await this.answerCallbackQuery(
           callbackQuery.id,
-          `Contatto selezionato: ${contactName}`,
+          `Contatto selezionato: ${escapeMarkdownV2(contactName)}`,
           callbackQuery.message?.chat.id,
           callbackQuery.message?.message_id,
         );
@@ -721,7 +722,9 @@ export class IncomeCommand extends BaseCommand {
       if (error) {
         console.error('Error saving income transaction:', error);
         await this.sendMessage(
-          "❌ Errore durante il salvataggio dell'entrata\\. Riprova\\.",
+          `❌ Errore durante il salvataggio dell'entrata${
+            escapeMarkdownV2('.')
+          }. Riprova${escapeMarkdownV2('.')}.`,
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -744,7 +747,9 @@ export class IncomeCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            '⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita\\. Verrà ritentata automaticamente\\.',
+            `⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita${
+              escapeMarkdownV2('.')
+            }. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -760,7 +765,9 @@ export class IncomeCommand extends BaseCommand {
     } catch (error) {
       console.error('Error completing income:', error);
       await this.sendMessage(
-        "❌ Errore durante il completamento dell'entrata\\.",
+        `❌ Errore durante il completamento dell'entrata${
+          escapeMarkdownV2('.')
+        }.`,
         { parse_mode: 'MarkdownV2' },
       );
       return { success: false, message: 'Completion error' };

@@ -5,6 +5,7 @@ import {
   type CommandResult,
 } from './command-interface.ts';
 import type { TelegramMessage } from '../types.ts';
+import { escapeMarkdownV2 } from '../utils/markdown-utils.ts';
 
 export class HelpCommand extends BaseCommand {
   static commandName = 'help';
@@ -19,15 +20,16 @@ export class HelpCommand extends BaseCommand {
 
 **Comandi disponibili:**
 • /entrata \\- 💰 Registra una nuova entrata
-• /uscita \\- 💸 Registra una nuova uscita  
+• /uscita \\- 💸 Registra una nuova uscita
 • /notacredito \\- 📄 Registra una nota di credito
 • /help \\- ❓ Mostra questo messaggio di aiuto
 
-**Come utilizzare:**
-1\\. Usa uno dei comandi per registrare una transazione
-2\\. Seleziona la categoria appropriata
-3\\. Segui le istruzioni per inserire i dati richiesti
-4\\. Completa tutti i passaggi richiesti
+${
+      escapeMarkdownV2(`**Come utilizzare:**
+1. Usa uno dei comandi per registrare una transazione
+2. Seleziona la categoria appropriata
+3. Segui le istruzioni per inserire i dati richiesti
+4. Completa tutti i passaggi richiesti
 
 **Tipi di transazioni:**
 • **Entrate**: Quote mensili, esami, iscrizioni, eventi, depositi, altro
@@ -40,7 +42,8 @@ export class HelpCommand extends BaseCommand {
 • **Note di credito**: Descrizione per "Spese Varie"
 
 🔒 **Sicurezza:**
-Questo bot può essere utilizzato solo nel gruppo autorizzato\\.`;
+Questo bot può essere utilizzato solo nel gruppo autorizzato.`)
+    }`;
 
     await this.sendMessage(helpMessage, { parse_mode: 'MarkdownV2' });
 

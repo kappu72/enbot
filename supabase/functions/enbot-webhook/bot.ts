@@ -135,6 +135,7 @@ export class EnBot {
   }
 
   async processUpdate(update: TelegramUpdate): Promise<void> {
+    console.log('🔍 Processing update:', update);
     try {
       // Process callback queries (button presses)
       if (update.callback_query) {
@@ -158,7 +159,7 @@ export class EnBot {
     if (!this.authManager.isAllowedChat(msg.chat.id, msg.from.id)) {
       await this.telegram.sendMessage(
         msg.chat.id,
-        '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin.',
+        '❌ Questo bot può essere utilizzato solo nel gruppo autorizzato o da utenti admin',
       );
       return;
     }

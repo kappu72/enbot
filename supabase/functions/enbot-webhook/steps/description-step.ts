@@ -19,8 +19,10 @@ export const descriptionStep = {
     const message = getMessageTitle(context) +
       `Inserisci una descrizione per la categoria ${
         boldMarkdownV2(categoryName)
-      }\\.\n\n` +
-      `Puoi lasciare vuoto premendo invio o scrivere una descrizione dettagliata\\.`;
+      }${escapeMarkdownV2('.')}\n\n` +
+      `Puoi lasciare vuoto premendo invio o scrivere una descrizione dettagliata${
+        escapeMarkdownV2('.')
+      }.`;
 
     return {
       text: message,
@@ -97,7 +99,9 @@ export const descriptionStep = {
   } {
     const message = getMessageTitle(context) +
       `${escapeMarkdownV2(errorMessage)}\n\n` +
-      `📝 Riprova inserendo una descrizione o premi invio per saltare\\.`;
+      `📝 Riprova inserendo una descrizione o premi invio per saltare${
+        escapeMarkdownV2('.')
+      }.`;
 
     return {
       text: message,
@@ -105,7 +109,7 @@ export const descriptionStep = {
         parse_mode: 'MarkdownV2',
         reply_markup: {
           force_reply: true,
-          input_field_placeholder: 'Descrizione (opzionale)',
+          input_field_placeholder: 'Descrizione',
           selective: true,
         },
       },
