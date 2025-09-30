@@ -604,7 +604,7 @@ export class CreditNoteCommand extends BaseCommand {
         await this.sendMessage(
           `❌ Errore durante il salvataggio della nota di credito${
             escapeMarkdownV2('.')
-          }. Riprova${escapeMarkdownV2('.')}.`,
+          }${escapeMarkdownV2('.')}. Riprova${escapeMarkdownV2('.')}.`,
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -629,7 +629,7 @@ export class CreditNoteCommand extends BaseCommand {
           await this.sendMessage(
             `⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita${
               escapeMarkdownV2('.')
-            }. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
+            }${escapeMarkdownV2('.')}. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -791,7 +791,7 @@ export class CreditNoteCommand extends BaseCommand {
 
     const notificationMessage =
       `🔔  ${boldMarkdownV2('Nota di Credito Registrata')}\n\n` +
-      `📄 ${boldMarkdownV2('Categoria')}: ${boldMarkdownV2(categoryName)}\n` +
+      `📄 ${boldMarkdownV2('Categoria')}: ${boldMarkdownV2(escapeMarkdownV2(categoryName))}\n` +
       `👤 ${boldMarkdownV2('Persona')}: ${boldMarkdownV2(familyName)}\n` +
       `💰 ${boldMarkdownV2('Importo')}: ${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)

@@ -155,106 +155,72 @@ export function validateMarkdownV2(text: string): {
 
 /**
  * Helper function to determine if a special character is used for formatting
+ * This function checks if a character is part of valid MarkdownV2 formatting
+ * by looking for properly matched pairs in both directions
  */
 function isFormattingChar(
   text: string,
   position: number,
   char: string,
 ): boolean {
-  // Check for bold formatting: *text*
-  if (char === '*') {
-    // Count opening and closing asterisks
-    let openingCount = 0;
-    let closingCount = 0;
-
-    // Count opening asterisks before current position
-    for (let i = 0; i < position; i++) {
-      if (text[i] === '*' && text[i - 1] !== '\\') {
-        openingCount++;
-      }
-    }
-
-    // Count closing asterisks after current position
-    for (let i = position + 1; i < text.length; i++) {
-      if (text[i] === '*' && text[i - 1] !== '\\') {
-        closingCount++;
-      }
-    }
-
-    // If we have an unmatched opening asterisk, this could be a closing one
-    return openingCount > closingCount;
+  // Check if character is escaped (preceded by backslash)
+  if (position > 0 && text[position - 1] === '\\') {
+    return false;
   }
 
-  // Check for italic formatting: _text_
-  if (char === '_') {
-    // Count opening and closing underscores
-    let openingCount = 0;
-    let closingCount = 0;
+  // For paired formatting characters, check if they form valid pairs
+  if (char === '*' || char === '_' || char === '~' || char === '`') {
+    const pairChar = char;
 
-    // Count opening underscores before current position
-    for (let i = 0; i < position; i++) {
-      if (text[i] === '_' && text[i - 1] !== '\\') {
-        openingCount++;
+    // Look for a matching character in either direction
+    // First check forward (for opening characters)
+    let foundForward = false;
+    let searchPos = position + 1;
+
+    while (searchPos < text.length) {
+      const currentChar = text[searchPos];
+
+      // Skip escaped characters
+      if (currentChar === '\\') {
+        searchPos += 2;
+        continue;
       }
+
+      if (currentChar === pairChar) {
+        foundForward = true;
+        break;
+      }
+
+      searchPos++;
     }
 
-    // Count closing underscores after current position
-    for (let i = position + 1; i < text.length; i++) {
-      if (text[i] === '_' && text[i - 1] !== '\\') {
-        closingCount++;
-      }
+    // If we found a match forward, this character is part of formatting
+    if (foundForward) {
+      return true;
     }
 
-    // If we have an unmatched opening underscore, this could be a closing one
-    return openingCount > closingCount;
-  }
+    // If no forward match, check backward (for closing characters)
+    let foundBackward = false;
+    searchPos = position - 1;
 
-  // Check for code formatting: `text`
-  if (char === '`') {
-    // Count opening and closing backticks
-    let openingCount = 0;
-    let closingCount = 0;
+    while (searchPos >= 0) {
+      const currentChar = text[searchPos];
 
-    // Count opening backticks before current position
-    for (let i = 0; i < position; i++) {
-      if (text[i] === '`' && text[i - 1] !== '\\') {
-        openingCount++;
+      // Skip escaped characters
+      if (currentChar === '\\') {
+        searchPos -= 2;
+        continue;
       }
+
+      if (currentChar === pairChar) {
+        foundBackward = true;
+        break;
+      }
+
+      searchPos--;
     }
 
-    // Count closing backticks after current position
-    for (let i = position + 1; i < text.length; i++) {
-      if (text[i] === '`' && text[i - 1] !== '\\') {
-        closingCount++;
-      }
-    }
-
-    // If we have an unmatched opening backtick, this could be a closing one
-    return openingCount > closingCount;
-  }
-
-  // Check for strikethrough formatting: ~text~
-  if (char === '~') {
-    // Count opening and closing tildes
-    let openingCount = 0;
-    let closingCount = 0;
-
-    // Count opening tildes before current position
-    for (let i = 0; i < position; i++) {
-      if (text[i] === '~' && text[i - 1] !== '\\') {
-        openingCount++;
-      }
-    }
-
-    // Count closing tildes after current position
-    for (let i = position + 1; i < text.length; i++) {
-      if (text[i] === '~' && text[i - 1] !== '\\') {
-        closingCount++;
-      }
-    }
-
-    // If we have an unmatched opening tilde, this could be a closing one
-    return openingCount > closingCount;
+    return foundBackward;
   }
 
   return false; // Not a formatting character

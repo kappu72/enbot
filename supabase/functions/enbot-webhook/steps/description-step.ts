@@ -18,11 +18,11 @@ export const descriptionStep = {
 
     const message = getMessageTitle(context) +
       `Inserisci una descrizione per la categoria ${
-        boldMarkdownV2(categoryName)
+        boldMarkdownV2(escapeMarkdownV2(categoryName))
       }${escapeMarkdownV2('.')}\n\n` +
       `Puoi lasciare vuoto premendo invio o scrivere una descrizione dettagliata${
         escapeMarkdownV2('.')
-      }.`;
+      }`;
 
     return {
       text: message,
@@ -68,11 +68,11 @@ export const descriptionStep = {
     let message: string;
     if (description) {
       message = `✅ ${boldMarkdownV2('Descrizione confermata')}\n\n` +
-        `Categoria: ${boldMarkdownV2(categoryName)}\n` +
-        `Descrizione: ${boldMarkdownV2(description)}`;
+        `Categoria: ${boldMarkdownV2(escapeMarkdownV2(categoryName))}\n` +
+        `Descrizione: ${boldMarkdownV2(escapeMarkdownV2(description))}`;
     } else {
       message = `✅ ${boldMarkdownV2('Descrizione confermata')}\n\n` +
-        `Categoria: ${boldMarkdownV2(categoryName)}\n` +
+        `Categoria: ${boldMarkdownV2(escapeMarkdownV2(categoryName))}\n` +
         `Descrizione: ${boldMarkdownV2('Nessuna descrizione')}`;
     }
 
@@ -101,7 +101,7 @@ export const descriptionStep = {
       `${escapeMarkdownV2(errorMessage)}\n\n` +
       `📝 Riprova inserendo una descrizione o premi invio per saltare${
         escapeMarkdownV2('.')
-      }.`;
+      }`;
 
     return {
       text: message,

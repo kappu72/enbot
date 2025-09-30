@@ -116,6 +116,38 @@ Deno.test('validateMarkdownV2 - basic functionality', () => {
   assertEquals(result3.unescapedChars.includes('_'), true);
 });
 
+Deno.test('validateMarkdownV2 - formatting characters', () => {
+  // Test that properly formatted bold text is considered valid
+  const result1 = validateMarkdownV2('*Hello World*');
+  assertEquals(result1.isValid, true);
+  assertEquals(result1.errors.length, 0);
+
+  // Test that properly formatted italic text is considered valid
+  const result2 = validateMarkdownV2('_Hello World_');
+  assertEquals(result2.isValid, true);
+  assertEquals(result2.errors.length, 0);
+
+  // Test that properly formatted strikethrough text is considered valid
+  const result3 = validateMarkdownV2('~Hello World~');
+  assertEquals(result3.isValid, true);
+  assertEquals(result3.errors.length, 0);
+
+  // Test that properly formatted code text is considered valid
+  const result4 = validateMarkdownV2('`Hello World`');
+  assertEquals(result4.isValid, true);
+  assertEquals(result4.errors.length, 0);
+
+  // Test that unmatched formatting characters are detected as invalid
+  const result5 = validateMarkdownV2('*Hello World');
+  assertEquals(result5.isValid, false);
+  assertEquals(result5.unescapedChars.includes('*'), true);
+
+  // Test complex formatting with escaped content
+  const result6 = validateMarkdownV2('*Price: €25\\.50*');
+  assertEquals(result6.isValid, true);
+  assertEquals(result6.errors.length, 0);
+});
+
 Deno.test('codeBlockMarkdownV2', () => {
   assertEquals(codeBlockMarkdownV2('Hello World'), '`Hello World`');
   assertEquals(codeBlockMarkdownV2('Price: $25.50'), '`Price: $25\\.50`');

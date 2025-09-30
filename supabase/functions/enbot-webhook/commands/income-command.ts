@@ -724,7 +724,7 @@ export class IncomeCommand extends BaseCommand {
         await this.sendMessage(
           `❌ Errore durante il salvataggio dell'entrata${
             escapeMarkdownV2('.')
-          }. Riprova${escapeMarkdownV2('.')}.`,
+          }${escapeMarkdownV2('.')}. Riprova${escapeMarkdownV2('.')}.`,
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -749,7 +749,7 @@ export class IncomeCommand extends BaseCommand {
           await this.sendMessage(
             `⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita${
               escapeMarkdownV2('.')
-            }. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
+            }${escapeMarkdownV2('.')}. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -876,7 +876,7 @@ export class IncomeCommand extends BaseCommand {
       `🔔  ${boldMarkdownV2('Entrata Registrata')}\n\n` +
       `Ricevuti *${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
-      }* per ${boldMarkdownV2(categoryName)} di ${boldMarkdownV2(monthName)} ${
+      }* per ${boldMarkdownV2(escapeMarkdownV2(categoryName))} di ${boldMarkdownV2(monthName)} ${
         boldMarkdownV2(transactionPayload.year as string)
       } da ${boldMarkdownV2(familyName)}\n\n` +
       `Registrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
