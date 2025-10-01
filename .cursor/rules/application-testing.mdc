@@ -1,0 +1,203 @@
+# Application Testing Rule
+
+## Overview
+
+This rule defines the testing strategy and procedures for the EnB (EnBlack) Telegram bot application. Testing must be conducted exclusively through the "Andrea & Cetto" group (ID: -1003125386565) using the telegram-mcp server.
+
+**IMPORTANT**: Always use chat ID -1003125386565 for all testing operations. This is the ONLY authorized chat for testing purposes.
+
+## Testing Environment Setup
+
+### 1. Application Startup
+- **Command**: `pnpm dev`
+- **Verification**: Ensure the application starts successfully without errors
+- **Port**: Application should run on the default development port
+- **Health Check**: Verify the application is responding to requests
+
+### 2. Telegram MCP Server
+- **Restriction**: Only use telegram-mcp tools for bot interaction
+- **Exclusive Group**: All testing must occur in "Andrea & Cetto" group only
+- **Prohibited**: Do not access, read from, or post to any other groups or chats
+
+## Testing Workflow
+
+### Pre-Test Checklist
+- [ ] Application is running with `pnpm dev`
+- [ ] Telegram MCP server is accessible
+- [ ] "Andrea & Cetto" group (ID: -1003125386565) is identified and accessible
+- [ ] No other groups or chats will be accessed during testing
+
+### Test Execution Steps
+1. **Verify Application Health**
+   - Check if `pnpm dev` is running
+   - Confirm bot is responsive in the group
+
+2. **Message Interaction Testing**
+   - Send test commands to the bot
+   - Verify bot responses are correct
+   - Test error handling scenarios
+
+3. **Data Validation**
+   - Verify transactions are recorded correctly
+   - Check data persistence in database
+   - Validate response formatting
+
+## Allowed Telegram MCP Operations
+
+### Read Operations
+- `mcp_telegram-mcp_get_messages` - Only for chat ID -1003125386565 (Andrea & Cetto group)
+- `mcp_telegram-mcp_list_messages` - Only for chat ID -1003125386565 (Andrea & Cetto group)
+- `mcp_telegram-mcp_get_chat` - Only for chat ID -1003125386565 (Andrea & Cetto group)
+- `mcp_telegram-mcp_mark_as_read` - Only for chat ID -1003125386565 (Andrea & Cetto group)
+
+### Write Operations
+- `mcp_telegram-mcp_send_message` - Only to chat ID -1003125386565 (Andrea & Cetto group)
+- `mcp_telegram-mcp_reply_to_message` - Only in chat ID -1003125386565 (Andrea & Cetto group)
+
+## Prohibited Actions
+
+### Groups & Chats
+- ❌ Do not access any group except "Andrea & Cetto" (ID: -1003125386565)
+- ❌ Do not read messages from other groups (only use chat ID -1003125386565)
+- ❌ Do not post messages to other groups (only use chat ID -1003125386565)
+- ❌ Do not check for or interact with other groups (only use chat ID -1003125386565)
+
+### Testing Scope
+- ❌ Do not test with real financial data
+- ❌ Do not interfere with actual bot usage
+- ❌ Do not spam the group with test messages
+- ❌ Do not perform destructive operations
+
+## Test Scenarios
+
+### 1. Bot Command Testing
+```
+Test Commands to Send:
+- /start - Verify welcome message
+- /help - Verify help information
+- /income - Test income recording flow
+- /outcome - Test expense recording flow
+- /notacredito - Test credit note flow
+```
+
+### 2. Message Flow Testing
+
+#### Bot Interaction Patterns
+
+**Important**: The bot interacts with users in two main ways:
+
+##### A. Inline Keyboard Responses
+When the bot sends an inline keyboard (for categories, periods, etc.):
+1. Use `mcp_telegram-mcp_get_message_buttons` to get available buttons
+2. Use `mcp_telegram-mcp_click_inline_button` with the button text to select
+
+**Example**:
+```typescript
+// Get buttons from bot message
+const buttons = await get_message_buttons(chat_id, message_id);
+// Click specific button
+await click_inline_button(chat_id, message_id, "Categoria Name");
+```
+
+##### B. Text Input with Mention
+When the bot sends a text message mentioning the user (@username) asking for input:
+1. The message will mention the user (e.g., "@username")
+2. Use `mcp_telegram-mcp_send_message` with `reply_to` parameter
+3. Reply to the specific bot message that contains the mention
+
+**Example**:
+```typescript
+// Bot sends: "@username 💰 Importo in EUR"
+// Reply to that message
+await send_message(chat_id, "150.50", reply_to=bot_message_id);
+```
+
+#### Step-by-Step Testing Flow
+- Send command and verify bot prompts for required information
+- **Identify interaction type**: Check if bot sends inline keyboard or text mention
+- **Respond appropriately**: Use correct MCP function based on interaction type
+- Test error scenarios (invalid input, missing data)
+- Verify final confirmation messages
+
+### 3. Data Persistence Testing
+- Complete a full transaction flow
+- Verify data is stored in database
+- Check transaction history and formatting
+
+## Validation Criteria
+
+### Functional Requirements
+- [ ] Bot responds to commands within 5 seconds
+- [ ] **Inline keyboard interactions work correctly** (buttons retrieved and clickable)
+- [ ] **Text mention responses work correctly** (replies to bot messages with mentions)
+- [ ] All required information is collected in sequence
+- [ ] Transactions are recorded accurately
+- [ ] Error messages are clear and helpful
+- [ ] Final confirmations include all transaction details
+
+### Non-Functional Requirements
+- [ ] No crashes or unhandled errors
+- [ ] Consistent message formatting
+- [ ] Proper handling of edge cases
+- [ ] Clean session management
+- [ ] **Correct MCP tool usage** for different interaction types
+
+## Cleanup Procedures
+
+### Post-Test Actions
+- Mark test messages as read if necessary
+- Document any issues or unexpected behavior
+- Reset test data if modifications were made
+- Ensure no test artifacts remain in the group
+
+## Reporting
+
+### Test Results Format
+- **Test Date/Time**: [Timestamp]
+- **Application Status**: Running/Failed to start
+- **Tests Executed**: [List of test scenarios]
+- **Results**: Pass/Fail with details
+- **Issues Found**: [List any bugs or unexpected behavior]
+- **Recommendations**: [Suggestions for improvements]
+
+## Emergency Procedures
+
+### If Issues Occur
+1. **Application Crash**: Restart with `pnpm dev`
+2. **Bot Unresponsive**: Check application logs for errors
+3. **Database Issues**: Verify connection and migrations
+4. **Permission Errors**: Ensure telegram-mcp server has proper access
+
+## Integration with Existing Rules
+
+This testing rule integrates with:
+- **feature-requirements**: For testing feature implementations
+- **create-db-functions**: For testing database-related functionality
+- **create-migration**: For testing schema changes
+
+## Best Practices
+
+- **Isolated Testing**: Each test should be independent
+- **Minimal Impact**: Avoid affecting real user data
+- **Clear Documentation**: Document all test steps and results
+- **Responsible Testing**: Respect other users of the group
+- **Error Recovery**: Always have a cleanup plan
+
+### Bot Interaction Best Practices
+
+#### Inline Keyboard Testing
+- Always use `get_message_buttons()` before attempting to click buttons
+- Verify button text matches expected values before clicking
+- Handle pagination (Avanti/Indietro buttons) correctly
+- Wait for keyboard updates after selections
+
+#### Text Response Testing
+- Always check for @username mentions in bot messages
+- Use `reply_to` parameter when responding to bot requests
+- Verify the message ID being replied to is correct
+- Handle both simple text and formatted text responses
+
+#### Error Handling
+- Test invalid inputs and verify appropriate error messages
+- Test edge cases (empty responses, special characters, etc.)
+- Verify bot handles malformed responses gracefully

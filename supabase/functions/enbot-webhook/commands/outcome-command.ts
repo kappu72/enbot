@@ -10,6 +10,7 @@ import {
   createCategoryUpdatePresenter,
 } from '../steps/category-step.ts';
 import {
+  getRequiredRoles,
   personNameStep,
   presentNewContactInput,
   saveNewContact,
@@ -49,8 +50,8 @@ export class OutcomeCommand extends BaseCommand {
    */
   private requiresPersonNameStep(categoryName: string): boolean {
     return categoryName === 'Stipendi contributi' ||
-      categoryName === 'Rimborsi' ||
-      categoryName === 'Straordinaria manutenzione';
+      categoryName === 'Rimborsi';
+    // 'Straordinaria manutenzione' rimosso - non richiede più contatto
   }
 
   protected async handleTextInput(text: string): Promise<CommandResult> {
@@ -321,11 +322,23 @@ export class OutcomeCommand extends BaseCommand {
           contactName,
         );
 
-        const saved = await saveNewContact(stepContext, contactName);
+        // Get required roles for the current command and category
+        const commandType = stepContext.session.commandType;
+        const categoryName = stepContext.session.commandData
+          ?.category as string;
+        const requiredRoles = getRequiredRoles(commandType, categoryName);
+
+        const saved = await saveNewContact(
+          stepContext,
+          contactName,
+          requiredRoles,
+        );
         if (!saved) {
           const errorContent = personNameStep.presentError(
             stepContext,
-            '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+            escapeMarkdownV2(
+              '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+            ),
           );
           await this.sendMessage(errorContent.text, errorContent.options);
           return { success: false, message: 'Failed to save new contact' };
@@ -723,9 +736,10 @@ export class OutcomeCommand extends BaseCommand {
       if (error) {
         console.error('Error saving outcome transaction:', error);
         await this.sendMessage(
-          `❌ Errore durante il salvataggio dell'uscita${
-            escapeMarkdownV2('.')
-          }${escapeMarkdownV2('.')}. Riprova${escapeMarkdownV2('.')}.`,
+          escapeMarkdownV2(
+            `⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita.
+             Verrà ritentata automaticamente.`,
+          ),
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -874,6 +888,7 @@ export class OutcomeCommand extends BaseCommand {
     const categoryName = transactionPayload.category as string;
     const familyName = transactionPayload.family as string;
     const recordedBy = transactionPayload.recorded_by as string;
+    const description = transactionPayload.description as string;
 
     const notificationMessage =
       `🔔  ${boldMarkdownV2('Uscita Registrata')}\n\n` +
@@ -884,6 +899,11 @@ export class OutcomeCommand extends BaseCommand {
       } ${boldMarkdownV2(transactionPayload.year as string)}${
         familyName ? ` da ${boldMarkdownV2(familyName)}` : ''
       }\n\n` +
+      (description && description.trim()
+        ? `📝 ${boldMarkdownV2('Descrizione')}: ${
+          boldMarkdownV2(escapeMarkdownV2(description))
+        }\n\n`
+        : '') +
       `Registrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
       `Grazie da EnB`;
 

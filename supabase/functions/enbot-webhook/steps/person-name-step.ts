@@ -55,7 +55,7 @@ const ROLE_REQUIREMENTS = {
   'uscita': {
     defaultRoles: [ROLES.Fornitore] as string[],
     categoryRoles: {
-      [ROLES.Proprietario]: ['Starordinaria manutenzione'] as string[],
+      // [ROLES.Proprietario]: ['Straordinaria manutenzione'], // Rimosso - ora usa fornitore di default
       [ROLES.Maestro]: ['Stipendi contributi'] as string[],
       [ROLES.Multi]: ['Rimborsi'] as string[], // famiglia, proprietario, maestro
     },
@@ -70,7 +70,7 @@ const ROLE_REQUIREMENTS = {
   },
 } as const;
 
-function getRequiredRoles(
+export function getRequiredRoles(
   commandType: string,
   categoryName?: string,
 ): string[] {
@@ -130,7 +130,7 @@ function getRequiredRoles(
 async function loadContacts(
   context: StepContext,
   page = 0,
-  pageSize = 9,
+  pageSize = 12,
 ): Promise<ContactsPage> {
   try {
     // Get command and category from session
@@ -144,14 +144,19 @@ async function loadContacts(
       `🔍 Filtering contacts for command: ${commandType}, category: ${categoryName}, roles: ${requiredRoles}`,
     );
 
-    // Get contacts with their roles, filtered by required roles
-    const { data: contactsWithRoles, error } = await context.supabase
+    // Get contacts with their roles, filtered by required roles in a single optimized query
+    console.log('🔍 Querying contacts with required roles:', requiredRoles);
+
+    // Single query approach: Get all contacts with their roles, then filter in application code
+    // This is more reliable than trying to filter on nested fields in PostgREST
+    const { data: filteredContacts, error } = await context.supabase
       .from('contacts')
       .select(`
         id,
         contact,
         contact_roles!inner(
-          roles!inner(name)
+          id,
+          roles!inner(id, name, is_active)
         )
       `)
       .eq('contact_roles.roles.is_active', true)
@@ -159,51 +164,39 @@ async function loadContacts(
       .order('contact');
 
     if (error) {
-      console.error('❌ Error loading contacts with roles:', error);
+      console.error('❌ Error loading all contacts with roles:', error);
       throw error;
     }
 
-    // Transform and deduplicate contacts
-    const contactsMap = new Map<string, Contact>();
-
-    (contactsWithRoles || []).forEach((contactData: unknown) => {
-      const data = contactData as {
-        id: number;
-        contact: string;
-        contact_roles?: Array<{ roles: { name: string } }>;
+    // If no contacts found with the required roles, return empty result
+    if (!filteredContacts || filteredContacts.length === 0) {
+      console.log('⚠️ No contacts found with required roles:', requiredRoles);
+      return {
+        contacts: [],
+        currentPage: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
       };
-
-      const contactName = data.contact;
-      const roles = data.contact_roles?.map((cr: { roles: { name: string } }) =>
-        cr.roles.name
-      ) || [];
-
-      if (!contactsMap.has(contactName)) {
-        contactsMap.set(contactName, {
-          id: data.id,
-          contact: contactName,
-          roles: roles,
-        });
-      } else {
-        // Merge roles for existing contact
-        const existingContact = contactsMap.get(contactName)!;
-        existingContact.roles = [
-          ...new Set([...existingContact.roles || [], ...roles]),
-        ];
+    }
+    const distinctMap = new Map();
+    filteredContacts.forEach((row) => {
+      if (!distinctMap.has(row.contact)) {
+        distinctMap.set(row.contact, row);
       }
     });
 
-    const uniqueContacts = Array.from(contactsMap.values());
+    const distinctData = Array.from(distinctMap.values());
 
     // Apply pagination
     const offset = page * pageSize;
-    const paginatedContacts = uniqueContacts.slice(offset, offset + pageSize);
+    const paginatedContacts = distinctData.slice(offset, offset + pageSize);
 
-    const totalCount = uniqueContacts.length;
+    const totalCount = distinctData.length;
     const totalPages = Math.ceil(totalCount / pageSize);
-
+    console.log('🔍 Paginated contacts:', paginatedContacts);
     return {
-      contacts: paginatedContacts,
+      contacts: paginatedContacts as unknown as Contact[],
       currentPage: page,
       totalPages,
       hasNext: page < totalPages - 1,
@@ -212,39 +205,12 @@ async function loadContacts(
   } catch (filterError) {
     console.error('❌ Failed to load filtered contacts:', filterError);
 
-    // Fallback to unfiltered contacts if role filtering fails
-    console.log('🔄 Falling back to unfiltered contacts');
-    const offset = page * pageSize;
-
-    const { count, error: countError } = await context.supabase
-      .from('contacts')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('❌ Error counting contacts in fallback:', countError);
-      throw countError;
-    }
-
-    const totalCount = count || 0;
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    const { data: contacts, error: loadError } = await context.supabase
-      .from('contacts')
-      .select('id, contact')
-      .order('contact')
-      .range(offset, offset + pageSize - 1);
-
-    if (loadError) {
-      console.error('❌ Error loading contacts in fallback:', loadError);
-      throw loadError;
-    }
-
     return {
-      contacts: contacts || [],
+      contacts: [],
       currentPage: page,
-      totalPages,
-      hasNext: page < totalPages - 1,
-      hasPrevious: page > 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrevious: false,
     };
   }
 }
@@ -258,7 +224,7 @@ function createContactsKeyboard(
   const keyboard: { text: string; callback_data: string }[][] = [];
   const { contacts, hasNext, hasPrevious, currentPage } = contactsPage;
 
-  // Create 3x3 grid of contacts (max 9 contacts per page)
+  // Create 4x3 grid of contacts (max 12 contacts per page)
   for (let i = 0; i < contacts.length; i += 3) {
     const row = contacts.slice(i, i + 3).map((contact) => ({
       text: contact.contact,
@@ -267,7 +233,7 @@ function createContactsKeyboard(
     keyboard.push(row);
   }
 
-  // Add navigation row (4th row) - always show prev/next buttons
+  // Add navigation row (5th row) - always show prev/next buttons
   const navRow = [];
 
   // Previous button (always present, disabled if no previous page)
@@ -362,7 +328,7 @@ const presentPersonNameInput: InputPresenter = async (
 ): Promise<StepContent> => {
   try {
     // Load contacts for first page
-    const contactsPage = await loadContacts(context, 0, 9);
+    const contactsPage = await loadContacts(context, 0, 12);
     const keyboard = createContactsKeyboard(contactsPage);
 
     const options = {
@@ -488,7 +454,7 @@ export const updateContactsKeyboard = async (
     const pageMatch = callbackData.match(/contact:page:(\d+)/);
     const page = pageMatch ? parseInt(pageMatch[1]) : 0;
 
-    const contactsPage = await loadContacts(context, page, 9);
+    const contactsPage = await loadContacts(context, page, 12);
     const keyboard = createContactsKeyboard(contactsPage);
 
     const options = {
@@ -598,23 +564,79 @@ export const presentPersonNameConfirmation: ConfirmationPresenter<string> = (
 };
 
 /**
- * Save new contact to database
+ * Save new contact to database with appropriate roles
  */
 export const saveNewContact = async (
   context: StepContext,
   contactName: string,
+  requiredRoles?: string[],
 ): Promise<boolean> => {
   try {
-    const { error } = await context.supabase
-      .from('contacts')
-      .insert({ contact: contactName });
+    // Get command and category from session to determine roles if not provided
+    const commandType = context.session.commandType;
+    const categoryName = context.session.commandData?.category as string;
 
-    if (error) {
-      console.error('❌ Error saving new contact:', error);
+    // If roles not provided, determine them from context
+    const rolesToAssign = requiredRoles ||
+      getRequiredRoles(commandType, categoryName);
+
+    console.log(
+      `🔄 Saving new contact: ${contactName} with roles: ${rolesToAssign}`,
+    );
+
+    // First, insert the contact
+    const { data: contactData, error: contactError } = await context.supabase
+      .from('contacts')
+      .insert({ contact: contactName })
+      .select('id')
+      .single();
+
+    if (contactError) {
+      console.error('❌ Error saving new contact:', contactError);
       return false;
     }
 
-    console.log(`✅ New contact saved: ${contactName}`);
+    const contactId = contactData.id;
+    console.log(`✅ Contact inserted with ID: ${contactId}`);
+
+    // Get role IDs for the roles to assign
+    const { data: rolesData, error: rolesError } = await context.supabase
+      .from('roles')
+      .select('id, name')
+      .in('name', rolesToAssign);
+
+    if (rolesError) {
+      console.error('❌ Error fetching role IDs:', rolesError);
+      return false;
+    }
+
+    if (!rolesData || rolesData.length === 0) {
+      console.error('❌ No roles found for:', rolesToAssign);
+      return false;
+    }
+
+    // Create role assignments
+    const roleAssignments = rolesData.map((role) => ({
+      contact_id: contactId,
+      role_id: role.id,
+      sort_order: 0,
+    }));
+
+    // Insert role assignments
+    const { error: assignmentError } = await context.supabase
+      .from('contact_roles')
+      .insert(roleAssignments);
+
+    if (assignmentError) {
+      console.error('❌ Error assigning roles to contact:', assignmentError);
+      return false;
+    }
+
+    console.log(
+      `✅ New contact saved: ${contactName} with roles: ${
+        rolesToAssign.join(', ')
+      }`,
+    );
     return true;
   } catch (error) {
     console.error('❌ Failed to save new contact:', error);
@@ -640,7 +662,7 @@ export const presentPersonNameError: ErrorPresenter = (
 
   const text = getMessageTitle(context) +
     `${error}\n\n` +
-    `👤 **Riprova inserendo il nome:**\n` +
+    `👤 *Riprova inserendo il nome:*!!\n` +
     `📝 Inserisci il nome completo\n` +
     `📋 Esempi: Mario Rossi, Anna De Sanctis, John D'Angelo`;
 

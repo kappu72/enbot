@@ -301,6 +301,43 @@ export class SessionManager {
     isLastMessage: boolean = false,
   ): Promise<void> {
     try {
+      // First check if message is already tracked
+      const { data: existingMessage, error: selectError } = await this.supabase
+        .from('session_messages')
+        .select('id, message_type, is_last_message')
+        .eq('session_id', sessionId)
+        .eq('message_id', messageId)
+        .single();
+
+      if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('❌ Error checking existing message:', selectError);
+        throw selectError;
+      }
+
+      if (existingMessage) {
+        // Message already exists, just update if needed
+        console.log(
+          `📝 Message already tracked: session ${sessionId}, message ${messageId}, type: ${existingMessage.message_type}`,
+        );
+
+        // Update is_last_message if this should be the last message
+        if (isLastMessage && !existingMessage.is_last_message) {
+          const { error: updateError } = await this.supabase
+            .from('session_messages')
+            .update({ is_last_message: true })
+            .eq('session_id', sessionId)
+            .eq('message_id', messageId);
+
+          if (updateError) {
+            console.error('❌ Error updating message last flag:', updateError);
+            // Don't throw error for this, it's not critical
+          }
+        }
+
+        return;
+      }
+
+      // Message doesn't exist, insert it
       const { error } = await this.supabase
         .from('session_messages')
         .insert({

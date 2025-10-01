@@ -119,6 +119,8 @@
   - Implement message deletion functionality in TelegramClient
   - Add cleanup logic after successful command execution
   - Ensure proper error handling for message deletion failures
+  - Add descriptions to uscite command notification message
+  - **Enhance outcome notification messages to include user-provided descriptions**
   - **Priority**: Medium | **Effort**: Medium
 
 - [ ] **Better Error Messages**

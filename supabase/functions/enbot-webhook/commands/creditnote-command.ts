@@ -11,6 +11,7 @@ import {
   createCategoryUpdatePresenter,
 } from '../steps/category-step.ts';
 import {
+  getRequiredRoles,
   personNameStep,
   presentNewContactInput,
   saveNewContact,
@@ -380,11 +381,22 @@ export class CreditNoteCommand extends BaseCommand {
         contactName,
       );
 
-      const saved = await saveNewContact(stepContext, contactName);
+      // Get required roles for the current command and category
+      const commandType = stepContext.session.commandType;
+      const categoryName = stepContext.session.commandData?.category as string;
+      const requiredRoles = getRequiredRoles(commandType, categoryName);
+
+      const saved = await saveNewContact(
+        stepContext,
+        contactName,
+        requiredRoles,
+      );
       if (!saved) {
         const errorContent = personNameStep.presentError(
           stepContext,
-          '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+          escapeMarkdownV2(
+            '❌ Errore nel salvataggio del nuovo contatto. Riprova.',
+          ),
         );
         await this.sendMessage(errorContent.text, errorContent.options);
         return { success: false, message: 'Failed to save new contact' };
@@ -602,9 +614,10 @@ export class CreditNoteCommand extends BaseCommand {
       if (error) {
         console.error('Error saving credit note transaction:', error);
         await this.sendMessage(
-          `❌ Errore durante il salvataggio della nota di credito${
-            escapeMarkdownV2('.')
-          }${escapeMarkdownV2('.')}. Riprova${escapeMarkdownV2('.')}.`,
+          escapeMarkdownV2(
+            `⚠️ Entrata salvata ma sincronizzazione con Google Sheets fallita.
+             Verrà ritentata automaticamente.`,
+          ),
           { parse_mode: 'MarkdownV2' },
         );
         return { success: false, message: 'Database error' };
@@ -627,9 +640,10 @@ export class CreditNoteCommand extends BaseCommand {
         // Only show error message if it's not a configuration issue
         if (!syncResult.error?.includes('not configured')) {
           await this.sendMessage(
-            `⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita${
-              escapeMarkdownV2('.')
-            }${escapeMarkdownV2('.')}. Verrà ritentata automaticamente${escapeMarkdownV2('.')}.`,
+            escapeMarkdownV2(
+              `⚠️ Nota di credito salvata ma sincronizzazione con Google Sheets fallita.
+             Verrà ritentata automaticamente.`,
+            ),
             { parse_mode: 'MarkdownV2' },
           );
         }
@@ -791,7 +805,9 @@ export class CreditNoteCommand extends BaseCommand {
 
     const notificationMessage =
       `🔔  ${boldMarkdownV2('Nota di Credito Registrata')}\n\n` +
-      `📄 ${boldMarkdownV2('Categoria')}: ${boldMarkdownV2(escapeMarkdownV2(categoryName))}\n` +
+      `📄 ${boldMarkdownV2('Categoria')}: ${
+        boldMarkdownV2(escapeMarkdownV2(categoryName))
+      }\n` +
       `👤 ${boldMarkdownV2('Persona')}: ${boldMarkdownV2(familyName)}\n` +
       `💰 ${boldMarkdownV2('Importo')}: ${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)

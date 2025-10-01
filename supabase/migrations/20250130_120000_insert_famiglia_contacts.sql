@@ -179,3 +179,25 @@ UPDATE contact_roles SET updated_at = NOW() WHERE contact_id IN (
         'Vivoli'
     )
 );
+
+-- Enable RLS policies for roles and contact_roles tables to allow anon access
+-- This is needed because the edge functions run as anon users and need to read these tables
+
+-- Allow anon users to read roles
+CREATE POLICY "Allow anon users to read roles" ON roles
+    FOR SELECT USING (true);
+
+-- Allow anon users to read contact_roles
+CREATE POLICY "Allow anon users to read contact_roles" ON contact_roles
+    FOR SELECT USING (true);
+
+-- Allow anon users to insert contact_roles (for new contact creation)
+CREATE POLICY "Allow anon users to insert contact_roles" ON contact_roles
+    FOR INSERT TO anon
+    WITH CHECK (true);
+
+-- Allow anon users to update contact_roles (if needed for future modifications)
+CREATE POLICY "Allow anon users to update contact_roles" ON contact_roles
+    FOR UPDATE TO anon
+    USING (true)
+    WITH CHECK (true);
