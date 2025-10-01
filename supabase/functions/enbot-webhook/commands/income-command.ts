@@ -884,6 +884,7 @@ export class IncomeCommand extends BaseCommand {
     const categoryName = transactionPayload.category as string;
     const familyName = transactionPayload.family as string;
     const recordedBy = transactionPayload.recorded_by as string;
+    const description = transactionPayload.description as string;
 
     const notificationMessage =
       `🔔  ${boldMarkdownV2('Entrata Registrata')}\n\n` +
@@ -894,6 +895,11 @@ export class IncomeCommand extends BaseCommand {
       } ${boldMarkdownV2(transactionPayload.year as string)} da ${
         boldMarkdownV2(familyName)
       }\n\n` +
+      (description && description.trim()
+        ? `📝 ${boldMarkdownV2('Descrizione')}: ${
+          boldMarkdownV2(escapeMarkdownV2(description))
+        }\n\n`
+        : '') +
       `Registrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
       `Grazie da EnB`;
 

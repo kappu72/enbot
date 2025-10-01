@@ -812,10 +812,10 @@ export class CreditNoteCommand extends BaseCommand {
       `💰 ${boldMarkdownV2('Importo')}: ${
         formatCurrencyMarkdownV2(transactionPayload.amount as number)
       }\n` +
-      (description
+      (description && description.trim()
         ? `📝 ${boldMarkdownV2('Descrizione')}: ${
-          boldMarkdownV2(description)
-        }\n`
+          boldMarkdownV2(escapeMarkdownV2(description))
+        }\n\n`
         : '') +
       `\nRegistrato da: ${boldMarkdownV2(recordedBy)}\n\n` +
       `Grazie da EnB`;

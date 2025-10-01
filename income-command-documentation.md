@@ -8,14 +8,14 @@ Il comando `/entrata` del bot EnB permette di registrare nuove entrate finanziar
 
 Il comando income supporta 6 categorie principali:
 
-| Categoria | Label | Descrizione | Flusso Speciale |
-|-----------|-------|-------------|-----------------|
-| **Quota Mensile** | Quota | Quota mensile per la scuola | Standard |
-| **Quota Esame** | Esame | Quota per esami | Standard |
-| **Quota Iscrizione** | Iscrizione | Quota di iscrizione | Standard |
-| **Eventi** | Eventi | Spese per eventi | Speciale |
-| **Deposito Cauzionale** | D. cauzione | Deposito cauzionale | Standard |
-| **Altro** | Altro | Altre spese/redditi | Speciale |
+| Categoria | Label | Descrizione | Richiede Descrizione |
+|-----------|-------|-------------|---------------------|
+| **Quota Mensile** | Quota | Quota mensile per la scuola | ❌ No |
+| **Quota Esame** | Esame | Quota per esami | ❌ No |
+| **Quota Iscrizione** | Iscrizione | Quota di iscrizione | ❌ No |
+| **Eventi** | Eventi | Spese per eventi | ✅ Sì |
+| **Deposito Cauzionale** | D. cauzione | Deposito cauzionale | ❌ No |
+| **Altro** | Altro | Altre spese/redditi | ✅ Sì |
 
 ## Differenze nel Flusso
 
@@ -30,7 +30,7 @@ Categoria → Nome persona → Importo → Periodo → Completamento
 - Quota Iscrizione
 - Deposito Cauzionale
 
-### Flusso Speciale (2 categorie)
+### Flusso con Descrizione (2 categorie)
 ```
 Categoria → Nome persona → Importo → Descrizione → Periodo → Completamento
 ```
@@ -39,7 +39,7 @@ Categoria → Nome persona → Importo → Descrizione → Periodo → Completam
 - Eventi
 - Altro
 
-**Differenza chiave:** Queste categorie richiedono obbligatoriamente il campo descrizione per fornire maggiori dettagli sulla transazione.
+**Differenza chiave:** Queste categorie richiedono obbligatoriamente il campo descrizione per fornire maggiori dettagli sull'entrata.
 
 ## Logica di Filtraggio Contatti
 
