@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import { EnBot } from './bot.ts';
 import type { GoogleSheetsEnvConfig } from './google-sheets-client.ts';
 

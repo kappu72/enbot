@@ -14,15 +14,36 @@ export class StartCommand extends BaseCommand {
     super(context, StartCommand.commandName);
   }
 
-  async execute(): Promise<CommandResult> {
+  override async execute(): Promise<CommandResult> {
     // Create a help command instance and execute it
     const helpCommand = new HelpCommand(this.context);
     return await helpCommand.execute();
   }
 
-  getHelpText(): string {
+  override getHelpText(): string {
     return `🚀 ${StartCommand.description}\n\n` +
       `Questo comando avvia il bot e mostra la guida completa con tutti i comandi disponibili.\n\n` +
       `Usa /${StartCommand.commandName} per iniziare.`;
+  }
+
+  protected async startCommand(): Promise<CommandResult> {
+    return this.execute();
+  }
+
+  protected async handleTextInput(_text: string): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Start command does not accept text input',
+    };
+  }
+
+  protected async handleCallbackData(
+    _data: string,
+    _session: any,
+  ): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Start command does not accept callback data',
+    };
   }
 }

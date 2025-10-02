@@ -509,6 +509,7 @@ export class GoogleSheetsClient {
 export interface GoogleSheetsEnvConfig {
   GOOGLE_SERVICE_ACCOUNT_KEY?: string;
   GOOGLE_SPREADSHEET_ID?: string;
+  GOOGLE_SHEET_NAME?: string;
 }
 
 /**

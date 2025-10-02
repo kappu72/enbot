@@ -1,5 +1,5 @@
 // Command registry and router - Fixed version
-import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TelegramCallbackQuery, TelegramMessage } from '../types.ts';
 import { TelegramClient } from '../telegram-client.ts';
 import { SessionManager } from '../session-manager.ts';
@@ -191,6 +191,7 @@ export class CommandRegistry {
       userId,
       chatId,
     );
+    console.log('🔍 CommandRegistry: User session:', userSession);
 
     if (userSession) {
       const command = this.createCommandInstance(

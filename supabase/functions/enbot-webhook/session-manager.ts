@@ -1,5 +1,5 @@
 // Session persistence manager
-import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PersistedUserSession, UserSession } from './types.ts';
 
 export interface SessionMessage {

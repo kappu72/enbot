@@ -14,7 +14,7 @@ export class HelpCommand extends BaseCommand {
     super(context, HelpCommand.commandName);
   }
 
-  async execute(): Promise<CommandResult> {
+  override async execute(): Promise<CommandResult> {
     const helpMessage = `
 🤖 **EnBot \\- Gestione Transazioni**
 
@@ -56,5 +56,23 @@ Questo bot può essere utilizzato solo nel gruppo autorizzato.`)
 
   override getDescription(): string {
     return HelpCommand.description;
+  }
+
+  protected async startCommand(): Promise<CommandResult> {
+    return this.execute();
+  }
+
+  protected async handleTextInput(_text: string): Promise<CommandResult> {
+    return { success: false, error: 'Help command does not accept text input' };
+  }
+
+  protected async handleCallbackData(
+    _data: string,
+    _session: any,
+  ): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Help command does not accept callback data',
+    };
   }
 }
