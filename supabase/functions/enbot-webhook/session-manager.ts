@@ -71,6 +71,7 @@ export class SessionManager {
     commandType?: string,
   ): Promise<PersistedUserSession | null> {
     try {
+      console.log('🔍 Loading session for user', userId, chatId, commandType);
       let query = this.supabase
         .from('user_sessions')
         .select('*')
@@ -115,6 +116,7 @@ export class SessionManager {
     userId: number,
     chatId: number,
   ): Promise<PersistedUserSession | null> {
+    console.log('🔍 Loading user session for user', userId, chatId);
     try {
       const { data, error } = await this.supabase
         .from('user_sessions')
@@ -518,6 +520,12 @@ export class SessionManager {
     commandType: string,
   ): Promise<number | null> {
     try {
+      console.log(
+        '🔍 Getting session ID for user',
+        userId,
+        chatId,
+        commandType,
+      );
       const { data, error } = await this.supabase
         .from('user_sessions')
         .select('id')
@@ -551,6 +559,12 @@ export class SessionManager {
     chatId: number,
     commandType: string,
   ): Promise<number | null> {
+    console.log(
+      '🔍 Getting last outgoing message ID for user',
+      userId,
+      chatId,
+      commandType,
+    );
     try {
       const sessionId = await this.getSessionId(userId, chatId, commandType);
       if (!sessionId) {
