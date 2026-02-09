@@ -14,6 +14,8 @@ import { OutcomeCommand } from './commands/outcome-command.ts'; // Handles /usci
 import { CreditNoteCommand } from './commands/creditnote-command.ts'; // Handles /notacredito command
 import { StartCommand } from './commands/start-command.ts'; // Handles /start command
 import { HelpCommand } from './commands/help-command.ts';
+import { CancelCommand } from './commands/cancel-command.ts'; // Handles /cancel command
+import { SyncCommand } from './commands/sync-command.ts'; // Handles /sync command
 import {
   createGoogleSheetsClient,
   type GoogleSheetsEnvConfig,
@@ -71,6 +73,8 @@ export class EnBot {
     this.commandRegistry.registerCommand(IncomeCommand);
     this.commandRegistry.registerCommand(OutcomeCommand);
     this.commandRegistry.registerCommand(CreditNoteCommand);
+    this.commandRegistry.registerCommand(CancelCommand);
+    this.commandRegistry.registerCommand(SyncCommand);
     this.commandRegistry.registerCommand(HelpCommand);
     console.log('🎯 Command system initialized');
   }

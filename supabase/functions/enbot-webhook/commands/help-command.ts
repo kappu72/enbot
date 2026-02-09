@@ -22,6 +22,8 @@ export class HelpCommand extends BaseCommand {
 • /entrata \\- 💰 Registra una nuova entrata
 • /uscita \\- 💸 Registra una nuova uscita
 • /notacredito \\- 📄 Registra una nota di credito
+• /cancel \\- ❌ Cancella la sessione attiva corrente
+• /sync \\- 🔄 Verifica e sincronizza transazioni mancanti
 • /help \\- ❓ Mostra questo messaggio di aiuto
 
 ${

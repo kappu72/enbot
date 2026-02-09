@@ -251,6 +251,7 @@ export class GoogleSheetsClient {
       `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}:batchUpdate`,
       {
         method: 'POST',
+        redirect: 'error',
         headers: {
           'Authorization': `Bearer ${this.accessToken!.access_token}`,
           'Content-Type': 'application/json',
@@ -284,11 +285,13 @@ export class GoogleSheetsClient {
     ];
 
     const range = `${sheetName}!A1:H1`;
+    const encodedRange = this.encodeRange(range);
 
     await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}?valueInputOption=RAW`,
       {
         method: 'PUT',
+        redirect: 'error',
         headers: {
           'Authorization': `Bearer ${this.accessToken!.access_token}`,
           'Content-Type': 'application/json',
@@ -297,6 +300,133 @@ export class GoogleSheetsClient {
           values: [headers],
         }),
       },
+    );
+  }
+
+  /**
+   * Encode a range string for use in Google Sheets API URLs
+   * Sheet names with spaces and special chars need URL encoding
+   */
+  private encodeRange(range: string): string {
+    return encodeURIComponent(range);
+  }
+
+  /**
+   * Get all data rows from a specific sheet tab (skipping the header row)
+   * Returns raw string arrays for each row
+   * @param sheetName - The name of the sheet tab to read from
+   * @returns Array of string arrays, one per row, or empty array if sheet doesn't exist
+   */
+  async getSheetData(sheetName: string): Promise<string[][]> {
+    try {
+      await this.ensureValidToken();
+
+      const range = `${sheetName}!A2:H`;
+      const encodedRange = this.encodeRange(range);
+
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken!.access_token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn(
+          `⚠️ Failed to get sheet data for "${sheetName}": ${errorText}`,
+        );
+        return [];
+      }
+
+      const data = await response.json();
+      return data.values || [];
+    } catch (error) {
+      console.error(
+        `❌ Error getting sheet data for "${sheetName}":`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Create a new sheet tab with custom headers and write data rows
+   * Used for sync/audit reports that have a different structure than transaction sheets
+   * @param sheetName - Name for the new sheet tab
+   * @param headers - Array of header strings
+   * @param rows - Array of data rows (each row is an array of values)
+   */
+  async createCustomSheet(
+    sheetName: string,
+    headers: string[],
+    rows: (string | number)[][],
+  ): Promise<void> {
+    await this.ensureValidToken();
+
+    // Create the sheet
+    const createResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        redirect: 'error',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken!.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [{
+            addSheet: {
+              properties: {
+                title: sheetName,
+                gridProperties: {
+                  rowCount: Math.max(rows.length + 10, 100),
+                  columnCount: headers.length,
+                },
+              },
+            },
+          }],
+        }),
+      },
+    );
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      throw new Error(`Failed to create custom sheet "${sheetName}": ${error}`);
+    }
+
+    // Write headers + data in one batch
+    const allRows = [headers, ...rows];
+    const lastCol = String.fromCharCode(64 + headers.length);
+    const range = `${sheetName}!A1:${lastCol}${allRows.length}`;
+    const encodedRange = this.encodeRange(range);
+
+    const writeResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        redirect: 'error',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken!.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: allRows,
+        }),
+      },
+    );
+
+    if (!writeResponse.ok) {
+      const error = await writeResponse.text();
+      throw new Error(
+        `Failed to write data to custom sheet "${sheetName}": ${error}`,
+      );
+    }
+
+    console.log(
+      `✅ Created custom sheet "${sheetName}" with ${headers.length} columns and ${rows.length} data rows`,
     );
   }
 
@@ -341,11 +471,13 @@ export class GoogleSheetsClient {
 
       const row = this.transactionToRow(transaction);
       const range = `${targetSheetName}!A:H`;
+      const encodedRange = this.encodeRange(range);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}:append?valueInputOption=RAW`,
         {
           method: 'POST',
+          redirect: 'error',
           headers: {
             'Authorization': `Bearer ${this.accessToken!.access_token}`,
             'Content-Type': 'application/json',
@@ -361,8 +493,21 @@ export class GoogleSheetsClient {
         throw new Error(`Failed to append transaction: ${error}`);
       }
 
+      // Verify the response body confirms data was actually written
+      const responseData = await response.json();
+      const updatedRows = responseData?.updates?.updatedRows ?? 0;
+      if (updatedRows === 0) {
+        console.error(
+          '❌ Google Sheets append returned 200 but updatedRows is 0:',
+          JSON.stringify(responseData),
+        );
+        throw new Error(
+          'Google Sheets append succeeded (HTTP 200) but no rows were actually written (updatedRows=0)',
+        );
+      }
+
       console.log(
-        `✅ Successfully pushed transaction to Google Sheets (${targetSheetName}): ${transaction.family} - €${transaction.amount}`,
+        `✅ Successfully pushed transaction to Google Sheets (${targetSheetName}): ${transaction.family} - €${transaction.amount} [${updatedRows} row(s) written]`,
       );
     } catch (error) {
       console.error('❌ Error pushing transaction to Google Sheets:', error);
@@ -393,11 +538,13 @@ export class GoogleSheetsClient {
         this.transactionToRow(transaction)
       );
       const range = `${targetSheetName}!A:H`;
+      const encodedRange = this.encodeRange(range);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:append?valueInputOption=RAW`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}:append?valueInputOption=RAW`,
         {
           method: 'POST',
+          redirect: 'error',
           headers: {
             'Authorization': `Bearer ${this.accessToken!.access_token}`,
             'Content-Type': 'application/json',
@@ -413,8 +560,21 @@ export class GoogleSheetsClient {
         throw new Error(`Failed to append transactions: ${error}`);
       }
 
+      // Verify the response body confirms data was actually written
+      const responseData = await response.json();
+      const updatedRows = responseData?.updates?.updatedRows ?? 0;
+      if (updatedRows === 0) {
+        console.error(
+          '❌ Google Sheets batch append returned 200 but updatedRows is 0:',
+          JSON.stringify(responseData),
+        );
+        throw new Error(
+          `Google Sheets batch append succeeded (HTTP 200) but no rows were actually written (updatedRows=0)`,
+        );
+      }
+
       console.log(
-        `✅ Successfully pushed ${transactions.length} transactions to Google Sheets (${targetSheetName})`,
+        `✅ Successfully pushed ${transactions.length} transactions to Google Sheets (${targetSheetName}) [${updatedRows} row(s) written]`,
       );
     } catch (error) {
       console.error('❌ Error pushing transactions to Google Sheets:', error);
@@ -431,9 +591,10 @@ export class GoogleSheetsClient {
       await this.ensureValidToken();
 
       const range = `${sheetName}!A2:H`; // Skip header row
+      const encodedRange = this.encodeRange(range);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken!.access_token}`,
@@ -478,11 +639,13 @@ export class GoogleSheetsClient {
       await this.ensureValidToken();
 
       const range = `${sheetName}!A2:H`;
+      const encodedRange = this.encodeRange(range);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${range}:clear`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodedRange}:clear`,
         {
           method: 'POST',
+          redirect: 'error',
           headers: {
             'Authorization': `Bearer ${this.accessToken!.access_token}`,
           },

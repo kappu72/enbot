@@ -63,6 +63,14 @@
   - Add data backup/restore functionality
   - **Priority**: Medium | **Effort**: High
 
+- [ ] **Cancel Command**
+  - Create new CancelCommand class to clean active user sessions
+  - Implement `/cancel` command that removes current session data
+  - Add confirmation step to prevent accidental cancellation
+  - Clean up any pending messages related to the cancelled session
+  - Provide clear feedback to user about cancellation result
+  - **Priority**: High | **Effort**: Low
+
 - [ ] **Admin Commands**
   - Add `/admin` command for bot management
   - Implement session cleanup commands

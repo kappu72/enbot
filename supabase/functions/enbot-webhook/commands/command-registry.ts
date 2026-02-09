@@ -186,7 +186,16 @@ export class CommandRegistry {
       callbackQuery,
     );
 
-    // The callback should always have am active session
+    // Special handling for cancel command callbacks
+    if (callbackQuery.data === 'CONFIRM_CANCEL' || callbackQuery.data === 'CANCEL_CANCEL') {
+      console.log(`🔍 CommandRegistry: Routing cancel callback to CancelCommand: ${callbackQuery.data}`);
+      const cancelCommand = this.createCommandInstance('cancel', context);
+      if (cancelCommand) {
+        return await cancelCommand.execute();
+      }
+    }
+
+    // The callback should always have an active session
     const userSession = await this.sessionManager.loadUserSession(
       userId,
       chatId,
