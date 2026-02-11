@@ -344,8 +344,15 @@ export abstract class BaseCommand implements Command {
       console.log('🔍 Message edited:', result);
     } catch (error) {
       console.warn('❌ Error editing last message:', error);
-      // Fallback: send new message if edit fails
-      await this.sendMessage(text, options);
+      // Only answer callback to remove loading state; do not send a new message
+      if (this.context.callbackQuery) {
+        await this.answerCallbackQuery(
+          this.context.callbackQuery.id,
+          undefined,
+          this.context.callbackQuery.message?.chat.id,
+          this.context.callbackQuery.message?.message_id,
+        );
+      }
     }
   }
 

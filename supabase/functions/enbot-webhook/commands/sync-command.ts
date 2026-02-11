@@ -63,6 +63,7 @@ export class SyncCommand extends BaseCommand {
       await this.context.telegram.sendMessage(
         this.context.chatId,
         '❌ Google Sheets non configurato. Imposta GOOGLE_SERVICE_ACCOUNT_KEY e GOOGLE_SPREADSHEET_ID.',
+        { parse_mode: 'HTML' },
       );
       return { success: false, error: 'Google Sheets not configured' };
     }
@@ -71,6 +72,7 @@ export class SyncCommand extends BaseCommand {
     await this.context.telegram.sendMessage(
       this.context.chatId,
       '🔄 Analisi sincronizzazione in corso...',
+      { parse_mode: 'HTML' },
     );
 
     try {
@@ -86,6 +88,7 @@ export class SyncCommand extends BaseCommand {
         await this.context.telegram.sendMessage(
           this.context.chatId,
           '❌ Errore nel recupero delle transazioni dal database.',
+          { parse_mode: 'HTML' },
         );
         return { success: false, error: 'DB error' };
       }
